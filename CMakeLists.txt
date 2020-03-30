@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 project(ssith_aws_fpga)
 
+add_subdirectory(src/tinyemu)
+
 set(CMAKE_CXX_STANDARD 14)
 
 include_directories(src)
@@ -65,4 +67,4 @@ add_executable(ssith_aws_fpga
         src/loadelf.cpp
         src/loadelf.h
         src/testawsp2.cpp)
-target_link_libraries(ssith_aws_fpga pthread elf)
+target_link_libraries(ssith_aws_fpga tinyemu pthread elf)
