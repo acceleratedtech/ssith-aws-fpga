@@ -28,17 +28,17 @@ add_executable(ssith_aws_fpga
         src/connectal/portalPrintf.c
         # src/connectal/portalPython.cpp
         # src/connectal/runpython.cpp
-        # src/connectal/sock_utils.c
-        # src/connectal/sock_utils.h
+        src/connectal/sock_utils.c
+        src/connectal/sock_utils.h
         src/connectal/timer.c
         # src/connectal/TlpReplay.cpp
         src/connectal/transportHardware.c
         # src/connectal/transportPortal.c
         # src/connectal/transportSerial.c
         # src/connectal/transportShared.c
-        # src/connectal/transportSocket.c
+        src/connectal/transportSocket.c
         # src/connectal/transportWebSocket.c
-        # src/connectal/transportXsim.c
+        src/connectal/transportXsim.c
 
         src/generated/AWSP2_Request.c
         src/generated/AWSP2_Request.h
@@ -62,6 +62,12 @@ add_executable(ssith_aws_fpga
         src/generated/MMURequest.c
         src/generated/MMURequest.h
         src/generated/MMURequestJson.cpp
+	src/generated/XsimMsgIndication.c
+	src/generated/XsimMsgIndication.h
+	src/generated/XsimMsgIndicationJson.cpp
+	src/generated/XsimMsgRequest.c
+	src/generated/XsimMsgRequest.h
+	src/generated/XsimMsgRequestJson.cpp
         src/generated/topEnum.h
         src/fpga.h
         src/loadelf.cpp

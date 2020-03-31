@@ -18,6 +18,7 @@ typedef struct TileControl {
     uint8_t tile : 2;
     TileState state;
 } TileControl;
+typedef enum XsimIfcNames { XsimIfcNames_XsimMsgRequest, XsimIfcNames_XsimMsgIndication,  } XsimIfcNames;
 typedef enum IfcNames { IfcNamesNone=0, PlatformIfcNames_MemServerRequestS2H=1, PlatformIfcNames_MMURequestS2H=2, PlatformIfcNames_MemServerIndicationH2S=3, PlatformIfcNames_MMUIndicationH2S=4, IfcNames_AWSP2_ResponseH2S=5, IfcNames_AWSP2_RequestS2H=6,  } IfcNames;
 
 
@@ -207,6 +208,58 @@ int MMUIndicationJson_configResp ( struct PortalInternal *p, const uint32_t sglI
 int MMUIndicationJson_error ( struct PortalInternal *p, const uint32_t code, const uint32_t sglId, const uint64_t offset, const uint64_t extra );
 int MMUIndicationJson_handleMessage(struct PortalInternal *p, unsigned int channel, int messageFd);
 extern MMUIndicationCb MMUIndicationJsonProxyReq;
+
+int XsimMsgRequest_msgSink ( struct PortalInternal *p, const uint32_t portal, const uint32_t data );
+int XsimMsgRequest_msgSinkFd ( struct PortalInternal *p, const uint32_t portal, const SpecialTypeForSendingFd data );
+enum { CHAN_NUM_XsimMsgRequest_msgSink,CHAN_NUM_XsimMsgRequest_msgSinkFd};
+extern const uint32_t XsimMsgRequest_reqinfo;
+
+typedef struct {
+    uint32_t portal;
+    uint32_t data;
+} XsimMsgRequest_msgSinkData;
+typedef struct {
+    uint32_t portal;
+    SpecialTypeForSendingFd data;
+} XsimMsgRequest_msgSinkFdData;
+typedef union {
+    XsimMsgRequest_msgSinkData msgSink;
+    XsimMsgRequest_msgSinkFdData msgSinkFd;
+} XsimMsgRequestData;
+int XsimMsgRequest_handleMessage(struct PortalInternal *p, unsigned int channel, int messageFd);
+typedef struct {
+    PORTAL_DISCONNECT disconnect;
+    int (*msgSink) (  struct PortalInternal *p, const uint32_t portal, const uint32_t data );
+    int (*msgSinkFd) (  struct PortalInternal *p, const uint32_t portal, const SpecialTypeForSendingFd data );
+} XsimMsgRequestCb;
+extern XsimMsgRequestCb XsimMsgRequestProxyReq;
+
+int XsimMsgRequestJson_msgSink ( struct PortalInternal *p, const uint32_t portal, const uint32_t data );
+int XsimMsgRequestJson_msgSinkFd ( struct PortalInternal *p, const uint32_t portal, const SpecialTypeForSendingFd data );
+int XsimMsgRequestJson_handleMessage(struct PortalInternal *p, unsigned int channel, int messageFd);
+extern XsimMsgRequestCb XsimMsgRequestJsonProxyReq;
+
+int XsimMsgIndication_msgSource ( struct PortalInternal *p, const uint32_t portal, const uint32_t data );
+enum { CHAN_NUM_XsimMsgIndication_msgSource};
+extern const uint32_t XsimMsgIndication_reqinfo;
+
+typedef struct {
+    uint32_t portal;
+    uint32_t data;
+} XsimMsgIndication_msgSourceData;
+typedef union {
+    XsimMsgIndication_msgSourceData msgSource;
+} XsimMsgIndicationData;
+int XsimMsgIndication_handleMessage(struct PortalInternal *p, unsigned int channel, int messageFd);
+typedef struct {
+    PORTAL_DISCONNECT disconnect;
+    int (*msgSource) (  struct PortalInternal *p, const uint32_t portal, const uint32_t data );
+} XsimMsgIndicationCb;
+extern XsimMsgIndicationCb XsimMsgIndicationProxyReq;
+
+int XsimMsgIndicationJson_msgSource ( struct PortalInternal *p, const uint32_t portal, const uint32_t data );
+int XsimMsgIndicationJson_handleMessage(struct PortalInternal *p, unsigned int channel, int messageFd);
+extern XsimMsgIndicationCb XsimMsgIndicationJsonProxyReq;
 
 int AWSP2_Request_set_debug_verbosity ( struct PortalInternal *p, const uint8_t verbosity );
 int AWSP2_Request_set_fabric_verbosity ( struct PortalInternal *p, const uint8_t verbosity );

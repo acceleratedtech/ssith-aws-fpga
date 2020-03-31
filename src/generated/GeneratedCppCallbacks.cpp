@@ -129,6 +129,41 @@ MMUIndicationCb MMUIndication_cbTable = {
     MMUIndicationerror_cb,
 };
 
+/************** Start of XsimMsgRequestWrapper CPP ***********/
+#include "XsimMsgRequest.h"
+int XsimMsgRequestdisconnect_cb (struct PortalInternal *p) {
+    (static_cast<XsimMsgRequestWrapper *>(p->parent))->disconnect();
+    return 0;
+};
+int XsimMsgRequestmsgSink_cb (  struct PortalInternal *p, const uint32_t portal, const uint32_t data ) {
+    (static_cast<XsimMsgRequestWrapper *>(p->parent))->msgSink ( portal, data);
+    return 0;
+};
+int XsimMsgRequestmsgSinkFd_cb (  struct PortalInternal *p, const uint32_t portal, const SpecialTypeForSendingFd data ) {
+    (static_cast<XsimMsgRequestWrapper *>(p->parent))->msgSinkFd ( portal, data);
+    return 0;
+};
+XsimMsgRequestCb XsimMsgRequest_cbTable = {
+    XsimMsgRequestdisconnect_cb,
+    XsimMsgRequestmsgSink_cb,
+    XsimMsgRequestmsgSinkFd_cb,
+};
+
+/************** Start of XsimMsgIndicationWrapper CPP ***********/
+#include "XsimMsgIndication.h"
+int XsimMsgIndicationdisconnect_cb (struct PortalInternal *p) {
+    (static_cast<XsimMsgIndicationWrapper *>(p->parent))->disconnect();
+    return 0;
+};
+int XsimMsgIndicationmsgSource_cb (  struct PortalInternal *p, const uint32_t portal, const uint32_t data ) {
+    (static_cast<XsimMsgIndicationWrapper *>(p->parent))->msgSource ( portal, data);
+    return 0;
+};
+XsimMsgIndicationCb XsimMsgIndication_cbTable = {
+    XsimMsgIndicationdisconnect_cb,
+    XsimMsgIndicationmsgSource_cb,
+};
+
 /************** Start of AWSP2_RequestWrapper CPP ***********/
 #include "AWSP2_Request.h"
 int AWSP2_Requestdisconnect_cb (struct PortalInternal *p) {
