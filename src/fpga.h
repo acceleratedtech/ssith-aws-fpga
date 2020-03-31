@@ -126,12 +126,86 @@ AWSP2(int id)
             memcpy(&addr, &packet[3], sizeof(addr));
             memcpy(&val, &packet[12], sizeof(val));
             fprintf(stderr, "[TV] write mem [%08lx] <- %08x\n", addr, val);
-        } else if (packet[0] == te_op_begin_group && packet[1] == te_op_addl_state && packet[2] == te_op_addl_state_pc && packet[11] == te_op_32b_instr) {
-            uint64_t addr = 0;
-            uint32_t instr = 0;
-            memcpy(&addr, &packet[3], sizeof(addr));
-            memcpy(&instr, &packet[12], sizeof(instr));
-            fprintf(stderr, "[TV] next pc %08lx instr %08x\n", addr, instr);
+        } else if (packet[0] == te_op_begin_group) {
+            int offset = 1;
+            fprintf(stderr, "[TV]");
+	    while (offset < num_bytes) {
+		if (packet[offset] == te_op_addl_state) {
+		    offset++;
+		    if (packet[offset] == te_op_addl_state_priv) {
+			offset++;
+			fprintf(stderr, " priv %x", packet[offset]);
+			offset++;
+		    } else if (packet[offset] == te_op_addl_state_pc) {
+			offset++;
+			uint64_t addr = 0;
+			memcpy(&addr, &packet[offset], sizeof(addr));
+			offset += sizeof(addr);
+			fprintf(stderr, " next pc %08lx", addr);
+		    } else if (packet[offset] == te_op_addl_state_data8) {
+			offset++;
+			uint8_t data = 0;
+			memcpy(&data, &packet[offset], sizeof(data));
+			offset += sizeof(data);
+			fprintf(stderr, " data8 %02x", data);
+		    } else if (packet[offset] == te_op_addl_state_data16) {
+			offset++;
+			uint16_t data = 0;
+			memcpy(&data, &packet[offset], sizeof(data));
+			offset += sizeof(data);
+			fprintf(stderr, " data16 %04x", data);
+		    } else if (packet[offset] == te_op_addl_state_data32) {
+			offset++;
+			uint32_t data = 0;
+			memcpy(&data, &packet[offset], sizeof(data));
+			offset += sizeof(data);
+			fprintf(stderr, " data32 %08x", data);
+		    } else if (packet[offset] == te_op_addl_state_data64) {
+			offset++;
+			uint64_t data = 0;
+			memcpy(&data, &packet[offset], sizeof(data));
+			offset += sizeof(data);
+			fprintf(stderr, " data64 %08lx", data);
+		    } else if (packet[offset] == te_op_addl_state_eaddr) {
+			offset++;
+			uint64_t data = 0;
+			memcpy(&data, &packet[offset], sizeof(data));
+			offset += sizeof(data);
+			fprintf(stderr, " eaddr %08lx", data);
+		    } else {
+			break;
+		    }
+		} else if (packet[offset] == te_op_32b_instr) {
+		    offset++;
+		    uint32_t instr = 0;
+		    memcpy(&instr, &packet[offset], sizeof(instr));
+		    offset += sizeof(instr);
+		    fprintf(stderr, " instr %08x", instr);
+		} else if (packet[offset] == te_op_full_reg) {
+		    offset++;
+		    uint16_t regnum = 0;
+		    uint64_t regval = 0;
+		    memcpy(&regnum, &packet[offset], sizeof(regnum));
+		    offset += sizeof(regnum);
+		    memcpy(&regval, &packet[offset], sizeof(regval));
+		    offset += sizeof(regval);
+
+		    fprintf(stderr, " reg %x val %08lx", regnum, regval);
+		} else if (packet[offset] == te_op_end_group) {
+		    offset++;
+		} else {
+		    break;
+		}
+	    }
+            fprintf(stderr, "\n");
+
+	    if (offset < num_bytes) {
+		fprintf(stderr, " len %d offset %d op %x\n", num_bytes, offset, packet[offset]);
+                for (uint32_t i = 0; i < num_bytes; i++) {
+                    fprintf(stderr, " %02x", packet[i] & 0xFF);
+                }
+                fprintf(stderr, "\n");
+            }
         } else {
             
             fprintf(stderr, "[TV] %d packet", num_bytes);
