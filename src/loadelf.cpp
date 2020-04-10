@@ -19,8 +19,9 @@ void IMemory::write(uint32_t start_addr, const uint32_t *data, size_t num_bytes)
 {
     fprintf(stderr, "IMemory::write addr %x num_bytes %ld\n", start_addr, num_bytes);
     for (size_t i = 0; i < num_bytes; i += 4) {
-	fprintf(stderr, ".");
-	write32(start_addr + i, data[i / 4]);
+        if (((i + 1) % 1024) == 0)
+            fprintf(stderr, ".");
+        write32(start_addr + i, data[i / 4]);
     }
     fprintf(stderr, "\n");
 }
@@ -166,6 +167,43 @@ uint64_t loadElf(IMemory *mem, const char *elf_filename, size_t max_mem_size, ui
 
         // If we find a code/data section, load it into the model
         if (   ((shdr.sh_type == SHT_PROGBITS)
+                || (shdr.sh_type == SHT_NOBITS)
+                || (shdr.sh_type == SHT_INIT_ARRAY)
+                || (shdr.sh_type == SHT_FINI_ARRAY))
+            && ((shdr.sh_flags & SHF_WRITE)
+                || (shdr.sh_flags & SHF_ALLOC)
+                || (shdr.sh_flags & SHF_EXECINSTR))) {
+
+            Elf_Data *data = 0;
+            data = elf_getdata (scn, data);
+
+            // n_initialized += data->d_size;
+            size_t max_addr = (shdr.sh_addr + data->d_size - 1) & ~0xC0000000ul;    // shdr.sh_size + 4;
+
+            if (strcmp(sec_name, ".tohost") == 0 || strcmp(sec_name, ".htif") == 0) {
+                if (tohost_address != 0) {
+                    *tohost_address = shdr.sh_addr;
+                }
+            } else {
+                if (max_addr >= max_mem_size) {
+                    fprintf(stdout, "INTERNAL ERROR: max_addr (0x%0lx) > buffer size (0x%0lx)\n",
+                            max_addr, max_mem_size);
+                    fprintf(stdout, "    Please increase the #define in this program, recompile, and run again\n");
+                    fprintf(stdout, "    Abandoning this run\n");
+                    //exit(1);
+                }
+
+                if (shdr.sh_type != SHT_NOBITS) {
+		    mem->write(shdr.sh_addr, (uint32_t *)data->d_buf, data->d_size);
+                }
+            }
+
+            fprintf (stdout, "addr %16lx to addr %16lx; size 0x%8lx (= %0ld) bytes\n",
+                     shdr.sh_addr, shdr.sh_addr + data->d_size, data->d_size, data->d_size);
+
+        }
+
+        else if (   ((shdr.sh_type == SHT_PROGBITS)
                 || (shdr.sh_type == SHT_NOBITS)
                 || (shdr.sh_type == SHT_INIT_ARRAY)
                 || (shdr.sh_type == SHT_FINI_ARRAY))

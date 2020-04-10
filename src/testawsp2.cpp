@@ -45,31 +45,35 @@ int copyFile(char *buffer, const char *filename, size_t buffer_size)
 const struct option long_options[] = {
     { "bootrom", required_argument, 0, 'b' },
     { "cpuverbosity",   required_argument, 0, 'v' },
+    { "dtb",     required_argument, 0, 'd' },
     { "elf",     required_argument, 0, 'e' },
     { "entry",   required_argument, 0, 'E' },
     { "flash",   required_argument, 0, 'f' },
-    { "usemem",  required_argument, 0, 'M' },
+    { "sleep-seconds", required_argument, 0, 's' },
     { "tv",      no_argument,       0, 'T' },
+    { "usemem",  no_argument,       0, 'M' },
     { 0,         0,                 0, 0 }
 };
 
 void usage(const char *name)
 {
-    fprintf(stderr, "Usage: %s [-b bootrombin] [--bootrom bootrombin] [--flash flashbin] [--elf elf] [ -e elf] [elf] [--cpuverbosity n]\n", name);
+    fprintf(stderr, "Usage: %s [-b bootrombin] [--bootrom bootrombin] [--flash flashbin] [--elf elf] [ -e elf] [elf] [--cpuverbosity n] [--sleep-seconds n]\n", name);
 }
 
 int main(int argc, char * const *argv)
 {
     const char *bootrom_filename = 0;
+    const char *dtb_filename = 0;
     const char *elf_filename = 0;
     const char *flash_filename = 0;
     int cpuverbosity = 0;
     uint32_t entry = 0;
+    int sleep_seconds = 1;
     int usemem = 0;
     int tv = 0;
     while (1) {
         int option_index = optind ? optind : 1;
-        char c = getopt_long(argc, argv, "b:e:hMTv",
+        char c = getopt_long(argc, argv, "b:d:e:hMs:Tv",
                              long_options, &option_index);
         if (c == -1)
             break;
@@ -77,6 +81,9 @@ int main(int argc, char * const *argv)
         switch (c) {
         case 'b':
             bootrom_filename = optarg;
+            break;
+        case 'd':
+            dtb_filename = optarg;
             break;
         case 'e':
             elf_filename = optarg;
@@ -92,6 +99,9 @@ int main(int argc, char * const *argv)
             return 2;
         case 'M':
             usemem = 1;
+            break;
+        case 's':
+            sleep_seconds = strtoul(optarg, 0, 0);
             break;
         case 'T':
             tv = 1;
@@ -110,8 +120,6 @@ int main(int argc, char * const *argv)
         return -1;
     }
 
-    //AWSP2_RequestProxy *request = new AWSP2_RequestProxy(IfcNames_AWSP2_RequestS2H);
-    AWSP2 *fpga = new AWSP2(IfcNames_AWSP2_ResponseH2S);
     DmaManager *dma = platformInit();
 
     // allocate a shared memory object for Rom
@@ -126,26 +134,35 @@ int main(int argc, char * const *argv)
     uint8_t *flashBuffer = (uint8_t *)portalMmap(flashObject, flash_alloc_sz);
     fprintf(stderr, "flashBuffer=%lx\n", (long)flashBuffer);
 
-    size_t dram_alloc_sz = 256*1024*1024;
+    size_t dram_alloc_sz = 1024*1024*1024;
     int dramObject = portalAlloc(dram_alloc_sz, 0);
     uint8_t *dramBuffer = (uint8_t *)portalMmap(dramObject, dram_alloc_sz);
-    memset(dramBuffer, 0x42, flash_alloc_sz);
+    memset(dramBuffer, 0x0, flash_alloc_sz);
     fprintf(stderr, "dramBuffer=%lx\n", (long)dramBuffer);
+
+    Rom rom = { 0x00001000, 0x00010000, (uint64_t *)romBuffer };
+    AWSP2 *fpga = new AWSP2(IfcNames_AWSP2_ResponseH2S, rom);
 
     // load the ROM code into Flash
     if (bootrom_filename)
         copyFile((char *)romBuffer, bootrom_filename, rom_alloc_sz);
+
+    uint32_t *bootInstrs = (uint32_t *)romBuffer;
+    bootInstrs[0] = 0x0000006f; // loop forever
+    bootInstrs[1] = 0x0000006f; // loop forever
+
+    if (dtb_filename)
+        copyFile((char *)romBuffer + 0x10, dtb_filename, rom_alloc_sz - 0x10);
 
     // where is this coming from?
     if (flash_filename)
         copyFile((char *)flashBuffer, flash_filename, flash_alloc_sz);
 
     if (1) {
-    // register the Flash memory object with the SoC (and program the MMU)
-    fpga->register_region(7, dma->reference(romObject));
-    fpga->register_region(4, dma->reference(flashObject));
     // register the DRAM memory object with the SoC (and program the MMU)
-    fpga->register_region(8, dma->reference(dramObject));
+      int objId = dma->reference(dramObject);
+      fprintf(stderr, "DRAM objId %d\n", objId);
+      fpga->register_region(8, objId);
     }
 
     // Unblock memory accesses in the SoC.
@@ -173,16 +190,13 @@ int main(int argc, char * const *argv)
     uint64_t tohost_address = 0;
     P2Memory mem(dramBuffer);
     AWSP2_Memory fpgamem(fpga);
+    if (usemem) {
+      fprintf(stderr, "Using shared memory loader\n");
+    }
     IMemory *memifc = usemem ? static_cast<IMemory *>(&mem) : static_cast<IMemory *>(&fpgamem);
     uint64_t elf_entry = loadElf(memifc, elf_filename, dram_alloc_sz, &tohost_address);
     fprintf(stderr, "elf_entry=%08lx tohost_address=%08lx\n", elf_entry, tohost_address);
 
-    for (int i = 0; i < 32; i++) {
-        // transfer GPR i into data reg
-        fpga->dmi_write(DM_COMMAND_REG, DM_COMMAND_ACCESS_REGISTER | (3 << 20) | (1 << 17) | 0x1000 | i);
-        // read GPR value from data reg
-        fprintf(stderr, "reg %d val %#08x.%#08x\n", i, fpga->dmi_read(5), fpga->dmi_read(4));
-    }
     if (!entry)
         entry = elf_entry;
 
@@ -203,8 +217,14 @@ int main(int argc, char * const *argv)
         fpga->halt();
 
         uint64_t dpc = fpga->read_csr(0x7b1);
-        fprintf(stderr, "pc val %08lx\n", dpc);
-        if (dpc == 0x1000) {
+        uint64_t ra = fpga->read_gpr(1);
+        uint64_t stvec = fpga->read_csr(0x105);
+        fprintf(stderr, "pc %08lx ra %08lx stvec %08lx\n", dpc, ra, stvec);
+	if (0 && !tv && dpc >= 0x8200210a) {
+	    tv = 1;
+	    fpga->capture_tv_info(tv);
+	}
+        if (dpc == 0x1000 || dpc == 0x80003168 || dpc == 0xffffffe000000154ull) {
             for (int i = 0; i < 32; i++) {
                 fprintf(stderr, "reg %d val %08lx\n", i, fpga->read_gpr(i));
             }
@@ -217,7 +237,7 @@ int main(int argc, char * const *argv)
         }
         fpga->resume();
 
-        sleep(1);
+        sleep(sleep_seconds);
     }
     return 0;
 }
