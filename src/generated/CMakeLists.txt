@@ -1,0 +1,35 @@
+include_directories(../generated)
+include_directories(../connectal)
+include_directories(..)
+
+add_library(generated
+  AWSP2_Request.c
+  AWSP2_Request.h
+  AWSP2_RequestJson.cpp
+  AWSP2_Response.c
+  AWSP2_Response.h
+  AWSP2_ResponseJson.cpp
+  ConnectalProjectConfig.h
+  driver_signature_file.h
+  GeneratedCppCallbacks.cpp
+  GeneratedTypes.h
+  MemServerIndication.c
+  MemServerIndication.h
+  MemServerIndicationJson.cpp
+  MemServerRequest.c
+  MemServerRequest.h
+  MemServerRequestJson.cpp
+  MMUIndication.c
+  MMUIndication.h
+  MMUIndicationJson.cpp
+  MMURequest.c
+  MMURequest.h
+  MMURequestJson.cpp
+  XsimMsgIndication.c
+  XsimMsgIndication.h
+  XsimMsgIndicationJson.cpp
+  XsimMsgRequest.c
+  XsimMsgRequest.h
+  XsimMsgRequestJson.cpp
+  topEnum.h)
+  
