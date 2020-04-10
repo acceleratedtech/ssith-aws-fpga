@@ -58,6 +58,95 @@ int AWSP2_RequestJson_dmi_status ( struct PortalInternal *p )
     return 0;
 };
 
+int AWSP2_RequestJson_ddr_read ( struct PortalInternal *p, const uint32_t addr )
+{
+    Json::Value request;
+    request.append(Json::Value("ddr_read"));
+    request.append((Json::UInt64)addr);
+
+    std::string requestjson = Json::FastWriter().write(request);;
+    connectalJsonSend(p, requestjson.c_str(), (int)CHAN_NUM_AWSP2_Request_ddr_read);
+    return 0;
+};
+
+int AWSP2_RequestJson_ddr_write ( struct PortalInternal *p, const uint32_t addr, const bsvvector_Luint8_t_L64 data, const uint64_t byte_enable )
+{
+    Json::Value request;
+    request.append(Json::Value("ddr_write"));
+    request.append((Json::UInt64)addr);
+    Json::Value dataVector;
+    dataVector.append((Json::UInt64)data[0]);
+    dataVector.append((Json::UInt64)data[1]);
+    dataVector.append((Json::UInt64)data[2]);
+    dataVector.append((Json::UInt64)data[3]);
+    dataVector.append((Json::UInt64)data[4]);
+    dataVector.append((Json::UInt64)data[5]);
+    dataVector.append((Json::UInt64)data[6]);
+    dataVector.append((Json::UInt64)data[7]);
+    dataVector.append((Json::UInt64)data[8]);
+    dataVector.append((Json::UInt64)data[9]);
+    dataVector.append((Json::UInt64)data[10]);
+    dataVector.append((Json::UInt64)data[11]);
+    dataVector.append((Json::UInt64)data[12]);
+    dataVector.append((Json::UInt64)data[13]);
+    dataVector.append((Json::UInt64)data[14]);
+    dataVector.append((Json::UInt64)data[15]);
+    dataVector.append((Json::UInt64)data[16]);
+    dataVector.append((Json::UInt64)data[17]);
+    dataVector.append((Json::UInt64)data[18]);
+    dataVector.append((Json::UInt64)data[19]);
+    dataVector.append((Json::UInt64)data[20]);
+    dataVector.append((Json::UInt64)data[21]);
+    dataVector.append((Json::UInt64)data[22]);
+    dataVector.append((Json::UInt64)data[23]);
+    dataVector.append((Json::UInt64)data[24]);
+    dataVector.append((Json::UInt64)data[25]);
+    dataVector.append((Json::UInt64)data[26]);
+    dataVector.append((Json::UInt64)data[27]);
+    dataVector.append((Json::UInt64)data[28]);
+    dataVector.append((Json::UInt64)data[29]);
+    dataVector.append((Json::UInt64)data[30]);
+    dataVector.append((Json::UInt64)data[31]);
+    dataVector.append((Json::UInt64)data[32]);
+    dataVector.append((Json::UInt64)data[33]);
+    dataVector.append((Json::UInt64)data[34]);
+    dataVector.append((Json::UInt64)data[35]);
+    dataVector.append((Json::UInt64)data[36]);
+    dataVector.append((Json::UInt64)data[37]);
+    dataVector.append((Json::UInt64)data[38]);
+    dataVector.append((Json::UInt64)data[39]);
+    dataVector.append((Json::UInt64)data[40]);
+    dataVector.append((Json::UInt64)data[41]);
+    dataVector.append((Json::UInt64)data[42]);
+    dataVector.append((Json::UInt64)data[43]);
+    dataVector.append((Json::UInt64)data[44]);
+    dataVector.append((Json::UInt64)data[45]);
+    dataVector.append((Json::UInt64)data[46]);
+    dataVector.append((Json::UInt64)data[47]);
+    dataVector.append((Json::UInt64)data[48]);
+    dataVector.append((Json::UInt64)data[49]);
+    dataVector.append((Json::UInt64)data[50]);
+    dataVector.append((Json::UInt64)data[51]);
+    dataVector.append((Json::UInt64)data[52]);
+    dataVector.append((Json::UInt64)data[53]);
+    dataVector.append((Json::UInt64)data[54]);
+    dataVector.append((Json::UInt64)data[55]);
+    dataVector.append((Json::UInt64)data[56]);
+    dataVector.append((Json::UInt64)data[57]);
+    dataVector.append((Json::UInt64)data[58]);
+    dataVector.append((Json::UInt64)data[59]);
+    dataVector.append((Json::UInt64)data[60]);
+    dataVector.append((Json::UInt64)data[61]);
+    dataVector.append((Json::UInt64)data[62]);
+    dataVector.append((Json::UInt64)data[63]);
+    request.append(dataVector);
+    request.append((Json::UInt64)byte_enable);
+
+    std::string requestjson = Json::FastWriter().write(request);;
+    connectalJsonSend(p, requestjson.c_str(), (int)CHAN_NUM_AWSP2_Request_ddr_write);
+    return 0;
+};
+
 int AWSP2_RequestJson_register_region ( struct PortalInternal *p, const uint32_t region, const uint32_t objectId )
 {
     Json::Value request;
@@ -137,6 +226,8 @@ AWSP2_RequestCb AWSP2_RequestJsonProxyReq = {
     AWSP2_RequestJson_dmi_read,
     AWSP2_RequestJson_dmi_write,
     AWSP2_RequestJson_dmi_status,
+    AWSP2_RequestJson_ddr_read,
+    AWSP2_RequestJson_ddr_write,
     AWSP2_RequestJson_register_region,
     AWSP2_RequestJson_memory_ready,
     AWSP2_RequestJson_capture_tv_info,
@@ -147,7 +238,7 @@ AWSP2_RequestCb AWSP2_RequestJsonProxyReq = {
 AWSP2_RequestCb *pAWSP2_RequestJsonProxyReq = &AWSP2_RequestJsonProxyReq;
 const char * AWSP2_RequestJson_methodSignatures()
 {
-    return "{\"io_rdata\": [\"long\", \"long\", \"long\", \"long\"], \"register_region\": [\"long\", \"long\"], \"io_bdone\": [\"long\", \"long\"], \"set_fabric_verbosity\": [\"long\"], \"memory_ready\": [], \"dmi_read\": [\"long\"], \"capture_tv_info\": [\"long\"], \"set_watch_tohost\": [\"long\", \"long\"], \"dmi_write\": [\"long\", \"long\"], \"dmi_status\": [], \"set_debug_verbosity\": [\"long\"]}";
+    return "{\"register_region\": [\"long\", \"long\"], \"ddr_write\": [\"long\", \"long\", \"long\"], \"ddr_read\": [\"long\"], \"io_bdone\": [\"long\", \"long\"], \"set_fabric_verbosity\": [\"long\"], \"memory_ready\": [], \"io_rdata\": [\"long\", \"long\", \"long\", \"long\"], \"dmi_read\": [\"long\"], \"capture_tv_info\": [\"long\"], \"set_watch_tohost\": [\"long\", \"long\"], \"dmi_write\": [\"long\", \"long\"], \"dmi_status\": [], \"set_debug_verbosity\": [\"long\"]}";
 }
 
 int AWSP2_RequestJson_handleMessage(struct PortalInternal *p, unsigned int channel, int messageFd)
@@ -173,6 +264,12 @@ int AWSP2_RequestJson_handleMessage(struct PortalInternal *p, unsigned int chann
       } break;
     case CHAN_NUM_AWSP2_Request_dmi_status: {
         ((AWSP2_RequestCb *)p->cb)->dmi_status(p);
+      } break;
+    case CHAN_NUM_AWSP2_Request_ddr_read: {
+        ((AWSP2_RequestCb *)p->cb)->ddr_read(p, tempdata.ddr_read.addr);
+      } break;
+    case CHAN_NUM_AWSP2_Request_ddr_write: {
+        ((AWSP2_RequestCb *)p->cb)->ddr_write(p, tempdata.ddr_write.addr, tempdata.ddr_write.data, tempdata.ddr_write.byte_enable);
       } break;
     case CHAN_NUM_AWSP2_Request_register_region: {
         ((AWSP2_RequestCb *)p->cb)->register_region(p, tempdata.register_region.region, tempdata.register_region.objectId);

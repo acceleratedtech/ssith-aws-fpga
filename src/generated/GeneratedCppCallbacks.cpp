@@ -190,6 +190,14 @@ int AWSP2_Requestdmi_status_cb (  struct PortalInternal *p ) {
     (static_cast<AWSP2_RequestWrapper *>(p->parent))->dmi_status ( );
     return 0;
 };
+int AWSP2_Requestddr_read_cb (  struct PortalInternal *p, const uint32_t addr ) {
+    (static_cast<AWSP2_RequestWrapper *>(p->parent))->ddr_read ( addr);
+    return 0;
+};
+int AWSP2_Requestddr_write_cb (  struct PortalInternal *p, const uint32_t addr, const bsvvector_Luint8_t_L64 data, const uint64_t byte_enable ) {
+    (static_cast<AWSP2_RequestWrapper *>(p->parent))->ddr_write ( addr, data, byte_enable);
+    return 0;
+};
 int AWSP2_Requestregister_region_cb (  struct PortalInternal *p, const uint32_t region, const uint32_t objectId ) {
     (static_cast<AWSP2_RequestWrapper *>(p->parent))->register_region ( region, objectId);
     return 0;
@@ -221,6 +229,8 @@ AWSP2_RequestCb AWSP2_Request_cbTable = {
     AWSP2_Requestdmi_read_cb,
     AWSP2_Requestdmi_write_cb,
     AWSP2_Requestdmi_status_cb,
+    AWSP2_Requestddr_read_cb,
+    AWSP2_Requestddr_write_cb,
     AWSP2_Requestregister_region_cb,
     AWSP2_Requestmemory_ready_cb,
     AWSP2_Requestcapture_tv_info_cb,
@@ -243,6 +253,10 @@ int AWSP2_Responsedmi_status_data_cb (  struct PortalInternal *p, const uint16_t
     (static_cast<AWSP2_ResponseWrapper *>(p->parent))->dmi_status_data ( status);
     return 0;
 };
+int AWSP2_Responseddr_data_cb (  struct PortalInternal *p, const bsvvector_Luint8_t_L64 data ) {
+    (static_cast<AWSP2_ResponseWrapper *>(p->parent))->ddr_data ( data);
+    return 0;
+};
 int AWSP2_Responseio_awaddr_cb (  struct PortalInternal *p, const uint32_t awaddr, const uint16_t awlen, const uint16_t awid ) {
     (static_cast<AWSP2_ResponseWrapper *>(p->parent))->io_awaddr ( awaddr, awlen, awid);
     return 0;
@@ -263,6 +277,7 @@ AWSP2_ResponseCb AWSP2_Response_cbTable = {
     AWSP2_Responsedisconnect_cb,
     AWSP2_Responsedmi_read_data_cb,
     AWSP2_Responsedmi_status_data_cb,
+    AWSP2_Responseddr_data_cb,
     AWSP2_Responseio_awaddr_cb,
     AWSP2_Responseio_araddr_cb,
     AWSP2_Responseio_wdata_cb,

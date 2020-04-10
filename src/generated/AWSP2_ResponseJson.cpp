@@ -24,6 +24,82 @@ int AWSP2_ResponseJson_dmi_status_data ( struct PortalInternal *p, const uint16_
     return 0;
 };
 
+int AWSP2_ResponseJson_ddr_data ( struct PortalInternal *p, const bsvvector_Luint8_t_L64 data )
+{
+    Json::Value request;
+    request.append(Json::Value("ddr_data"));
+    Json::Value dataVector;
+    dataVector.append((Json::UInt64)data[0]);
+    dataVector.append((Json::UInt64)data[1]);
+    dataVector.append((Json::UInt64)data[2]);
+    dataVector.append((Json::UInt64)data[3]);
+    dataVector.append((Json::UInt64)data[4]);
+    dataVector.append((Json::UInt64)data[5]);
+    dataVector.append((Json::UInt64)data[6]);
+    dataVector.append((Json::UInt64)data[7]);
+    dataVector.append((Json::UInt64)data[8]);
+    dataVector.append((Json::UInt64)data[9]);
+    dataVector.append((Json::UInt64)data[10]);
+    dataVector.append((Json::UInt64)data[11]);
+    dataVector.append((Json::UInt64)data[12]);
+    dataVector.append((Json::UInt64)data[13]);
+    dataVector.append((Json::UInt64)data[14]);
+    dataVector.append((Json::UInt64)data[15]);
+    dataVector.append((Json::UInt64)data[16]);
+    dataVector.append((Json::UInt64)data[17]);
+    dataVector.append((Json::UInt64)data[18]);
+    dataVector.append((Json::UInt64)data[19]);
+    dataVector.append((Json::UInt64)data[20]);
+    dataVector.append((Json::UInt64)data[21]);
+    dataVector.append((Json::UInt64)data[22]);
+    dataVector.append((Json::UInt64)data[23]);
+    dataVector.append((Json::UInt64)data[24]);
+    dataVector.append((Json::UInt64)data[25]);
+    dataVector.append((Json::UInt64)data[26]);
+    dataVector.append((Json::UInt64)data[27]);
+    dataVector.append((Json::UInt64)data[28]);
+    dataVector.append((Json::UInt64)data[29]);
+    dataVector.append((Json::UInt64)data[30]);
+    dataVector.append((Json::UInt64)data[31]);
+    dataVector.append((Json::UInt64)data[32]);
+    dataVector.append((Json::UInt64)data[33]);
+    dataVector.append((Json::UInt64)data[34]);
+    dataVector.append((Json::UInt64)data[35]);
+    dataVector.append((Json::UInt64)data[36]);
+    dataVector.append((Json::UInt64)data[37]);
+    dataVector.append((Json::UInt64)data[38]);
+    dataVector.append((Json::UInt64)data[39]);
+    dataVector.append((Json::UInt64)data[40]);
+    dataVector.append((Json::UInt64)data[41]);
+    dataVector.append((Json::UInt64)data[42]);
+    dataVector.append((Json::UInt64)data[43]);
+    dataVector.append((Json::UInt64)data[44]);
+    dataVector.append((Json::UInt64)data[45]);
+    dataVector.append((Json::UInt64)data[46]);
+    dataVector.append((Json::UInt64)data[47]);
+    dataVector.append((Json::UInt64)data[48]);
+    dataVector.append((Json::UInt64)data[49]);
+    dataVector.append((Json::UInt64)data[50]);
+    dataVector.append((Json::UInt64)data[51]);
+    dataVector.append((Json::UInt64)data[52]);
+    dataVector.append((Json::UInt64)data[53]);
+    dataVector.append((Json::UInt64)data[54]);
+    dataVector.append((Json::UInt64)data[55]);
+    dataVector.append((Json::UInt64)data[56]);
+    dataVector.append((Json::UInt64)data[57]);
+    dataVector.append((Json::UInt64)data[58]);
+    dataVector.append((Json::UInt64)data[59]);
+    dataVector.append((Json::UInt64)data[60]);
+    dataVector.append((Json::UInt64)data[61]);
+    dataVector.append((Json::UInt64)data[62]);
+    dataVector.append((Json::UInt64)data[63]);
+    request.append(dataVector);
+
+    std::string requestjson = Json::FastWriter().write(request);;
+    connectalJsonSend(p, requestjson.c_str(), (int)CHAN_NUM_AWSP2_Response_ddr_data);
+    return 0;
+};
+
 int AWSP2_ResponseJson_io_awaddr ( struct PortalInternal *p, const uint32_t awaddr, const uint16_t awlen, const uint16_t awid )
 {
     Json::Value request;
@@ -151,6 +227,7 @@ AWSP2_ResponseCb AWSP2_ResponseJsonProxyReq = {
     portal_disconnect,
     AWSP2_ResponseJson_dmi_read_data,
     AWSP2_ResponseJson_dmi_status_data,
+    AWSP2_ResponseJson_ddr_data,
     AWSP2_ResponseJson_io_awaddr,
     AWSP2_ResponseJson_io_araddr,
     AWSP2_ResponseJson_io_wdata,
@@ -159,7 +236,7 @@ AWSP2_ResponseCb AWSP2_ResponseJsonProxyReq = {
 AWSP2_ResponseCb *pAWSP2_ResponseJsonProxyReq = &AWSP2_ResponseJsonProxyReq;
 const char * AWSP2_ResponseJson_methodSignatures()
 {
-    return "{\"tandem_packet\": [\"long\", \"long\"], \"io_wdata\": [\"long\", \"long\"], \"dmi_status_data\": [\"long\"], \"io_araddr\": [\"long\", \"long\", \"long\"], \"io_awaddr\": [\"long\", \"long\", \"long\"], \"dmi_read_data\": [\"long\"]}";
+    return "{\"tandem_packet\": [\"long\", \"long\"], \"io_wdata\": [\"long\", \"long\"], \"ddr_data\": [\"long\"], \"dmi_status_data\": [\"long\"], \"io_araddr\": [\"long\", \"long\", \"long\"], \"io_awaddr\": [\"long\", \"long\", \"long\"], \"dmi_read_data\": [\"long\"]}";
 }
 
 int AWSP2_ResponseJson_handleMessage(struct PortalInternal *p, unsigned int channel, int messageFd)
@@ -176,6 +253,9 @@ int AWSP2_ResponseJson_handleMessage(struct PortalInternal *p, unsigned int chan
       } break;
     case CHAN_NUM_AWSP2_Response_dmi_status_data: {
         ((AWSP2_ResponseCb *)p->cb)->dmi_status_data(p, tempdata.dmi_status_data.status);
+      } break;
+    case CHAN_NUM_AWSP2_Response_ddr_data: {
+        ((AWSP2_ResponseCb *)p->cb)->ddr_data(p, tempdata.ddr_data.data);
       } break;
     case CHAN_NUM_AWSP2_Response_io_awaddr: {
         ((AWSP2_ResponseCb *)p->cb)->io_awaddr(p, tempdata.io_awaddr.awaddr, tempdata.io_awaddr.awlen, tempdata.io_awaddr.awid);

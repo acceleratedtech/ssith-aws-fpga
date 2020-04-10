@@ -51,6 +51,44 @@ int AWSP2_Request_dmi_status ( struct PortalInternal *p )
     return 0;
 };
 
+int AWSP2_Request_ddr_read ( struct PortalInternal *p, const uint32_t addr )
+{
+    volatile unsigned int* temp_working_addr_start = p->transport->mapchannelReq(p, CHAN_NUM_AWSP2_Request_ddr_read, 2);
+    volatile unsigned int* temp_working_addr = temp_working_addr_start;
+    if (p->transport->busywait(p, CHAN_NUM_AWSP2_Request_ddr_read, "AWSP2_Request_ddr_read")) return 1;
+    p->transport->write(p, &temp_working_addr, addr);
+    p->transport->send(p, temp_working_addr_start, (CHAN_NUM_AWSP2_Request_ddr_read << 16) | 2, -1);
+    return 0;
+};
+
+int AWSP2_Request_ddr_write ( struct PortalInternal *p, const uint32_t addr, const bsvvector_Luint8_t_L64 data, const uint64_t byte_enable )
+{
+    volatile unsigned int* temp_working_addr_start = p->transport->mapchannelReq(p, CHAN_NUM_AWSP2_Request_ddr_write, 20);
+    volatile unsigned int* temp_working_addr = temp_working_addr_start;
+    if (p->transport->busywait(p, CHAN_NUM_AWSP2_Request_ddr_write, "AWSP2_Request_ddr_write")) return 1;
+    p->transport->write(p, &temp_working_addr, addr);
+    p->transport->write(p, &temp_working_addr, data[3]|(((unsigned long)data[2])<<8)|(((unsigned long)data[1])<<16)|(((unsigned long)data[0])<<24));
+    p->transport->write(p, &temp_working_addr, data[7]|(((unsigned long)data[6])<<8)|(((unsigned long)data[5])<<16)|(((unsigned long)data[4])<<24));
+    p->transport->write(p, &temp_working_addr, data[11]|(((unsigned long)data[10])<<8)|(((unsigned long)data[9])<<16)|(((unsigned long)data[8])<<24));
+    p->transport->write(p, &temp_working_addr, data[15]|(((unsigned long)data[14])<<8)|(((unsigned long)data[13])<<16)|(((unsigned long)data[12])<<24));
+    p->transport->write(p, &temp_working_addr, data[19]|(((unsigned long)data[18])<<8)|(((unsigned long)data[17])<<16)|(((unsigned long)data[16])<<24));
+    p->transport->write(p, &temp_working_addr, data[23]|(((unsigned long)data[22])<<8)|(((unsigned long)data[21])<<16)|(((unsigned long)data[20])<<24));
+    p->transport->write(p, &temp_working_addr, data[27]|(((unsigned long)data[26])<<8)|(((unsigned long)data[25])<<16)|(((unsigned long)data[24])<<24));
+    p->transport->write(p, &temp_working_addr, data[31]|(((unsigned long)data[30])<<8)|(((unsigned long)data[29])<<16)|(((unsigned long)data[28])<<24));
+    p->transport->write(p, &temp_working_addr, data[35]|(((unsigned long)data[34])<<8)|(((unsigned long)data[33])<<16)|(((unsigned long)data[32])<<24));
+    p->transport->write(p, &temp_working_addr, data[39]|(((unsigned long)data[38])<<8)|(((unsigned long)data[37])<<16)|(((unsigned long)data[36])<<24));
+    p->transport->write(p, &temp_working_addr, data[43]|(((unsigned long)data[42])<<8)|(((unsigned long)data[41])<<16)|(((unsigned long)data[40])<<24));
+    p->transport->write(p, &temp_working_addr, data[47]|(((unsigned long)data[46])<<8)|(((unsigned long)data[45])<<16)|(((unsigned long)data[44])<<24));
+    p->transport->write(p, &temp_working_addr, data[51]|(((unsigned long)data[50])<<8)|(((unsigned long)data[49])<<16)|(((unsigned long)data[48])<<24));
+    p->transport->write(p, &temp_working_addr, data[55]|(((unsigned long)data[54])<<8)|(((unsigned long)data[53])<<16)|(((unsigned long)data[52])<<24));
+    p->transport->write(p, &temp_working_addr, data[59]|(((unsigned long)data[58])<<8)|(((unsigned long)data[57])<<16)|(((unsigned long)data[56])<<24));
+    p->transport->write(p, &temp_working_addr, data[63]|(((unsigned long)data[62])<<8)|(((unsigned long)data[61])<<16)|(((unsigned long)data[60])<<24));
+    p->transport->write(p, &temp_working_addr, (byte_enable>>32));
+    p->transport->write(p, &temp_working_addr, byte_enable);
+    p->transport->send(p, temp_working_addr_start, (CHAN_NUM_AWSP2_Request_ddr_write << 16) | 20, -1);
+    return 0;
+};
+
 int AWSP2_Request_register_region ( struct PortalInternal *p, const uint32_t region, const uint32_t objectId )
 {
     volatile unsigned int* temp_working_addr_start = p->transport->mapchannelReq(p, CHAN_NUM_AWSP2_Request_register_region, 3);
@@ -122,6 +160,8 @@ AWSP2_RequestCb AWSP2_RequestProxyReq = {
     AWSP2_Request_dmi_read,
     AWSP2_Request_dmi_write,
     AWSP2_Request_dmi_status,
+    AWSP2_Request_ddr_read,
+    AWSP2_Request_ddr_write,
     AWSP2_Request_register_region,
     AWSP2_Request_memory_ready,
     AWSP2_Request_capture_tv_info,
@@ -131,10 +171,10 @@ AWSP2_RequestCb AWSP2_RequestProxyReq = {
 };
 AWSP2_RequestCb *pAWSP2_RequestProxyReq = &AWSP2_RequestProxyReq;
 
-const uint32_t AWSP2_Request_reqinfo = 0xb0010;
+const uint32_t AWSP2_Request_reqinfo = 0xd0050;
 const char * AWSP2_Request_methodSignatures()
 {
-    return "{\"io_rdata\": [\"long\", \"long\", \"long\", \"long\"], \"register_region\": [\"long\", \"long\"], \"io_bdone\": [\"long\", \"long\"], \"set_fabric_verbosity\": [\"long\"], \"memory_ready\": [], \"dmi_read\": [\"long\"], \"capture_tv_info\": [\"long\"], \"set_watch_tohost\": [\"long\", \"long\"], \"dmi_write\": [\"long\", \"long\"], \"dmi_status\": [], \"set_debug_verbosity\": [\"long\"]}";
+    return "{\"register_region\": [\"long\", \"long\"], \"ddr_write\": [\"long\", \"long\", \"long\"], \"ddr_read\": [\"long\"], \"io_bdone\": [\"long\", \"long\"], \"set_fabric_verbosity\": [\"long\"], \"memory_ready\": [], \"io_rdata\": [\"long\", \"long\", \"long\", \"long\"], \"dmi_read\": [\"long\"], \"capture_tv_info\": [\"long\"], \"set_watch_tohost\": [\"long\", \"long\"], \"dmi_write\": [\"long\", \"long\"], \"dmi_status\": [], \"set_debug_verbosity\": [\"long\"]}";
 }
 
 int AWSP2_Request_handleMessage(struct PortalInternal *p, unsigned int channel, int messageFd)
@@ -176,6 +216,102 @@ int AWSP2_Request_handleMessage(struct PortalInternal *p, unsigned int channel, 
         p->transport->recv(p, temp_working_addr, 0, &tmpfd);
         tmp = p->transport->read(p, &temp_working_addr);
         ((AWSP2_RequestCb *)p->cb)->dmi_status(p);
+      } break;
+    case CHAN_NUM_AWSP2_Request_ddr_read: {
+        p->transport->recv(p, temp_working_addr, 1, &tmpfd);
+        tmp = p->transport->read(p, &temp_working_addr);
+        tempdata.ddr_read.addr = (uint32_t)(((tmp)&0xfffffffful));
+        ((AWSP2_RequestCb *)p->cb)->ddr_read(p, tempdata.ddr_read.addr);
+      } break;
+    case CHAN_NUM_AWSP2_Request_ddr_write: {
+        p->transport->recv(p, temp_working_addr, 19, &tmpfd);
+        tmp = p->transport->read(p, &temp_working_addr);
+        tempdata.ddr_write.addr = (uint32_t)(((tmp)&0xfffffffful));
+        tmp = p->transport->read(p, &temp_working_addr);
+        tempdata.ddr_write.data[3] = (uint8_t)(((tmp)&0xfful));
+        tempdata.ddr_write.data[2] = (uint8_t)(((tmp>>8)&0xfful));
+        tempdata.ddr_write.data[1] = (uint8_t)(((tmp>>16)&0xfful));
+        tempdata.ddr_write.data[0] = (uint8_t)(((tmp>>24)&0xfful));
+        tmp = p->transport->read(p, &temp_working_addr);
+        tempdata.ddr_write.data[7] = (uint8_t)(((tmp)&0xfful));
+        tempdata.ddr_write.data[6] = (uint8_t)(((tmp>>8)&0xfful));
+        tempdata.ddr_write.data[5] = (uint8_t)(((tmp>>16)&0xfful));
+        tempdata.ddr_write.data[4] = (uint8_t)(((tmp>>24)&0xfful));
+        tmp = p->transport->read(p, &temp_working_addr);
+        tempdata.ddr_write.data[11] = (uint8_t)(((tmp)&0xfful));
+        tempdata.ddr_write.data[10] = (uint8_t)(((tmp>>8)&0xfful));
+        tempdata.ddr_write.data[9] = (uint8_t)(((tmp>>16)&0xfful));
+        tempdata.ddr_write.data[8] = (uint8_t)(((tmp>>24)&0xfful));
+        tmp = p->transport->read(p, &temp_working_addr);
+        tempdata.ddr_write.data[15] = (uint8_t)(((tmp)&0xfful));
+        tempdata.ddr_write.data[14] = (uint8_t)(((tmp>>8)&0xfful));
+        tempdata.ddr_write.data[13] = (uint8_t)(((tmp>>16)&0xfful));
+        tempdata.ddr_write.data[12] = (uint8_t)(((tmp>>24)&0xfful));
+        tmp = p->transport->read(p, &temp_working_addr);
+        tempdata.ddr_write.data[19] = (uint8_t)(((tmp)&0xfful));
+        tempdata.ddr_write.data[18] = (uint8_t)(((tmp>>8)&0xfful));
+        tempdata.ddr_write.data[17] = (uint8_t)(((tmp>>16)&0xfful));
+        tempdata.ddr_write.data[16] = (uint8_t)(((tmp>>24)&0xfful));
+        tmp = p->transport->read(p, &temp_working_addr);
+        tempdata.ddr_write.data[23] = (uint8_t)(((tmp)&0xfful));
+        tempdata.ddr_write.data[22] = (uint8_t)(((tmp>>8)&0xfful));
+        tempdata.ddr_write.data[21] = (uint8_t)(((tmp>>16)&0xfful));
+        tempdata.ddr_write.data[20] = (uint8_t)(((tmp>>24)&0xfful));
+        tmp = p->transport->read(p, &temp_working_addr);
+        tempdata.ddr_write.data[27] = (uint8_t)(((tmp)&0xfful));
+        tempdata.ddr_write.data[26] = (uint8_t)(((tmp>>8)&0xfful));
+        tempdata.ddr_write.data[25] = (uint8_t)(((tmp>>16)&0xfful));
+        tempdata.ddr_write.data[24] = (uint8_t)(((tmp>>24)&0xfful));
+        tmp = p->transport->read(p, &temp_working_addr);
+        tempdata.ddr_write.data[31] = (uint8_t)(((tmp)&0xfful));
+        tempdata.ddr_write.data[30] = (uint8_t)(((tmp>>8)&0xfful));
+        tempdata.ddr_write.data[29] = (uint8_t)(((tmp>>16)&0xfful));
+        tempdata.ddr_write.data[28] = (uint8_t)(((tmp>>24)&0xfful));
+        tmp = p->transport->read(p, &temp_working_addr);
+        tempdata.ddr_write.data[35] = (uint8_t)(((tmp)&0xfful));
+        tempdata.ddr_write.data[34] = (uint8_t)(((tmp>>8)&0xfful));
+        tempdata.ddr_write.data[33] = (uint8_t)(((tmp>>16)&0xfful));
+        tempdata.ddr_write.data[32] = (uint8_t)(((tmp>>24)&0xfful));
+        tmp = p->transport->read(p, &temp_working_addr);
+        tempdata.ddr_write.data[39] = (uint8_t)(((tmp)&0xfful));
+        tempdata.ddr_write.data[38] = (uint8_t)(((tmp>>8)&0xfful));
+        tempdata.ddr_write.data[37] = (uint8_t)(((tmp>>16)&0xfful));
+        tempdata.ddr_write.data[36] = (uint8_t)(((tmp>>24)&0xfful));
+        tmp = p->transport->read(p, &temp_working_addr);
+        tempdata.ddr_write.data[43] = (uint8_t)(((tmp)&0xfful));
+        tempdata.ddr_write.data[42] = (uint8_t)(((tmp>>8)&0xfful));
+        tempdata.ddr_write.data[41] = (uint8_t)(((tmp>>16)&0xfful));
+        tempdata.ddr_write.data[40] = (uint8_t)(((tmp>>24)&0xfful));
+        tmp = p->transport->read(p, &temp_working_addr);
+        tempdata.ddr_write.data[47] = (uint8_t)(((tmp)&0xfful));
+        tempdata.ddr_write.data[46] = (uint8_t)(((tmp>>8)&0xfful));
+        tempdata.ddr_write.data[45] = (uint8_t)(((tmp>>16)&0xfful));
+        tempdata.ddr_write.data[44] = (uint8_t)(((tmp>>24)&0xfful));
+        tmp = p->transport->read(p, &temp_working_addr);
+        tempdata.ddr_write.data[51] = (uint8_t)(((tmp)&0xfful));
+        tempdata.ddr_write.data[50] = (uint8_t)(((tmp>>8)&0xfful));
+        tempdata.ddr_write.data[49] = (uint8_t)(((tmp>>16)&0xfful));
+        tempdata.ddr_write.data[48] = (uint8_t)(((tmp>>24)&0xfful));
+        tmp = p->transport->read(p, &temp_working_addr);
+        tempdata.ddr_write.data[55] = (uint8_t)(((tmp)&0xfful));
+        tempdata.ddr_write.data[54] = (uint8_t)(((tmp>>8)&0xfful));
+        tempdata.ddr_write.data[53] = (uint8_t)(((tmp>>16)&0xfful));
+        tempdata.ddr_write.data[52] = (uint8_t)(((tmp>>24)&0xfful));
+        tmp = p->transport->read(p, &temp_working_addr);
+        tempdata.ddr_write.data[59] = (uint8_t)(((tmp)&0xfful));
+        tempdata.ddr_write.data[58] = (uint8_t)(((tmp>>8)&0xfful));
+        tempdata.ddr_write.data[57] = (uint8_t)(((tmp>>16)&0xfful));
+        tempdata.ddr_write.data[56] = (uint8_t)(((tmp>>24)&0xfful));
+        tmp = p->transport->read(p, &temp_working_addr);
+        tempdata.ddr_write.data[63] = (uint8_t)(((tmp)&0xfful));
+        tempdata.ddr_write.data[62] = (uint8_t)(((tmp>>8)&0xfful));
+        tempdata.ddr_write.data[61] = (uint8_t)(((tmp>>16)&0xfful));
+        tempdata.ddr_write.data[60] = (uint8_t)(((tmp>>24)&0xfful));
+        tmp = p->transport->read(p, &temp_working_addr);
+        tempdata.ddr_write.byte_enable = (uint64_t)(((uint64_t)(((tmp)&0xfffffffful))<<32));
+        tmp = p->transport->read(p, &temp_working_addr);
+        tempdata.ddr_write.byte_enable |= (uint64_t)(((tmp)&0xfffffffful));
+        ((AWSP2_RequestCb *)p->cb)->ddr_write(p, tempdata.ddr_write.addr, tempdata.ddr_write.data, tempdata.ddr_write.byte_enable);
       } break;
     case CHAN_NUM_AWSP2_Request_register_region: {
         p->transport->recv(p, temp_working_addr, 2, &tmpfd);

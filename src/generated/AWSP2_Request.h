@@ -17,6 +17,8 @@ public:
     int dmi_read ( const uint8_t req_addr ) { return cb->dmi_read (&pint, req_addr); };
     int dmi_write ( const uint8_t req_addr, const uint32_t req_data ) { return cb->dmi_write (&pint, req_addr, req_data); };
     int dmi_status (  ) { return cb->dmi_status (&pint); };
+    int ddr_read ( const uint32_t addr ) { return cb->ddr_read (&pint, addr); };
+    int ddr_write ( const uint32_t addr, const bsvvector_Luint8_t_L64 data, const uint64_t byte_enable ) { return cb->ddr_write (&pint, addr, data, byte_enable); };
     int register_region ( const uint32_t region, const uint32_t objectId ) { return cb->register_region (&pint, region, objectId); };
     int memory_ready (  ) { return cb->memory_ready (&pint); };
     int capture_tv_info ( const int c ) { return cb->capture_tv_info (&pint, c); };
@@ -48,6 +50,8 @@ public:
     virtual void dmi_read ( const uint8_t req_addr ) = 0;
     virtual void dmi_write ( const uint8_t req_addr, const uint32_t req_data ) = 0;
     virtual void dmi_status (  ) = 0;
+    virtual void ddr_read ( const uint32_t addr ) = 0;
+    virtual void ddr_write ( const uint32_t addr, const bsvvector_Luint8_t_L64 data, const uint64_t byte_enable ) = 0;
     virtual void register_region ( const uint32_t region, const uint32_t objectId ) = 0;
     virtual void memory_ready (  ) = 0;
     virtual void capture_tv_info ( const int c ) = 0;
