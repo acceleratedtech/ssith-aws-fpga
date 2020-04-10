@@ -24,6 +24,7 @@
 #ifndef CUTILS_H
 #define CUTILS_H
 
+#include <stdlib.h>
 #include <inttypes.h>
 
 #define likely(x)       __builtin_expect(!!(x), 1)

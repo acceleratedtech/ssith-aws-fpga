@@ -24,6 +24,8 @@
 #ifndef IOMEM_H
 #define IOMEM_H
 
+#include "cutils.h"
+
 typedef void DeviceWriteFunc(void *opaque, uint32_t offset,
                              uint32_t val, int size_log2);
 typedef uint32_t DeviceReadFunc(void *opaque, uint32_t offset, int size_log2);
