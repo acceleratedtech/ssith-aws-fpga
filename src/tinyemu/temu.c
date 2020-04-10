@@ -673,7 +673,10 @@ static BOOL net_poll_cb(void *arg)
 int temu_init(int argc, char **argv)
 {
     VirtMachine *s;
-    const char *path, *cmdline, *build_preload_file;
+    const char *path, *cmdline;
+#ifdef CONFIG_FS_NET
+    const char *build_preload_file = NULL;
+#endif
     int c, option_index, i, ram_size, accel_enable;
     BOOL allow_ctrlc;
     BlockDeviceModeEnum drive_mode;
@@ -685,7 +688,6 @@ int temu_init(int argc, char **argv)
     drive_mode = BF_MODE_SNAPSHOT;
     accel_enable = -1;
     cmdline = NULL;
-    build_preload_file = NULL;
     for(;;) {
         c = getopt_long_only(argc, argv, "hm:", options, &option_index);
         if (c == -1)
@@ -708,9 +710,11 @@ int temu_init(int argc, char **argv)
             case 5: /* no-accel */
                 accel_enable = FALSE;
                 break;
+#ifdef CONFIG_FS_NET
             case 6: /* build-preload */
                 build_preload_file = optarg;
                 break;
+#endif
             default:
                 fprintf(stderr, "unknown option index: %d\n", option_index);
                 exit(1);
