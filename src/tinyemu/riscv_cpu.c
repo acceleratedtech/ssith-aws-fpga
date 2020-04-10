@@ -1356,9 +1356,11 @@ RISCVCPUState *riscv_cpu_init(PhysMemoryMap *mem_map, int max_xlen)
         c = &glue(riscv_cpu_class, MAX_XLEN);
         break;
 #else
+#if CONFIG_RISCV_MAX_XLEN == 32
     case 32:
         c = &riscv_cpu_class32;
         break;
+#endif
     case 64:
         c = &riscv_cpu_class64;
         break;
