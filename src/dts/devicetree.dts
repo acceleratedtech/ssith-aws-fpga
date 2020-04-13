@@ -68,7 +68,8 @@
 	virtio_block@40000000 {
 		compatible = "virtio,mmio";
 		reg = <0x40000000 0x100>;
-		interrupts = <41>;
+		interrupt-parent = <&plic>;
+		interrupts = <4>;
 	};
 
     htif {
