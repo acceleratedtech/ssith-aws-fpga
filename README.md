@@ -23,6 +23,7 @@ Install connectal and load drivers
 Build `ssith_aws_fpga`
 
 ```bash
+  sudo apt-get install cmake device-tree-compiler build-essential libssl-dev libcurl4-openssl-dev libsdl-dev libelf-dev
    mkdir build
    cd build
    cmake ..
