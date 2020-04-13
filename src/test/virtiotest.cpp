@@ -6,7 +6,10 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+#include "fpga.h"
 #include "virtiodevices.h"
+
+AWSP2 *fpga;
 
 int main(int argc, const char **argv)
 {

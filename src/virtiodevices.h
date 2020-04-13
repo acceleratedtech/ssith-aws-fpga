@@ -17,5 +17,7 @@ class VirtioDevices {
   VirtioDevices();
   ~VirtioDevices();
   PhysMemoryRange *get_phys_mem_range(uint64_t paddr);
+  void set_dram_buffer(uint8_t *buf);
+  void process_io();
 };
 

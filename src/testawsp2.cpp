@@ -60,6 +60,8 @@ void usage(const char *name)
     fprintf(stderr, "Usage: %s [-b bootrombin] [--bootrom bootrombin] [--flash flashbin] [--elf elf] [ -e elf] [elf] [--cpuverbosity n] [--sleep-seconds n]\n", name);
 }
 
+AWSP2 *fpga;
+
 int main(int argc, char * const *argv)
 {
     const char *bootrom_filename = 0;
@@ -141,7 +143,8 @@ int main(int argc, char * const *argv)
     fprintf(stderr, "dramBuffer=%lx\n", (long)dramBuffer);
 
     Rom rom = { 0x00001000, 0x00010000, (uint64_t *)romBuffer };
-    AWSP2 *fpga = new AWSP2(IfcNames_AWSP2_ResponseH2S, rom);
+    fpga = new AWSP2(IfcNames_AWSP2_ResponseH2S, rom);
+    fpga->set_dram_buffer(dramBuffer);
 
     // load the ROM code into Flash
     if (bootrom_filename)
@@ -215,6 +218,8 @@ int main(int argc, char * const *argv)
 
         // event processing is in the other thread
         fpga->halt();
+
+	fpga->process_io();
 
         uint64_t dpc = fpga->read_csr(0x7b1);
         uint64_t ra = fpga->read_gpr(1);

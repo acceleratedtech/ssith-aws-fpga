@@ -1,6 +1,8 @@
 
 #include "fpga.h"
 
+static int debug_virtio;
+
 class AWSP2_Response : public AWSP2_ResponseWrapper {
 private:
     AWSP2 *fpga;
@@ -37,7 +39,6 @@ void AWSP2_Response::tandem_packet(const uint32_t num_bytes, const bsvvector_Lui
     int matched_pc = 0;
     for (int i = 0; i < 72; i++)
         packet[i] = bytes[71 - i];
-    //fprintf(stderr, "[TV] %x %x %x %x\n", packet[0], packet[1], packet[2], packet[11]);
     if (packet[0] == te_op_begin_group && packet[1] == te_op_state_init && packet[2] == te_op_mem_req && packet[11] == 0x21) {
         uint64_t addr = 0;
         uint32_t val = 0;
@@ -155,7 +156,7 @@ void AWSP2_Response::io_awaddr(uint32_t awaddr, uint16_t awlen, uint16_t awid) {
     PhysMemoryRange *pr = fpga->virtio_devices.get_phys_mem_range(awaddr);
     if (pr) {
         uint32_t offset = awaddr - pr->addr;
-        fprintf(stderr, "virtio awaddr %08x device addr %08lx offset %08x len %d\n", awaddr, pr->addr, offset, awlen);
+        if (debug_virtio) fprintf(stderr, "virtio awaddr %08x device addr %08lx offset %08x len %d\n", awaddr, pr->addr, offset, awlen);
     } else if (awaddr == 0x60000000) {
         // UART 
     } else if (awaddr == 0x10001000 || awaddr == 0x50001000) {
@@ -175,15 +176,16 @@ void AWSP2_Response::io_araddr(uint32_t araddr, uint16_t arlen, uint16_t arid)
     if (pr) {
         uint32_t offset = araddr - pr->addr;
         int size_log2 = 2;
-        fprintf(stderr, "virtio araddr %08x device addr %08lx offset %08x len %d\n", araddr, pr->addr, offset, arlen);
+        if (debug_virtio) fprintf(stderr, "virtio araddr %08x device addr %08lx offset %08x len %d\n", araddr, pr->addr, offset, arlen);
         for (int i = 0; i < arlen / 8; i++) {
             int last = i == ((arlen / 8) - 1);
-            //fprintf(stderr, "io_rdata %08lx\n", rom.data[offset + i]);
             uint64_t val = pr->read_func(pr->opaque, offset, size_log2);
-	    if ((offset % 8) == 4)
-	      val = (val << 32);
+            if ((offset % 8) == 4)
+              val = (val << 32);
             fpga->request->io_rdata(val, arid, 0, last);
-	    fprintf(stderr, "virtio araddr %08x device addr %08lx offset %08x len %d val %08x last %d\n", araddr + offset, pr->addr, offset, arlen, val, last);
+            if (debug_virtio)
+                fprintf(stderr, "virtio araddr %0x device addr %08lx offset %08x len %d val %08lx last %d\n",
+                        araddr + offset, pr->addr, offset, arlen, val, last);
             offset += 4;
         }
     } else if (fpga->rom.base <= araddr && araddr < fpga->rom.limit) {
@@ -212,7 +214,10 @@ void AWSP2_Response::io_wdata(uint64_t wdata, uint8_t wstrb) {
     if (pr) {
         int size_log2 = 2;
         uint32_t offset = awaddr - pr->addr;
-	fprintf(stderr, "virtio awaddr %08lx offset %x wdata %08lx wstrb %x\n", awaddr, offset, wdata, wstrb);
+	if (awaddr & 4) {
+	    wdata = (wdata >> 32) & 0xFFFFFFFF;;
+	}
+	if (debug_virtio) fprintf(stderr, "virtio awaddr %08x offset %x wdata %08lx wstrb %x\n", awaddr, offset, wdata, wstrb);
         pr->write_func(pr->opaque, offset, wdata, size_log2);
     } else if (awaddr == 0x60000000) {
         console_putchar(wdata);
@@ -237,7 +242,8 @@ void AWSP2_Response::io_wdata(uint64_t wdata, uint8_t wstrb) {
         if (awaddr != 0x60000000
             && awaddr != 0x10001008
             && awaddr != 0x10001000
-            && awaddr != 0x50001008)
+            && awaddr != 0x50001008
+	    && !pr)
             fprintf(stderr, "-> io_bdone %08x\n", awaddr);
         fpga->request->io_bdone(fpga->wid, 0);
     }
@@ -249,7 +255,6 @@ void AWSP2_Response::console_putchar(uint64_t wdata) {
         fpga->start_of_line = 0;
     }
     fputc(wdata, stdout);
-    //fprintf(stderr, "CONSOLE: %c\n", (int)wdata);
     if (wdata == '\n') {
         printf("\n");
         fflush(stdout);
@@ -436,4 +441,13 @@ void AWSP2::resume(int timeout) {
 
 void AWSP2::set_fabric_verbosity(uint8_t verbosity) {
     request->set_fabric_verbosity(verbosity);
+}
+
+void AWSP2::set_dram_buffer(uint8_t *buf) {
+    virtio_devices.set_dram_buffer(buf);
+}
+
+void AWSP2::process_io()
+{
+    virtio_devices.process_io();
 }

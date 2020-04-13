@@ -140,7 +140,11 @@ public:
     void write64(uint32_t addr, uint64_t val);
     void halt(int timeout = 100);
     void resume(int timeout = 100);
+
     void set_fabric_verbosity(uint8_t verbosity);
+    void set_dram_buffer(uint8_t *buf);
+
+    void process_io();
 
     void sbcs_wait();
 };
