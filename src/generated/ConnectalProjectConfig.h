@@ -44,9 +44,14 @@
 #define CnocTop ""
 #define XsimHostInterface ""
 #define PhysAddrWidth 40
-#define SIMULATION ""
 #define SVDPI ""
 #define CONNECTAL_BITS_DEPENDENCES "vlsim"
+#if 0
+#define SIMULATION ""
 #define BOARD_verilator ""
+#else
+#define DEFAULT_NOPROGRAM 1
+#define BOARD_awsf1 ""
+#endif
 
 #endif // _ConnectalProjectConfig_h
