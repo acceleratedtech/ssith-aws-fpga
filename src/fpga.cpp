@@ -174,13 +174,16 @@ void AWSP2_Response::io_araddr(uint32_t araddr, uint16_t arlen, uint16_t arid)
     PhysMemoryRange *pr = fpga->virtio_devices.get_phys_mem_range(araddr);
     if (pr) {
         uint32_t offset = araddr - pr->addr;
-        int size_log2 = 4;
+        int size_log2 = 2;
         fprintf(stderr, "virtio araddr %08x device addr %08lx offset %08x len %d\n", araddr, pr->addr, offset, arlen);
         for (int i = 0; i < arlen / 8; i++) {
             int last = i == ((arlen / 8) - 1);
             //fprintf(stderr, "io_rdata %08lx\n", rom.data[offset + i]);
-            uint32_t val = pr->read_func(pr->opaque, offset, size_log2);
+            uint64_t val = pr->read_func(pr->opaque, offset, size_log2);
+	    if ((offset % 8) == 4)
+	      val = (val << 32);
             fpga->request->io_rdata(val, arid, 0, last);
+	    fprintf(stderr, "virtio araddr %08x device addr %08lx offset %08x len %d val %08x last %d\n", araddr + offset, pr->addr, offset, arlen, val, last);
             offset += 4;
         }
     } else if (fpga->rom.base <= araddr && araddr < fpga->rom.limit) {
@@ -207,8 +210,9 @@ void AWSP2_Response::io_wdata(uint64_t wdata, uint8_t wstrb) {
     uint32_t awaddr = fpga->awaddr;
     PhysMemoryRange *pr = fpga->virtio_devices.get_phys_mem_range(awaddr);
     if (pr) {
-        int size_log2 = 4;
+        int size_log2 = 2;
         uint32_t offset = awaddr - pr->addr;
+	fprintf(stderr, "virtio awaddr %08lx offset %x wdata %08lx wstrb %x\n", awaddr, offset, wdata, wstrb);
         pr->write_func(pr->opaque, offset, wdata, size_log2);
     } else if (awaddr == 0x60000000) {
         console_putchar(wdata);
