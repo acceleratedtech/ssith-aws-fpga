@@ -138,6 +138,17 @@ int AWSP2_ResponseJson_io_wdata ( struct PortalInternal *p, const uint64_t wdata
     return 0;
 };
 
+int AWSP2_ResponseJson_irq_status ( struct PortalInternal *p, const uint32_t levels )
+{
+    Json::Value request;
+    request.append(Json::Value("irq_status"));
+    request.append((Json::UInt64)levels);
+
+    std::string requestjson = Json::FastWriter().write(request);;
+    connectalJsonSend(p, requestjson.c_str(), (int)CHAN_NUM_AWSP2_Response_irq_status);
+    return 0;
+};
+
 int AWSP2_ResponseJson_tandem_packet ( struct PortalInternal *p, const uint32_t num_bytes, const bsvvector_Luint8_t_L72 bytes )
 {
     Json::Value request;
@@ -231,12 +242,13 @@ AWSP2_ResponseCb AWSP2_ResponseJsonProxyReq = {
     AWSP2_ResponseJson_io_awaddr,
     AWSP2_ResponseJson_io_araddr,
     AWSP2_ResponseJson_io_wdata,
+    AWSP2_ResponseJson_irq_status,
     AWSP2_ResponseJson_tandem_packet,
 };
 AWSP2_ResponseCb *pAWSP2_ResponseJsonProxyReq = &AWSP2_ResponseJsonProxyReq;
 const char * AWSP2_ResponseJson_methodSignatures()
 {
-    return "{\"tandem_packet\": [\"long\", \"long\"], \"io_wdata\": [\"long\", \"long\"], \"ddr_data\": [\"long\"], \"dmi_status_data\": [\"long\"], \"io_araddr\": [\"long\", \"long\", \"long\"], \"io_awaddr\": [\"long\", \"long\", \"long\"], \"dmi_read_data\": [\"long\"]}";
+    return "{\"tandem_packet\": [\"long\", \"long\"], \"io_wdata\": [\"long\", \"long\"], \"irq_status\": [\"long\"], \"ddr_data\": [\"long\"], \"dmi_status_data\": [\"long\"], \"io_araddr\": [\"long\", \"long\", \"long\"], \"io_awaddr\": [\"long\", \"long\", \"long\"], \"dmi_read_data\": [\"long\"]}";
 }
 
 int AWSP2_ResponseJson_handleMessage(struct PortalInternal *p, unsigned int channel, int messageFd)
@@ -265,6 +277,9 @@ int AWSP2_ResponseJson_handleMessage(struct PortalInternal *p, unsigned int chan
       } break;
     case CHAN_NUM_AWSP2_Response_io_wdata: {
         ((AWSP2_ResponseCb *)p->cb)->io_wdata(p, tempdata.io_wdata.wdata, tempdata.io_wdata.wstrb);
+      } break;
+    case CHAN_NUM_AWSP2_Response_irq_status: {
+        ((AWSP2_ResponseCb *)p->cb)->irq_status(p, tempdata.irq_status.levels);
       } break;
     case CHAN_NUM_AWSP2_Response_tandem_packet: {
         ((AWSP2_ResponseCb *)p->cb)->tandem_packet(p, tempdata.tandem_packet.num_bytes, tempdata.tandem_packet.bytes);

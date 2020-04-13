@@ -222,6 +222,18 @@ int AWSP2_Requestio_bdone_cb (  struct PortalInternal *p, const uint16_t bid, co
     (static_cast<AWSP2_RequestWrapper *>(p->parent))->io_bdone ( bid, bresp);
     return 0;
 };
+int AWSP2_Requestirq_set_levels_cb (  struct PortalInternal *p, const uint32_t w1s ) {
+    (static_cast<AWSP2_RequestWrapper *>(p->parent))->irq_set_levels ( w1s);
+    return 0;
+};
+int AWSP2_Requestirq_clear_levels_cb (  struct PortalInternal *p, const uint32_t w1c ) {
+    (static_cast<AWSP2_RequestWrapper *>(p->parent))->irq_clear_levels ( w1c);
+    return 0;
+};
+int AWSP2_Requestread_irq_status_cb (  struct PortalInternal *p ) {
+    (static_cast<AWSP2_RequestWrapper *>(p->parent))->read_irq_status ( );
+    return 0;
+};
 AWSP2_RequestCb AWSP2_Request_cbTable = {
     AWSP2_Requestdisconnect_cb,
     AWSP2_Requestset_debug_verbosity_cb,
@@ -237,6 +249,9 @@ AWSP2_RequestCb AWSP2_Request_cbTable = {
     AWSP2_Requestset_watch_tohost_cb,
     AWSP2_Requestio_rdata_cb,
     AWSP2_Requestio_bdone_cb,
+    AWSP2_Requestirq_set_levels_cb,
+    AWSP2_Requestirq_clear_levels_cb,
+    AWSP2_Requestread_irq_status_cb,
 };
 
 /************** Start of AWSP2_ResponseWrapper CPP ***********/
@@ -269,6 +284,10 @@ int AWSP2_Responseio_wdata_cb (  struct PortalInternal *p, const uint64_t wdata,
     (static_cast<AWSP2_ResponseWrapper *>(p->parent))->io_wdata ( wdata, wstrb);
     return 0;
 };
+int AWSP2_Responseirq_status_cb (  struct PortalInternal *p, const uint32_t levels ) {
+    (static_cast<AWSP2_ResponseWrapper *>(p->parent))->irq_status ( levels);
+    return 0;
+};
 int AWSP2_Responsetandem_packet_cb (  struct PortalInternal *p, const uint32_t num_bytes, const bsvvector_Luint8_t_L72 bytes ) {
     (static_cast<AWSP2_ResponseWrapper *>(p->parent))->tandem_packet ( num_bytes, bytes);
     return 0;
@@ -281,6 +300,7 @@ AWSP2_ResponseCb AWSP2_Response_cbTable = {
     AWSP2_Responseio_awaddr_cb,
     AWSP2_Responseio_araddr_cb,
     AWSP2_Responseio_wdata_cb,
+    AWSP2_Responseirq_status_cb,
     AWSP2_Responsetandem_packet_cb,
 };
 #endif //NO_CPP_PORTAL_CODE

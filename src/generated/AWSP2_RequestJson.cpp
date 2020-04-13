@@ -219,6 +219,39 @@ int AWSP2_RequestJson_io_bdone ( struct PortalInternal *p, const uint16_t bid, c
     return 0;
 };
 
+int AWSP2_RequestJson_irq_set_levels ( struct PortalInternal *p, const uint32_t w1s )
+{
+    Json::Value request;
+    request.append(Json::Value("irq_set_levels"));
+    request.append((Json::UInt64)w1s);
+
+    std::string requestjson = Json::FastWriter().write(request);;
+    connectalJsonSend(p, requestjson.c_str(), (int)CHAN_NUM_AWSP2_Request_irq_set_levels);
+    return 0;
+};
+
+int AWSP2_RequestJson_irq_clear_levels ( struct PortalInternal *p, const uint32_t w1c )
+{
+    Json::Value request;
+    request.append(Json::Value("irq_clear_levels"));
+    request.append((Json::UInt64)w1c);
+
+    std::string requestjson = Json::FastWriter().write(request);;
+    connectalJsonSend(p, requestjson.c_str(), (int)CHAN_NUM_AWSP2_Request_irq_clear_levels);
+    return 0;
+};
+
+int AWSP2_RequestJson_read_irq_status ( struct PortalInternal *p )
+{
+    Json::Value request;
+    request.append(Json::Value("read_irq_status"));
+    
+
+    std::string requestjson = Json::FastWriter().write(request);;
+    connectalJsonSend(p, requestjson.c_str(), (int)CHAN_NUM_AWSP2_Request_read_irq_status);
+    return 0;
+};
+
 AWSP2_RequestCb AWSP2_RequestJsonProxyReq = {
     portal_disconnect,
     AWSP2_RequestJson_set_debug_verbosity,
@@ -234,11 +267,14 @@ AWSP2_RequestCb AWSP2_RequestJsonProxyReq = {
     AWSP2_RequestJson_set_watch_tohost,
     AWSP2_RequestJson_io_rdata,
     AWSP2_RequestJson_io_bdone,
+    AWSP2_RequestJson_irq_set_levels,
+    AWSP2_RequestJson_irq_clear_levels,
+    AWSP2_RequestJson_read_irq_status,
 };
 AWSP2_RequestCb *pAWSP2_RequestJsonProxyReq = &AWSP2_RequestJsonProxyReq;
 const char * AWSP2_RequestJson_methodSignatures()
 {
-    return "{\"register_region\": [\"long\", \"long\"], \"ddr_write\": [\"long\", \"long\", \"long\"], \"ddr_read\": [\"long\"], \"io_bdone\": [\"long\", \"long\"], \"set_fabric_verbosity\": [\"long\"], \"memory_ready\": [], \"io_rdata\": [\"long\", \"long\", \"long\", \"long\"], \"dmi_read\": [\"long\"], \"capture_tv_info\": [\"long\"], \"set_watch_tohost\": [\"long\", \"long\"], \"dmi_write\": [\"long\", \"long\"], \"dmi_status\": [], \"set_debug_verbosity\": [\"long\"]}";
+    return "{\"register_region\": [\"long\", \"long\"], \"ddr_write\": [\"long\", \"long\", \"long\"], \"ddr_read\": [\"long\"], \"io_bdone\": [\"long\", \"long\"], \"irq_set_levels\": [\"long\"], \"read_irq_status\": [], \"set_fabric_verbosity\": [\"long\"], \"memory_ready\": [], \"irq_clear_levels\": [\"long\"], \"io_rdata\": [\"long\", \"long\", \"long\", \"long\"], \"dmi_read\": [\"long\"], \"capture_tv_info\": [\"long\"], \"set_watch_tohost\": [\"long\", \"long\"], \"dmi_write\": [\"long\", \"long\"], \"dmi_status\": [], \"set_debug_verbosity\": [\"long\"]}";
 }
 
 int AWSP2_RequestJson_handleMessage(struct PortalInternal *p, unsigned int channel, int messageFd)
@@ -288,6 +324,15 @@ int AWSP2_RequestJson_handleMessage(struct PortalInternal *p, unsigned int chann
       } break;
     case CHAN_NUM_AWSP2_Request_io_bdone: {
         ((AWSP2_RequestCb *)p->cb)->io_bdone(p, tempdata.io_bdone.bid, tempdata.io_bdone.bresp);
+      } break;
+    case CHAN_NUM_AWSP2_Request_irq_set_levels: {
+        ((AWSP2_RequestCb *)p->cb)->irq_set_levels(p, tempdata.irq_set_levels.w1s);
+      } break;
+    case CHAN_NUM_AWSP2_Request_irq_clear_levels: {
+        ((AWSP2_RequestCb *)p->cb)->irq_clear_levels(p, tempdata.irq_clear_levels.w1c);
+      } break;
+    case CHAN_NUM_AWSP2_Request_read_irq_status: {
+        ((AWSP2_RequestCb *)p->cb)->read_irq_status(p);
       } break;
     default:
         PORTAL_PRINTF("AWSP2_RequestJson_handleMessage: unknown channel 0x%x\n", channel);

@@ -25,6 +25,9 @@ public:
     int set_watch_tohost ( const int watch_tohost, const uint32_t tohost_addr ) { return cb->set_watch_tohost (&pint, watch_tohost, tohost_addr); };
     int io_rdata ( const uint64_t data, const uint16_t rid, const uint8_t rresp, const int last ) { return cb->io_rdata (&pint, data, rid, rresp, last); };
     int io_bdone ( const uint16_t bid, const uint8_t bresp ) { return cb->io_bdone (&pint, bid, bresp); };
+    int irq_set_levels ( const uint32_t w1s ) { return cb->irq_set_levels (&pint, w1s); };
+    int irq_clear_levels ( const uint32_t w1c ) { return cb->irq_clear_levels (&pint, w1c); };
+    int read_irq_status (  ) { return cb->read_irq_status (&pint); };
 };
 
 extern AWSP2_RequestCb AWSP2_Request_cbTable;
@@ -58,5 +61,8 @@ public:
     virtual void set_watch_tohost ( const int watch_tohost, const uint32_t tohost_addr ) = 0;
     virtual void io_rdata ( const uint64_t data, const uint16_t rid, const uint8_t rresp, const int last ) = 0;
     virtual void io_bdone ( const uint16_t bid, const uint8_t bresp ) = 0;
+    virtual void irq_set_levels ( const uint32_t w1s ) = 0;
+    virtual void irq_clear_levels ( const uint32_t w1c ) = 0;
+    virtual void read_irq_status (  ) = 0;
 };
 #endif // _AWSP2_REQUEST_H_

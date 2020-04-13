@@ -22,13 +22,21 @@ public:
         fpga->rsp_data = rsp_data;
         sem_post(&fpga->sem);
     }
-
+    virtual void irq_status ( const uint32_t levels );
     virtual void tandem_packet(const uint32_t num_bytes, const bsvvector_Luint8_t_L72 bytes);
     void io_awaddr(uint32_t awaddr, uint16_t awlen, uint16_t awid);
     void io_araddr(uint32_t araddr, uint16_t arlen, uint16_t arid);
     void console_putchar(uint64_t wdata);
     void io_wdata(uint64_t wdata, uint8_t wstrb);
+
 };
+
+void AWSP2_Response::irq_status ( const uint32_t levels )
+{
+    fpga->rsp_data = levels;
+    sem_post(&fpga->sem);
+}
+
 
 void AWSP2_Response::tandem_packet(const uint32_t num_bytes, const bsvvector_Luint8_t_L72 bytes) 
 {

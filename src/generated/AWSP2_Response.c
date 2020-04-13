@@ -79,6 +79,16 @@ int AWSP2_Response_io_wdata ( struct PortalInternal *p, const uint64_t wdata, co
     return 0;
 };
 
+int AWSP2_Response_irq_status ( struct PortalInternal *p, const uint32_t levels )
+{
+    volatile unsigned int* temp_working_addr_start = p->transport->mapchannelReq(p, CHAN_NUM_AWSP2_Response_irq_status, 2);
+    volatile unsigned int* temp_working_addr = temp_working_addr_start;
+    if (p->transport->busywait(p, CHAN_NUM_AWSP2_Response_irq_status, "AWSP2_Response_irq_status")) return 1;
+    p->transport->write(p, &temp_working_addr, levels);
+    p->transport->send(p, temp_working_addr_start, (CHAN_NUM_AWSP2_Response_irq_status << 16) | 2, -1);
+    return 0;
+};
+
 int AWSP2_Response_tandem_packet ( struct PortalInternal *p, const uint32_t num_bytes, const bsvvector_Luint8_t_L72 bytes )
 {
     volatile unsigned int* temp_working_addr_start = p->transport->mapchannelReq(p, CHAN_NUM_AWSP2_Response_tandem_packet, 20);
@@ -115,14 +125,15 @@ AWSP2_ResponseCb AWSP2_ResponseProxyReq = {
     AWSP2_Response_io_awaddr,
     AWSP2_Response_io_araddr,
     AWSP2_Response_io_wdata,
+    AWSP2_Response_irq_status,
     AWSP2_Response_tandem_packet,
 };
 AWSP2_ResponseCb *pAWSP2_ResponseProxyReq = &AWSP2_ResponseProxyReq;
 
-const uint32_t AWSP2_Response_reqinfo = 0x70050;
+const uint32_t AWSP2_Response_reqinfo = 0x80050;
 const char * AWSP2_Response_methodSignatures()
 {
-    return "{\"tandem_packet\": [\"long\", \"long\"], \"io_wdata\": [\"long\", \"long\"], \"ddr_data\": [\"long\"], \"dmi_status_data\": [\"long\"], \"io_araddr\": [\"long\", \"long\", \"long\"], \"io_awaddr\": [\"long\", \"long\", \"long\"], \"dmi_read_data\": [\"long\"]}";
+    return "{\"tandem_packet\": [\"long\", \"long\"], \"io_wdata\": [\"long\", \"long\"], \"irq_status\": [\"long\"], \"ddr_data\": [\"long\"], \"dmi_status_data\": [\"long\"], \"io_araddr\": [\"long\", \"long\", \"long\"], \"io_awaddr\": [\"long\", \"long\", \"long\"], \"dmi_read_data\": [\"long\"]}";
 }
 
 int AWSP2_Response_handleMessage(struct PortalInternal *p, unsigned int channel, int messageFd)
@@ -258,6 +269,12 @@ int AWSP2_Response_handleMessage(struct PortalInternal *p, unsigned int channel,
         tempdata.io_wdata.wstrb = (uint8_t)(((tmp)&0xfful));
         tempdata.io_wdata.wdata |= (uint64_t)(((tmp>>8)&0xfffffful));
         ((AWSP2_ResponseCb *)p->cb)->io_wdata(p, tempdata.io_wdata.wdata, tempdata.io_wdata.wstrb);
+      } break;
+    case CHAN_NUM_AWSP2_Response_irq_status: {
+        p->transport->recv(p, temp_working_addr, 1, &tmpfd);
+        tmp = p->transport->read(p, &temp_working_addr);
+        tempdata.irq_status.levels = (uint32_t)(((tmp)&0xfffffffful));
+        ((AWSP2_ResponseCb *)p->cb)->irq_status(p, tempdata.irq_status.levels);
       } break;
     case CHAN_NUM_AWSP2_Response_tandem_packet: {
         p->transport->recv(p, temp_working_addr, 19, &tmpfd);

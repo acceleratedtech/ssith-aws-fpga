@@ -18,6 +18,7 @@ public:
     int io_awaddr ( const uint32_t awaddr, const uint16_t awlen, const uint16_t awid ) { return cb->io_awaddr (&pint, awaddr, awlen, awid); };
     int io_araddr ( const uint32_t araddr, const uint16_t arlen, const uint16_t arid ) { return cb->io_araddr (&pint, araddr, arlen, arid); };
     int io_wdata ( const uint64_t wdata, const uint8_t wstrb ) { return cb->io_wdata (&pint, wdata, wstrb); };
+    int irq_status ( const uint32_t levels ) { return cb->irq_status (&pint, levels); };
     int tandem_packet ( const uint32_t num_bytes, const bsvvector_Luint8_t_L72 bytes ) { return cb->tandem_packet (&pint, num_bytes, bytes); };
 };
 
@@ -45,6 +46,7 @@ public:
     virtual void io_awaddr ( const uint32_t awaddr, const uint16_t awlen, const uint16_t awid ) = 0;
     virtual void io_araddr ( const uint32_t araddr, const uint16_t arlen, const uint16_t arid ) = 0;
     virtual void io_wdata ( const uint64_t wdata, const uint8_t wstrb ) = 0;
+    virtual void irq_status ( const uint32_t levels ) = 0;
     virtual void tandem_packet ( const uint32_t num_bytes, const bsvvector_Luint8_t_L72 bytes ) = 0;
 };
 #endif // _AWSP2_RESPONSE_H_

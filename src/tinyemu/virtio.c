@@ -295,6 +295,7 @@ static void virtio_init(VIRTIODevice *s, VIRTIOBusDef *bus,
     virtio_reset(s);
 }
 
+#if 0
 static uint16_t virtio_read16(VIRTIODevice *s, virtio_phys_addr_t addr)
 {
     uint8_t *ptr;
@@ -367,6 +368,7 @@ static int virtio_memcpy_to_ram(VIRTIODevice *s, virtio_phys_addr_t addr,
     }
     return 0;
 }
+#endif
 
 static int get_desc(VIRTIODevice *s, VIRTIODesc *desc,  
                     int queue_idx, int desc_idx)
