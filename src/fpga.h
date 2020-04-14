@@ -1,6 +1,8 @@
 #pragma once
 
 #include <string.h>
+#include <queue>
+#include <mutex>
 
 #include "virtiodevices.h"
 #include "AWSP2_Request.h"
@@ -114,6 +116,10 @@ class AWSP2 {
     int display_tandem;
     bsvvector_Luint8_t_L64 pcis_rsp_data;
 
+    std::mutex client_mutex;
+    std::mutex stdin_mutex;
+    std::queue<uint8_t> stdin_queue;
+
     friend class AWSP2_Response;
 public:
     AWSP2(int id, const Rom &rom);
@@ -123,11 +129,11 @@ public:
     void wait();
 
     uint32_t dmi_status();
-    uint32_t dmi_read(uint32_t addr);
-    void dmi_write(uint32_t addr, uint32_t data);
 
     void ddr_read(uint32_t addr, bsvvector_Luint8_t_L64 data);
     void ddr_write(uint32_t addr, const bsvvector_Luint8_t_L64 data, uint64_t wstrb = 0xFFFFFFFFFFFFFFFFul);
+    void ddr_write(uint32_t start_addr, const uint32_t *data, size_t num_bytes);
+
     void register_region(uint32_t region, uint32_t objid);
     void memory_ready();
     uint64_t read_csr(int i);
@@ -148,7 +154,14 @@ public:
     void set_fabric_verbosity(uint8_t verbosity);
     void set_dram_buffer(uint8_t *buf);
 
+    void enqueue_stdin(const char *buf, int num_chars);
+    int dequeue_stdin(uint8_t *chp);
+
     void process_io();
 
+ private:
+    uint32_t dmi_read(uint32_t addr);
+    void dmi_write(uint32_t addr, uint32_t data);
     void sbcs_wait();
+    
 };

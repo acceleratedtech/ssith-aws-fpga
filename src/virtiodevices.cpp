@@ -60,9 +60,29 @@ VirtioDevices::VirtioDevices() {
     virtio_bus->mem_map = mem_map;
     virtio_bus->addr = 0x40000000;
     virtio_bus->irq = irq;
-    irq_init(irq, awsp2_set_irq, (void *)22, 0);
+    irq_init(virtio_bus->irq, awsp2_set_irq, (void *)22, 0);
 
     virtio_console = virtio_console_init(virtio_bus, console);
+
+#if 0
+    // set up a block device
+    virtio_bus->addr += 0x1000;
+    virtio_bus->irq += 1;
+    irq_init(virtio_bus->irq, awsp2_set_irq, (void *)22, 0);
+    block_device = block_device_init("block.bin", BF_MODE_RW);
+    fprintf(stderr, "block device %p\n", block_device);
+    virtio_block = virtio_block_init(virtio_bus, block_device);
+    fprintf(stderr, "virtio block device %p at addr %08lx\n", virtio_block, virtio_bus->addr);
+#endif
+
+    // set up a network device
+    virtio_bus->addr += 0x1000;
+    virtio_bus->irq += 1;
+    irq_init(virtio_bus->irq, awsp2_set_irq, (void *)22, 0);
+    ethernet_device = slirp_open();
+    virtio_net = virtio_net_init(virtio_bus, ethernet_device);
+    fprintf(stderr, "ethernet device %p virtio net device %p at addr %08lx\n", ethernet_device, virtio_net, virtio_bus->addr);
+
 }
 
 VirtioDevices::~VirtioDevices() {
@@ -96,6 +116,7 @@ void VirtioDevices::process_io()
         }
 #endif
     }
+#if 0
     if (virtio_console && FD_ISSET(stdin_fd, &rfds)) {
         uint8_t buf[128];
         int ret, len;
@@ -106,6 +127,7 @@ void VirtioDevices::process_io()
             virtio_console_write_data(virtio_console, buf, ret);
         }
     }
+#endif
 }
 
 uint16_t virtio_read16(VIRTIODevice *s, virtio_phys_addr_t addr)

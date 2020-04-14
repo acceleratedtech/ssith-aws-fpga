@@ -8,10 +8,14 @@ extern "C" {
 
 class VirtioDevices {
  private:
+  BlockDevice *block_device;
   CharacterDevice *console;
+  EthernetDevice *ethernet_device;
   PhysMemoryMap *mem_map;
   VIRTIOBusDef *virtio_bus;
   VIRTIODevice *virtio_console;
+  VIRTIODevice *virtio_block;
+  VIRTIODevice *virtio_net;
 
  public:
   VirtioDevices();

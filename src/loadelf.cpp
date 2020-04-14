@@ -84,18 +84,9 @@ void AWSP2_Memory::write64(uint32_t addr, uint64_t data)
 
 void AWSP2_Memory::write(uint32_t start_addr, const uint32_t *data, size_t num_bytes)
 {
-    fprintf(stderr, "IMemory::write addr %x num_bytes %ld\n", start_addr, num_bytes);
-    fpga->dmi_write(DM_SBCS_REG, SBCS_SBACCESS32 | SBCS_SBAUTOINCREMENT);
-    fpga->sbcs_wait();
-    fpga->dmi_write(DM_SBADDRESS0_REG, start_addr);
-    fpga->sbcs_wait();
-    for (size_t i = 0; i < num_bytes; i += 4) {
-        fpga->sbcs_wait();
-        fpga->dmi_write(DM_SBDATA0_REG, data[i / 4]);
-    }
-    fpga->sbcs_wait();
-    fpga->dmi_write(DM_SBCS_REG, 0);
-    fprintf(stderr, "\n");
+  fprintf(stderr, "IMemory::write addr %x num_bytes %ld ... ", start_addr, num_bytes);
+  fpga->ddr_write(start_addr, data, num_bytes);
+  fprintf(stderr, "\n");
 }
 
 

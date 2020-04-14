@@ -204,6 +204,14 @@ void AWSP2_Response::io_araddr(uint32_t araddr, uint16_t arlen, uint16_t arid)
             //fprintf(stderr, "io_rdata %08lx\n", rom.data[offset + i]);
             fpga->request->io_rdata(fpga->rom.data[offset + i], arid, 0, last);
         }
+    } else if (araddr == 0x10001008) {
+	uint8_t ch = 0;
+	if (fpga->dequeue_stdin(&ch)) {
+	    uint64_t cmd = (1ul << 56) | (0ul << 48) | ch;
+	    fpga->request->io_rdata(cmd, arid, 0, 1);
+	} else {
+	    fpga->request->io_rdata(0, arid, 0, 1);
+	}
     } else {
         if (araddr != 0x10001000 && araddr != 0x10001008 && araddr != 0x50001000 && araddr != 0x50001008)
             fprintf(stderr, "io_araddr araddr=%08x arlen=%d\n", araddr, arlen);
@@ -238,10 +246,10 @@ void AWSP2_Response::io_wdata(uint64_t wdata, uint8_t wstrb) {
             // putchar
             console_putchar(payload);
         } else {
-            fprintf(stderr, "\nHTIF: dev=%d cmd=%02x payload=%08lx\n", dev, cmd, payload);
+            //fprintf(stderr, "\nHTIF: dev=%d cmd=%02x payload=%08lx\n", dev, cmd, payload);
         }
     } else if (awaddr == 0x10001008) {
-        fprintf(stderr, "\nHTIF: awaddr %08x wdata=%08lx\n", awaddr, wdata);
+        //fprintf(stderr, "\nHTIF: awaddr %08x wdata=%08lx\n", awaddr, wdata);
     } else {
         fprintf(stderr, "io_wdata wdata=%lx wstrb=%x\n", wdata, wstrb);
     }
@@ -296,11 +304,13 @@ void AWSP2::wait() {
 }
 
 uint32_t AWSP2::dmi_status() {
+    std::lock_guard<std::mutex> lock(client_mutex);
     request->dmi_status();
     wait();
     return rsp_data;
 }
 
+// private API, should only be called with the lock held
 uint32_t AWSP2::dmi_read(uint32_t addr) {
     //fprintf(stderr, "sw dmi_read %x\n", addr);
     request->dmi_read(addr);
@@ -308,12 +318,14 @@ uint32_t AWSP2::dmi_read(uint32_t addr) {
     return rsp_data;
 }
 
+// private API, should only be called with the lock held
 void AWSP2::dmi_write(uint32_t addr, uint32_t data) {
     request->dmi_write(addr, data);
     wait();
 }
 
 void AWSP2::ddr_read(uint32_t addr, bsvvector_Luint8_t_L64 data) {
+    std::lock_guard<std::mutex> lock(client_mutex);
     request->ddr_read(addr);
     wait();
     if (data)
@@ -321,19 +333,41 @@ void AWSP2::ddr_read(uint32_t addr, bsvvector_Luint8_t_L64 data) {
 }
 
 void AWSP2::ddr_write(uint32_t addr, const bsvvector_Luint8_t_L64 data, uint64_t wstrb) {
+    std::lock_guard<std::mutex> lock(client_mutex);
     request->ddr_write(addr, data, wstrb);
     wait();
 }
 
+void AWSP2::ddr_write(uint32_t start_addr, const uint32_t *data, size_t num_bytes)
+{
+    std::lock_guard<std::mutex> lock(client_mutex);
+
+    dmi_write(DM_SBCS_REG, SBCS_SBACCESS32 | SBCS_SBAUTOINCREMENT);
+    sbcs_wait();
+    dmi_write(DM_SBADDRESS0_REG, start_addr);
+    sbcs_wait();
+    for (size_t i = 0; i < num_bytes; i += 4) {
+        sbcs_wait();
+        dmi_write(DM_SBDATA0_REG, data[i / 4]);
+    }
+    sbcs_wait();
+    dmi_write(DM_SBCS_REG, 0);
+}
+
+
 void AWSP2::register_region(uint32_t region, uint32_t objid) {
+    std::lock_guard<std::mutex> lock(client_mutex);
     request->register_region(region, objid);
 }
 
 void AWSP2::memory_ready() {
+    std::lock_guard<std::mutex> lock(client_mutex);
     request->memory_ready();
 }
 
 uint64_t AWSP2::read_csr(int i) {
+    std::lock_guard<std::mutex> lock(client_mutex);
+
     dmi_write(DM_COMMAND_REG, DM_COMMAND_ACCESS_REGISTER | (3 << 20) | (1 << 17) | i);
     uint64_t val = dmi_read(5);
     val <<=  32;
@@ -342,12 +376,16 @@ uint64_t AWSP2::read_csr(int i) {
 }
 
 void AWSP2::write_csr(int i, uint64_t val) {
+    std::lock_guard<std::mutex> lock(client_mutex);
+
     dmi_write(5, (val >> 32) & 0xFFFFFFFF);
     dmi_write(4, (val >>  0) & 0xFFFFFFFF);
     dmi_write(DM_COMMAND_REG, DM_COMMAND_ACCESS_REGISTER | (3 << 20) | (1 << 17) | (1 << 16) | i);
 }
 
 uint64_t AWSP2::read_gpr(int i) {
+    std::lock_guard<std::mutex> lock(client_mutex);
+
     dmi_write(DM_COMMAND_REG, DM_COMMAND_ACCESS_REGISTER | (3 << 20) | (1 << 17) | 0x1000 | i);
     uint64_t val = dmi_read(5);
     val <<=  32;
@@ -356,11 +394,14 @@ uint64_t AWSP2::read_gpr(int i) {
 }
 
 void AWSP2::write_gpr(int i, uint64_t val) {
+    std::lock_guard<std::mutex> lock(client_mutex);
+
     dmi_write(5, (val >> 32) & 0xFFFFFFFF);
     dmi_write(4, (val >>  0) & 0xFFFFFFFF);
     dmi_write(DM_COMMAND_REG, DM_COMMAND_ACCESS_REGISTER | (3 << 20) | (1 << 17) | (1 << 16) | 0x1000 | i);
 }
 
+// private API, should only be called with the lock held
 void AWSP2::sbcs_wait() {
     uint32_t sbcs = 0;
     int count = 0;
@@ -375,7 +416,10 @@ void AWSP2::sbcs_wait() {
         }
     } while (sbcs & (SBCS_SBBUSY));
 }
+
 uint32_t AWSP2::read32(uint32_t addr) {
+    std::lock_guard<std::mutex> lock(client_mutex);
+
     if (1 || last_addr != addr) {
         dmi_write(DM_SBCS_REG, SBCS_SBACCESS32 | SBCS_SBREADONADDR | SBCS_SBREADONDATA | SBCS_SBAUTOINCREMENT | SBCS_SBBUSYERROR);
         sbcs_wait();
@@ -390,6 +434,8 @@ uint32_t AWSP2::read32(uint32_t addr) {
 }
 
 uint64_t AWSP2::read64(uint32_t addr) {
+    std::lock_guard<std::mutex> lock(client_mutex);
+
     if (1 || last_addr != addr) {
         dmi_write(DM_SBCS_REG, SBCS_SBACCESS32 | SBCS_SBREADONADDR | SBCS_SBREADONDATA | SBCS_SBAUTOINCREMENT | SBCS_SBBUSYERROR);
         sbcs_wait();
@@ -406,6 +452,8 @@ uint64_t AWSP2::read64(uint32_t addr) {
 }
 
 void AWSP2::write32(uint32_t addr, uint32_t val) {
+    std::lock_guard<std::mutex> lock(client_mutex);
+
     if (1 || last_addr != addr) {
         dmi_write(DM_SBCS_REG, SBCS_SBACCESS32);
         dmi_write(DM_SBADDRESS0_REG, addr);
@@ -416,6 +464,8 @@ void AWSP2::write32(uint32_t addr, uint32_t val) {
 }
 
 void AWSP2::write64(uint32_t addr, uint64_t val) {
+    std::lock_guard<std::mutex> lock(client_mutex);
+
     if (1 || last_addr != addr) {
         dmi_write(DM_SBCS_REG, SBCS_SBACCESS32 | SBCS_SBAUTOINCREMENT);
         dmi_write(DM_SBADDRESS0_REG, addr);
@@ -430,6 +480,8 @@ void AWSP2::write64(uint32_t addr, uint64_t val) {
 }
 
 void AWSP2::halt(int timeout) {
+    std::lock_guard<std::mutex> lock(client_mutex);
+
     dmi_write(DM_CONTROL_REG, DM_CONTROL_HALTREQ | dmi_read(DM_CONTROL_REG));
     for (int i = 0; i < 100; i++) {
         uint32_t status = dmi_read(DM_STATUS_REG);
@@ -439,6 +491,8 @@ void AWSP2::halt(int timeout) {
     dmi_write(DM_CONTROL_REG, ~DM_CONTROL_HALTREQ & dmi_read(DM_CONTROL_REG));
 }
 void AWSP2::resume(int timeout) {
+    std::lock_guard<std::mutex> lock(client_mutex);
+
     dmi_write(DM_CONTROL_REG, DM_CONTROL_RESUMEREQ | dmi_read(DM_CONTROL_REG));
     for (int i = 0; i < 100; i++) {
         uint32_t status = dmi_read(DM_STATUS_REG);
@@ -450,16 +504,22 @@ void AWSP2::resume(int timeout) {
 
 void AWSP2::irq_set_levels(uint32_t w1s)
 {
+    std::lock_guard<std::mutex> lock(client_mutex);
+
     request->irq_set_levels(w1s);
 }
 
 void AWSP2::irq_clear_levels(uint32_t w1c)
 {
+    std::lock_guard<std::mutex> lock(client_mutex);
+
     request->irq_clear_levels(w1c);
 }
 
 int AWSP2::read_irq_status ()
 {
+    std::lock_guard<std::mutex> lock(client_mutex);
+
     request->read_irq_status();
     wait();
     return rsp_data;
@@ -467,6 +527,8 @@ int AWSP2::read_irq_status ()
 
 
 void AWSP2::set_fabric_verbosity(uint8_t verbosity) {
+    std::lock_guard<std::mutex> lock(client_mutex);
+
     request->set_fabric_verbosity(verbosity);
 }
 
@@ -474,7 +536,33 @@ void AWSP2::set_dram_buffer(uint8_t *buf) {
     virtio_devices.set_dram_buffer(buf);
 }
 
+void AWSP2::enqueue_stdin(const char *buf, int num_chars)
+{
+    std::lock_guard<std::mutex> lock(stdin_mutex);
+    for (int i = 0; i < num_chars; i++)
+        stdin_queue.push(buf[i]);
+}
+
+int AWSP2::dequeue_stdin(uint8_t *chp)
+{
+    std::lock_guard<std::mutex> lock(stdin_mutex);
+    if (stdin_queue.size()) {
+        *chp = stdin_queue.front();
+        stdin_queue.pop();
+        return 1;
+    } else {
+        return 0;
+    };
+}
+
 void AWSP2::process_io()
 {
-    virtio_devices.process_io();
+    char buf[128];
+    memset(buf, 0, sizeof(buf));
+    int ret = read(0, buf, sizeof(buf));
+    if (ret > 0) {
+        enqueue_stdin(buf, ret);
+    }
+
+    //virtio_devices.process_io();
 }
