@@ -52,6 +52,7 @@
 #ifdef CONFIG_SLIRP
 #include "slirp/libslirp.h"
 #endif
+#include "temu.h"
 
 #ifndef _WIN32
 
@@ -206,12 +207,6 @@ CharacterDevice *console_init(BOOL allow_ctrlc)
 
 #endif /* !_WIN32 */
 
-typedef enum {
-    BF_MODE_RO,
-    BF_MODE_RW,
-    BF_MODE_SNAPSHOT,
-} BlockDeviceModeEnum;
-
 #define SECTOR_SIZE 512
 
 typedef struct BlockDeviceFile {
@@ -324,8 +319,8 @@ static int bf_write_async(BlockDevice *bs,
     return ret;
 }
 
-static BlockDevice *block_device_init(const char *filename,
-                                      BlockDeviceModeEnum mode)
+BlockDevice *block_device_init(const char *filename,
+                               BlockDeviceModeEnum mode)
 {
     BlockDevice *bs;
     BlockDeviceFile *bf;
@@ -520,7 +515,7 @@ static void slirp_select_poll1(EthernetDevice *net,
     slirp_select_poll(slirp_state, rfds, wfds, efds, (select_ret <= 0));
 }
 
-static EthernetDevice *slirp_open(void)
+EthernetDevice *slirp_open(void)
 {
     EthernetDevice *net;
     struct in_addr net_addr  = { .s_addr = htonl(0x0a000200) }; /* 10.0.2.0 */

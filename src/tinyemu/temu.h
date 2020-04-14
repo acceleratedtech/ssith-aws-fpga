@@ -25,3 +25,12 @@
 #include "virtio.h"
 
 CharacterDevice *console_init(BOOL allow_ctrlc);
+
+typedef enum {
+    BF_MODE_RO,
+    BF_MODE_RW,
+    BF_MODE_SNAPSHOT,
+} BlockDeviceModeEnum;
+BlockDevice *block_device_init(const char *filename, BlockDeviceModeEnum mode);
+
+EthernetDevice *slirp_open(void);
