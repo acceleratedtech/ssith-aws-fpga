@@ -141,6 +141,10 @@ public:
     void halt(int timeout = 100);
     void resume(int timeout = 100);
 
+    void irq_set_levels(uint32_t w1s);
+    void irq_clear_levels(uint32_t w1s);
+    int read_irq_status ();
+
     void set_fabric_verbosity(uint8_t verbosity);
     void set_dram_buffer(uint8_t *buf);
 

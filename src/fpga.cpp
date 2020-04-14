@@ -263,6 +263,7 @@ void AWSP2_Response::console_putchar(uint64_t wdata) {
         fpga->start_of_line = 0;
     }
     fputc(wdata, stdout);
+    fflush(stdout);
     if (wdata == '\n') {
         printf("\n");
         fflush(stdout);
@@ -446,6 +447,24 @@ void AWSP2::resume(int timeout) {
     }
     dmi_write(DM_CONTROL_REG, ~DM_CONTROL_RESUMEREQ & dmi_read(DM_CONTROL_REG));
 }
+
+void AWSP2::irq_set_levels(uint32_t w1s)
+{
+    request->irq_set_levels(w1s);
+}
+
+void AWSP2::irq_clear_levels(uint32_t w1c)
+{
+    request->irq_clear_levels(w1c);
+}
+
+int AWSP2::read_irq_status ()
+{
+    request->read_irq_status();
+    wait();
+    return rsp_data;
+}
+
 
 void AWSP2::set_fabric_verbosity(uint8_t verbosity) {
     request->set_fabric_verbosity(verbosity);

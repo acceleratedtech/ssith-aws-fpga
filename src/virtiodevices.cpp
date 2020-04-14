@@ -16,13 +16,18 @@ extern "C" {
 
 static int debug = 0;
 
+static uint8_t *dramBuffer = 0;
+extern AWSP2 *fpga;
+
+
 void awsp2_set_irq(void *opaque, int irq_num, int level)
 {
     fprintf(stderr, "%s: irq_num=%d level=%d\n", __FUNCTION__, irq_num, level);
+    if (level)
+	fpga->irq_set_levels(0xFFFFFFFF);
+    else
+	fpga->irq_clear_levels(0xFFFFFFFF);
 }
-
-static uint8_t *dramBuffer = 0;
-extern AWSP2 *fpga;
 
 static PhysMemoryRange *fpga_register_ram(PhysMemoryMap *s, uint64_t addr,
                                           uint64_t size, int devram_flags, uint8_t *phys_mem)
