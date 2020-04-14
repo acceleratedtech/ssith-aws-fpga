@@ -69,7 +69,19 @@
 		compatible = "virtio,mmio";
 		reg = <0x40000000 0x100>;
 		interrupt-parent = <&plic>;
-		interrupts = <4>;
+		interrupts = <0>;
+	};
+	virtio_block@40001000 {
+		compatible = "virtio,mmio";
+		reg = <0x40001000 0x1000>;
+		interrupt-parent = <&plic>;
+		interrupts = <1>;
+	};
+	virtio_block@40002000 {
+		compatible = "virtio,mmio";
+		reg = <0x40002000 0x1000>;
+		interrupt-parent = <&plic>;
+		interrupts = <2>;
 	};
 
     htif {
