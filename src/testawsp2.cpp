@@ -205,21 +205,22 @@ int main(int argc, char * const *argv)
     while (1) {
 
         // event processing is in the other thread
-        fpga->halt();
 
 	fpga->process_io();
 
-        uint64_t dpc = fpga->read_csr(0x7b1);
-        uint64_t ra = fpga->read_gpr(1);
-        uint64_t stvec = fpga->read_csr(0x105);
-        fprintf(stderr, "pc %08lx ra %08lx stvec %08lx\n", dpc, ra, stvec);
-	if (0 && !tv && dpc >= 0x8200210a) {
+	if (0) {
+	  fpga->halt();
+	  uint64_t dpc = fpga->read_csr(0x7b1);
+	  uint64_t ra = fpga->read_gpr(1);
+	  uint64_t stvec = fpga->read_csr(0x105);
+	  fprintf(stderr, "pc %08lx ra %08lx stvec %08lx\n", dpc, ra, stvec);
+	  if (0 && !tv && dpc >= 0x8200210a) {
 	    tv = 1;
 	    fpga->capture_tv_info(tv);
-	}
-        if (dpc == 0x1000 || dpc == 0x80003168 || dpc == 0xffffffe000000154ull) {
+	  }
+	  if (dpc == 0x1000 || dpc == 0x80003168 || dpc == 0xffffffe000000154ull) {
             for (int i = 0; i < 32; i++) {
-                fprintf(stderr, "reg %d val %08lx\n", i, fpga->read_gpr(i));
+	      fprintf(stderr, "reg %d val %08lx\n", i, fpga->read_gpr(i));
             }
 
             fprintf(stderr, "mepc   %08lx\n", fpga->read_csr(0x341));
@@ -227,8 +228,9 @@ int main(int argc, char * const *argv)
             fprintf(stderr, "mtval  %08lx\n", fpga->read_csr(0x343));
 
             break;
-        }
-        fpga->resume();
+	  }
+	  fpga->resume();
+	}
 
         sleep(sleep_seconds);
     }

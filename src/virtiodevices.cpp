@@ -130,6 +130,16 @@ void VirtioDevices::process_io()
 #endif
 }
 
+int VirtioDevices::has_pending_actions()
+{
+    return virtio_has_pending_actions(virtio_net);
+}
+
+int VirtioDevices::perform_pending_actions()
+{
+    virtio_perform_pending_actions(virtio_net);
+}
+
 uint16_t virtio_read16(VIRTIODevice *s, virtio_phys_addr_t addr)
 {
     uint8_t *ptr;

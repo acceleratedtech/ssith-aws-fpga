@@ -1,7 +1,7 @@
 
 #include "fpga.h"
 
-static int debug_virtio;
+static int debug_virtio = 1;
 
 class AWSP2_Response : public AWSP2_ResponseWrapper {
 private:
@@ -38,7 +38,7 @@ void AWSP2_Response::irq_status ( const uint32_t levels )
 }
 
 
-void AWSP2_Response::tandem_packet(const uint32_t num_bytes, const bsvvector_Luint8_t_L72 bytes) 
+void AWSP2_Response::tandem_packet(const uint32_t num_bytes, const bsvvector_Luint8_t_L72 bytes)
 {
     if (fpga->stop_capture)
         return;
@@ -146,7 +146,7 @@ void AWSP2_Response::tandem_packet(const uint32_t num_bytes, const bsvvector_Lui
             if (fpga->display_tandem) fprintf(stderr, "\n");
         }
     } else {
-            
+
         if (fpga->display_tandem) fprintf(stderr, "[TV] %d packet", num_bytes);
         if (num_bytes < 72) {
             for (uint32_t i = 0; i < num_bytes; i++) {
@@ -166,7 +166,7 @@ void AWSP2_Response::io_awaddr(uint32_t awaddr, uint16_t awlen, uint16_t awid) {
         uint32_t offset = awaddr - pr->addr;
         if (debug_virtio) fprintf(stderr, "virtio awaddr %08x device addr %08lx offset %08x len %d\n", awaddr, pr->addr, offset, awlen);
     } else if (awaddr == 0x60000000) {
-        // UART 
+        // UART
     } else if (awaddr == 0x10001000 || awaddr == 0x50001000) {
         // tohost
     } else if (awaddr == 0x10001008 || awaddr == 0x50001008) {
@@ -205,13 +205,13 @@ void AWSP2_Response::io_araddr(uint32_t araddr, uint16_t arlen, uint16_t arid)
             fpga->request->io_rdata(fpga->rom.data[offset + i], arid, 0, last);
         }
     } else if (araddr == 0x10001008) {
-	uint8_t ch = 0;
-	if (fpga->dequeue_stdin(&ch)) {
-	    uint64_t cmd = (1ul << 56) | (0ul << 48) | ch;
-	    fpga->request->io_rdata(cmd, arid, 0, 1);
-	} else {
-	    fpga->request->io_rdata(0, arid, 0, 1);
-	}
+        uint8_t ch = 0;
+        if (fpga->dequeue_stdin(&ch)) {
+            uint64_t cmd = (1ul << 56) | (0ul << 48) | ch;
+            fpga->request->io_rdata(cmd, arid, 0, 1);
+        } else {
+            fpga->request->io_rdata(0, arid, 0, 1);
+        }
     } else {
         if (araddr != 0x10001000 && araddr != 0x10001008 && araddr != 0x50001000 && araddr != 0x50001008)
             fprintf(stderr, "io_araddr araddr=%08x arlen=%d\n", araddr, arlen);
@@ -219,9 +219,9 @@ void AWSP2_Response::io_araddr(uint32_t araddr, uint16_t arlen, uint16_t arid)
             int last = i == ((arlen / 8) - 1);
             // 0xbad0beef
             fpga->request->io_rdata(0, arid, 0, last);
-        }       
+        }
     }
-        
+
 }
 
 void AWSP2_Response::io_wdata(uint64_t wdata, uint8_t wstrb) {
@@ -230,10 +230,10 @@ void AWSP2_Response::io_wdata(uint64_t wdata, uint8_t wstrb) {
     if (pr) {
         int size_log2 = 2;
         uint32_t offset = awaddr - pr->addr;
-	if (awaddr & 4) {
-	    wdata = (wdata >> 32) & 0xFFFFFFFF;;
-	}
-	if (debug_virtio) fprintf(stderr, "virtio awaddr %08x offset %x wdata %08lx wstrb %x\n", awaddr, offset, wdata, wstrb);
+        if (awaddr & 4) {
+            wdata = (wdata >> 32) & 0xFFFFFFFF;;
+        }
+        if (debug_virtio) fprintf(stderr, "virtio awaddr %08x offset %x wdata %08lx wstrb %x\n", awaddr, offset, wdata, wstrb);
         pr->write_func(pr->opaque, offset, wdata, size_log2);
     } else if (awaddr == 0x60000000) {
         console_putchar(wdata);
@@ -259,7 +259,7 @@ void AWSP2_Response::io_wdata(uint64_t wdata, uint8_t wstrb) {
             && awaddr != 0x10001008
             && awaddr != 0x10001000
             && awaddr != 0x50001008
-	    && !pr)
+            && !pr)
             fprintf(stderr, "-> io_bdone %08x\n", awaddr);
         fpga->request->io_bdone(fpga->wid, 0);
     }
@@ -280,7 +280,7 @@ void AWSP2_Response::console_putchar(uint64_t wdata) {
 }
 
 
-AWSP2::AWSP2(int id, const Rom &rom) 
+AWSP2::AWSP2(int id, const Rom &rom)
   : response(0), rom(rom), last_addr(0), wdata_count(0), wid(0), start_of_line(1)
 {
     sem_init(&sem, 0, 0);
@@ -481,7 +481,6 @@ void AWSP2::write64(uint32_t addr, uint64_t val) {
 
 void AWSP2::halt(int timeout) {
     std::lock_guard<std::mutex> lock(client_mutex);
-
     dmi_write(DM_CONTROL_REG, DM_CONTROL_HALTREQ | dmi_read(DM_CONTROL_REG));
     for (int i = 0; i < 100; i++) {
         uint32_t status = dmi_read(DM_STATUS_REG);
@@ -490,6 +489,7 @@ void AWSP2::halt(int timeout) {
     }
     dmi_write(DM_CONTROL_REG, ~DM_CONTROL_HALTREQ & dmi_read(DM_CONTROL_REG));
 }
+
 void AWSP2::resume(int timeout) {
     std::lock_guard<std::mutex> lock(client_mutex);
 
@@ -565,4 +565,11 @@ void AWSP2::process_io()
     }
 
     //virtio_devices.process_io();
+    if (virtio_devices.has_pending_actions()) {
+        halt();
+
+        virtio_devices.perform_pending_actions();
+
+        resume();
+    }
 }

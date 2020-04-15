@@ -66,6 +66,9 @@ int virtio_memcpy_to_ram(VIRTIODevice *s, virtio_phys_addr_t addr, const uint8_t
 
 void virtio_set_debug(VIRTIODevice *s, int debug_flags);
 
+int virtio_has_pending_actions(VIRTIODevice *s);
+void virtio_perform_pending_actions(VIRTIODevice *s);
+
 /* block device */
 
 typedef void BlockDeviceCompletionFunc(void *opaque, int ret);
