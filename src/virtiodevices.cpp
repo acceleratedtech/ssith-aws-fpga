@@ -64,7 +64,6 @@ VirtioDevices::VirtioDevices() {
 
     virtio_console = virtio_console_init(virtio_bus, console);
 
-#if 0
     // set up a block device
     virtio_bus->addr += 0x1000;
     virtio_bus->irq += 1;
@@ -73,7 +72,6 @@ VirtioDevices::VirtioDevices() {
     fprintf(stderr, "block device %p\n", block_device);
     virtio_block = virtio_block_init(virtio_bus, block_device);
     fprintf(stderr, "virtio block device %p at addr %08lx\n", virtio_block, virtio_bus->addr);
-#endif
 
     // set up a network device
     virtio_bus->addr += 0x1000;
@@ -96,10 +94,14 @@ PhysMemoryRange *VirtioDevices::get_phys_mem_range(uint64_t paddr)
 void VirtioDevices::process_io()
 {
     int stdin_fd = 0;
-    int fd_max;
-    fd_set rfds;
+    int fd_max = -1;
+    fd_set rfds,  wfds, efds;
+    int delay = 10; // ms
+    struct timeval tv;
 
     FD_ZERO(&rfds);
+    FD_ZERO(&wfds);
+    FD_ZERO(&efds);
 
     if (virtio_console && virtio_console_can_write_data(virtio_console)) {
         //STDIODevice *s = console->opaque;
@@ -115,6 +117,15 @@ void VirtioDevices::process_io()
             s->resize_pending = FALSE;
         }
 #endif
+    }
+    if (ethernet_device) {
+        ethernet_device->select_fill(ethernet_device, &fd_max, &rfds, &wfds, &efds, &delay);
+    }
+    tv.tv_sec = delay / 1000;
+    tv.tv_usec = (delay % 1000) * 1000;
+    int ret = select(fd_max + 1, &rfds, &wfds, &efds, &tv);
+    if (ethernet_device) {
+        ethernet_device->select_poll(ethernet_device, &rfds, &wfds, &efds, ret);
     }
 #if 0
     if (virtio_console && FD_ISSET(stdin_fd, &rfds)) {
@@ -132,12 +143,21 @@ void VirtioDevices::process_io()
 
 int VirtioDevices::has_pending_actions()
 {
-    return virtio_has_pending_actions(virtio_net);
+    return (virtio_net != 0 && virtio_has_pending_actions(virtio_net))
+	|| (virtio_block != 0 && virtio_has_pending_actions(virtio_block));
 }
 
 int VirtioDevices::perform_pending_actions()
 {
-    virtio_perform_pending_actions(virtio_net);
+    if (virtio_net != 0) {
+	if (virtio_has_pending_actions(virtio_net)) {
+	    fprintf(stderr, "performing pending net actions\n");
+	    virtio_perform_pending_actions(virtio_net);
+	}
+    }
+    if (virtio_block != 0) {
+	virtio_perform_pending_actions(virtio_block);
+    }
 }
 
 uint16_t virtio_read16(VIRTIODevice *s, virtio_phys_addr_t addr)

@@ -153,7 +153,6 @@ struct VIRTIODevice {
 
     uint32_t pending_queue_notify;
     uint8_t  pending_irq_clear;
-    uint8_t  pending_reset;
 };
 
 static uint32_t virtio_mmio_read(void *opaque, uint32_t offset1, int size_log2);
@@ -184,11 +183,13 @@ static void virtio_reset(VIRTIODevice *s)
 
 static uint8_t *virtio_pci_get_ram_ptr(VIRTIODevice *s, virtio_phys_addr_t paddr, BOOL is_rw)
 {
+    assert(0);
     return pci_device_get_dma_ptr(s->pci_dev, paddr, is_rw);
 }
 
 static uint8_t *virtio_mmio_get_ram_ptr(VIRTIODevice *s, virtio_phys_addr_t paddr, BOOL is_rw)
 {
+    assert(0);
     return phys_mem_get_ram_ptr(s->mem_map, paddr, is_rw);
 }
 
@@ -544,6 +545,8 @@ static void queue_notify(VIRTIODevice *s, int queue_idx)
                        queue_idx, read_size, write_size);
             }
 #endif
+	    fprintf(stderr, "queue_notify: idx=%d read_size=%d write_size=%d\n",
+		    queue_idx, read_size, write_size);
             if (s->device_recv(s, queue_idx, desc_idx,
                                read_size, write_size) < 0)
                 break;
@@ -783,7 +786,7 @@ static void virtio_mmio_write(void *opaque, uint32_t offset,
             if (val == 0) {
                 /* reset */
                 if (1) {
-                    s->pending_reset = 1;
+                    s->pending_irq_clear = 1;
                 } else {
                     set_irq(s->irq, 0);
                 }
@@ -1186,6 +1189,7 @@ static int virtio_net_recv_request(VIRTIODevice *s, int queue_idx,
     uint8_t *buf;
     int len;
 
+    fprintf(stderr, "%s: queue_idx=%d desc_idx %d\n", __FUNCTION__, queue_idx, desc_idx);
     if (queue_idx == 1) {
         /* send to network */
         if (memcpy_from_queue(s, &h, queue_idx, desc_idx, 0, s1->header_size) < 0)
@@ -1193,6 +1197,7 @@ static int virtio_net_recv_request(VIRTIODevice *s, int queue_idx,
         len = read_size - s1->header_size;
         buf = malloc(len);
         memcpy_from_queue(s, buf, queue_idx, desc_idx, s1->header_size, len);
+	fprintf(stderr, "%s: calling write_packet len %d\n", __FUNCTION__, len);
         es->write_packet(es, buf, len);
         free(buf);
         virtio_consume_desc(s, queue_idx, desc_idx, 0);
@@ -1205,6 +1210,8 @@ static BOOL virtio_net_can_write_packet(EthernetDevice *es)
     VIRTIODevice *s = es->device_opaque;
     QueueState *qs = &s->queue[0];
     uint16_t avail_idx;
+
+    fprintf(stderr, "%s: qs->ready %d\n", __FUNCTION__, qs->ready);
 
     if (!qs->ready)
         return FALSE;
@@ -1225,6 +1232,7 @@ static void virtio_net_write_packet(EthernetDevice *es, const uint8_t *buf, int 
 
     if (!qs->ready)
         return;
+    fprintf(stderr, "%s: buf_len %d\n", __FUNCTION__, buf_len);
     avail_idx = virtio_read16(s, qs->avail_addr + 2);
     if (qs->last_avail_idx == avail_idx)
         return;
@@ -1235,6 +1243,7 @@ static void virtio_net_write_packet(EthernetDevice *es, const uint8_t *buf, int 
     len = s1->header_size + buf_len; 
     if (len > write_size)
         return;
+    fprintf(stderr, "%s: desc_idx %d len %d\n", __FUNCTION__, desc_idx, len);
     memset(&h, 0, s1->header_size);
     memcpy_to_queue(s, queue_idx, desc_idx, 0, &h, s1->header_size);
     memcpy_to_queue(s, queue_idx, desc_idx, s1->header_size, buf, buf_len);
@@ -1244,6 +1253,7 @@ static void virtio_net_write_packet(EthernetDevice *es, const uint8_t *buf, int 
 
 static void virtio_net_set_carrier(EthernetDevice *es, BOOL carrier_state)
 {
+    fprintf(stderr, "%s: carrier_state %d\n", __FUNCTION__, carrier_state);
 #if 0
     VIRTIODevice *s1 = es->device_opaque;
     VIRTIONetDevice *s = (VIRTIONetDevice *)s1;
@@ -1323,7 +1333,6 @@ BOOL virtio_console_can_write_data(VIRTIODevice *s)
         return FALSE;
     }
     avail_idx = virtio_read16(s, qs->avail_addr + 2);
-    fprintf(stderr, "%s: avail_idx=%d last_vail_idx=%d\n", __FUNCTION__, avail_idx, qs->last_avail_idx);
     return qs->last_avail_idx != avail_idx;
 }
 
@@ -1342,7 +1351,6 @@ int virtio_console_get_write_len(VIRTIODevice *s)
         return 0;
     desc_idx = virtio_read16(s, qs->avail_addr + 4 + 
                              (qs->last_avail_idx & (qs->num - 1)) * 2);
-    fprintf(stderr, "%s: desc_idx=%d avail_idx=%d", __FUNCTION__, desc_idx, avail_idx);
     if (get_desc_rw_size(s, &read_size, &write_size, queue_idx, desc_idx))
         return 0;
     return write_size;
@@ -2684,7 +2692,7 @@ VIRTIODevice *virtio_9p_init(VIRTIOBusDef *bus, FSDevice *fs,
 
 int virtio_has_pending_actions(VIRTIODevice *s)
 {
-    return s->pending_queue_notify | s->pending_irq_clear | s->pending_reset;
+    return s->pending_queue_notify | s->pending_irq_clear;
 }
 void virtio_perform_pending_actions(VIRTIODevice *s)
 {
@@ -2695,14 +2703,16 @@ void virtio_perform_pending_actions(VIRTIODevice *s)
 
     if (s->pending_queue_notify) {
 	int notify = s->pending_queue_notify;
+	s->pending_queue_notify = 0;
+	fprintf(stderr, "%s: pending queue notify %x\n", __FUNCTION__, notify);
         for (int i = 0; i < 32; i++) {
             if (notify & (1 << i)) {
+		fprintf(stderr, "%s: queue_notify(%d)\n", __FUNCTION__, i);
                 queue_notify(s, i);
                 notify &= ~(1 << i);
             }
             if (!notify)
                 break;
         }
-	s->pending_queue_notify = 0;
     }
 }

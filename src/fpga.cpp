@@ -558,7 +558,7 @@ void AWSP2::process_io()
         enqueue_stdin(buf, ret);
     }
 
-    //virtio_devices.process_io();
+    virtio_devices.process_io();
     if (virtio_devices.has_pending_actions()) {
         halt();
 
