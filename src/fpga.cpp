@@ -1,7 +1,8 @@
 
 #include "fpga.h"
 
-static int debug_virtio = 1;
+static int debug_virtio = 0;
+static int debug_stray_io = 0;
 
 class AWSP2_Response : public AWSP2_ResponseWrapper {
 private:
@@ -214,7 +215,7 @@ void AWSP2_Response::io_araddr(uint32_t araddr, uint16_t arlen, uint16_t arid)
         }
     } else {
         if (araddr != 0x10001000 && araddr != 0x10001008 && araddr != 0x50001000 && araddr != 0x50001008)
-            fprintf(stderr, "io_araddr araddr=%08x arlen=%d\n", araddr, arlen);
+            if (debug_stray_io) fprintf(stderr, "io_araddr araddr=%08x arlen=%d\n", araddr, arlen);
         for (int i = 0; i < arlen / 8; i++) {
             int last = i == ((arlen / 8) - 1);
             // 0xbad0beef
@@ -251,29 +252,22 @@ void AWSP2_Response::io_wdata(uint64_t wdata, uint8_t wstrb) {
     } else if (awaddr == 0x10001008) {
         //fprintf(stderr, "\nHTIF: awaddr %08x wdata=%08lx\n", awaddr, wdata);
     } else {
-        fprintf(stderr, "io_wdata wdata=%lx wstrb=%x\n", wdata, wstrb);
+        if (debug_stray_io) fprintf(stderr, "io_wdata wdata=%lx wstrb=%x\n", wdata, wstrb);
     }
     fpga->wdata_count -= 1;
     if (fpga->wdata_count <= 0) {
-        if (awaddr != 0x60000000
-            && awaddr != 0x10001008
-            && awaddr != 0x10001000
-            && awaddr != 0x50001008
-            && !pr)
-            fprintf(stderr, "-> io_bdone %08x\n", awaddr);
         fpga->request->io_bdone(fpga->wid, 0);
     }
 }
 
 void AWSP2_Response::console_putchar(uint64_t wdata) {
     if (fpga->start_of_line) {
-        printf("\nCONSOLE: ");
+        //printf("\nCONSOLE: ");
         fpga->start_of_line = 0;
     }
     fputc(wdata, stdout);
     fflush(stdout);
     if (wdata == '\n') {
-        printf("\n");
         fflush(stdout);
         fpga->start_of_line = 1;
     }

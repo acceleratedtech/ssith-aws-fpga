@@ -22,7 +22,7 @@ extern AWSP2 *fpga;
 
 void awsp2_set_irq(void *opaque, int irq_num, int level)
 {
-    fprintf(stderr, "%s: irq_num=%d level=%d\n", __FUNCTION__, irq_num, level);
+    //fprintf(stderr, "%s: irq_num=%d level=%d\n", __FUNCTION__, irq_num, level);
     if (level)
 	fpga->irq_set_levels(0xFFFFFFFF);
     else

@@ -483,7 +483,6 @@ static void virtio_consume_desc(VIRTIODevice *s,
     virtio_write32(s, addr + 4, desc_len);
 
     s->int_status |= 1;
-    fprintf(stderr, "%s int_status %x\n", __FUNCTION__, s->int_status);
     set_irq(s->irq, 1);
 }
 
@@ -686,7 +685,6 @@ static uint32_t virtio_mmio_read(void *opaque, uint32_t offset, int size_log2)
             break;
         case VIRTIO_MMIO_INTERRUPT_STATUS:
             val = s->int_status;
-	    fprintf(stderr, "VIRTIO_MMIO_INTERRUPT_STATUS %08x\n", s->int_status);
             break;
         case VIRTIO_MMIO_STATUS:
             val = s->status;
@@ -707,9 +705,6 @@ static uint32_t virtio_mmio_read(void *opaque, uint32_t offset, int size_log2)
                offset, val, 1 << size_log2);
     }
 #endif
-
-    fprintf(stderr, "virto_mmio_read: offset=0x%x val=%08x size=%d\n",
-            offset, val, 1 << size_log2);
 
     return val;
 }
@@ -742,8 +737,6 @@ static void virtio_mmio_write(void *opaque, uint32_t offset,
                offset, val, 1 << size_log2);
     }
 #endif
-    fprintf(stderr, "virto_mmio_write: offset=0x%x val=0x%x size=%d\n",
-	    offset, val, 1 << size_log2);
 
     if (offset >= VIRTIO_MMIO_CONFIG) {
         virtio_config_write(s, offset - VIRTIO_MMIO_CONFIG, val, size_log2);
@@ -802,7 +795,7 @@ static void virtio_mmio_write(void *opaque, uint32_t offset,
             s->queue[s->queue_sel].ready = val & 1;
             break;
         case VIRTIO_MMIO_QUEUE_NOTIFY:
-	    fprintf(stderr, "VIRTIO_MMIO_queue_NOTIFY s %p val %08x\n", s, val);
+            //fprintf(stderr, "VIRTIO_MMIO_QUEUE_NOTIFY s %p val %08x\n", s, val);
             if (val < MAX_QUEUE) {
                 if (1) {
                     s->pending_queue_notify |= (1 << val);
@@ -2696,7 +2689,6 @@ int virtio_has_pending_actions(VIRTIODevice *s)
 void virtio_perform_pending_actions(VIRTIODevice *s)
 {
     if (s->pending_irq_clear) {
-	fprintf(stderr, "irq clear %p\n", s);
 	set_irq(s->irq, 0);
 	s->pending_irq_clear = 0;
     }
@@ -2705,7 +2697,6 @@ void virtio_perform_pending_actions(VIRTIODevice *s)
 	int notify = s->pending_queue_notify;
         for (int i = 0; i < 32; i++) {
             if (notify & (1 << i)) {
-		fprintf(stderr, "queue notify %p idx %d\n", s, i);
                 queue_notify(s, i);
                 notify &= ~(1 << i);
             }
