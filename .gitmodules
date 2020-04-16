@@ -1,0 +1,3 @@
+[submodule "hw/Flute"]
+	path = hw/Flute
+	url = https://github.com/Bluespec/Flute
