@@ -1,3 +1,6 @@
 [submodule "hw/Flute"]
 	path = hw/Flute
 	url = https://github.com/Bluespec/Flute
+[submodule "hw/FluteEnclavesTagging"]
+	path = hw/FluteEnclavesTagging
+	url = https://github.com/acceleratedtech/FluteEnclavesTagging

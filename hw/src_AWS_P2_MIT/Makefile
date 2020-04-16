@@ -1,6 +1,6 @@
 CONNECTALDIR?=~/connectal
 
-FLUTE_DIR?=../Flute
+FLUTE_DIR?=../FluteEnclavesTagging
 
 ############################################################
 ## Connectal topgen configuration 
@@ -17,15 +17,24 @@ PIN_TYPE_INCLUDE=AWSP2_IFC
 AUTOTOP = --interface pins:AWSP2.pins
 endif
 
-BSVFILES = AWSP2_IFC.bsv
+BSVFILES = ../src_AWS_P2/AWSP2_IFC.bsv
 
 ############################################################
 ## the software source code and compiler flags
 ############################################################
 
-CPPFILES = loadelf.cpp testawsp2.cpp
+CPPFILES = ../src_AWS_P2/loadelf.cpp ../src_AWS_P2/testawsp2.cpp
 CONNECTALFLAGS += -lelf
 
+
+############################################################
+## Configuring MIT SSITH P2
+############################################################
+
+CONNECTALFLAGS += -D PUBLIC_ACCESS_POLICY
+
+CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Core/Tagged
+CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Core/TaggingPolicies
 
 ############################################################
 ## Configuring connectal platform hardware
@@ -86,5 +95,6 @@ CONNECTALFLAGS += $(shell test -d $(BLUESPECDIR)/Libraries/TLM3 && echo --bsvpat
 CONNECTALFLAGS += $(shell test -d $(BLUESPECDIR)/Libraries/AMBA_TLM3/Axi && echo --bsvpath=$(BLUESPECDIR)/Libraries/AMBA_TLM3/Axi)
 CONNECTALFLAGS += $(shell test -d $(BLUESPECDIR)/Libraries/AMBA_TLM3/Axi4 && echo --bsvpath=$(BLUESPECDIR)/Libraries/AMBA_TLM3/Axi4)
 CONNECTALFLAGS += $(shell test -d $(BLUESPECDIR)/Libraries/AMBA_TLM3/TLM3 && echo --bsvpath=$(BLUESPECDIR)/Libraries/AMBA_TLM3/TLM3)
+
 
 include $(CONNECTALDIR)/Makefile.connectal
