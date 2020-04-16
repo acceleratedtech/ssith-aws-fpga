@@ -4,3 +4,6 @@
 [submodule "hw/FluteEnclavesTagging"]
 	path = hw/FluteEnclavesTagging
 	url = https://github.com/acceleratedtech/FluteEnclavesTagging
+[submodule "hw/Flute_CHERI"]
+	path = hw/Flute_CHERI
+	url = https://github.com/CTSRD-CHERI/Flute
