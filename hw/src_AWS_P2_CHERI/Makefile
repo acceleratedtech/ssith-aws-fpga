@@ -17,7 +17,7 @@ PIN_TYPE_INCLUDE=AWSP2_IFC
 AUTOTOP = --interface pins:AWSP2.pins
 endif
 
-BSVFILES = ../src_AWS_P2/AWSP2_IFC.bsv
+BSVFILES = AWSP2_IFC.bsv
 
 ############################################################
 ## the software source code and compiler flags
@@ -38,6 +38,7 @@ CAPSIZE = 128
 TAGS_STRUCT = 0 64
 TAGS_ALIGN = 32
 
+CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Verifier
 CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/libs/cheri-cap-lib
 CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/libs/TagController/TagController
 CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/libs/TagController/TagController/CacheCore
@@ -102,6 +103,7 @@ CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Core/Near_Mem_IO
 CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Core/Near_Mem_VM
 CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Core/PLIC
 CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Core/RegFiles
+
 # CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Testbench/Fabrics/AXI4
 
 ## for TLM.defines
@@ -112,6 +114,5 @@ CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Core/RegFiles
 # CONNECTALFLAGS += $(shell test -d $(BLUESPECDIR)/Libraries/AMBA_TLM3/Axi && echo --bsvpath=$(BLUESPECDIR)/Libraries/AMBA_TLM3/Axi)
 # CONNECTALFLAGS += $(shell test -d $(BLUESPECDIR)/Libraries/AMBA_TLM3/Axi4 && echo --bsvpath=$(BLUESPECDIR)/Libraries/AMBA_TLM3/Axi4)
 # CONNECTALFLAGS += $(shell test -d $(BLUESPECDIR)/Libraries/AMBA_TLM3/TLM3 && echo --bsvpath=$(BLUESPECDIR)/Libraries/AMBA_TLM3/TLM3)
-
 
 include $(CONNECTALDIR)/Makefile.connectal
