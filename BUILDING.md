@@ -46,7 +46,7 @@ centos-based.
 
 3. Install other dependences
 
-  - `$ sudo apt-get install libelf-dev`
+  - `$ sudo apt-get install libelf-dev libssl-dev libcurl4-openssl-dev `
 
 ## Building the Verilator simulator
 
