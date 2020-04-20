@@ -30,5 +30,6 @@ class VirtioDevices {
   int has_pending_actions();
   int perform_pending_actions();
   void add_virtio_block_device(std::string filename);
+  void add_virtio_console_device();
 };
 

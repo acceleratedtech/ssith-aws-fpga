@@ -50,6 +50,7 @@ const struct option long_options[] = {
     { "bootrom", required_argument, 0, 'b' },
     { "cpuverbosity",   required_argument, 0, 'v' },
     { "block", required_argument, 0, 'B' },
+    { "virtio-console", no_rgument, 0, 'C' },
     { "dtb",     required_argument, 0, 'd' },
     { "elf",     required_argument, 0, 'e' },
     { "entry",   required_argument, 0, 'E' },
@@ -78,11 +79,12 @@ int main(int argc, char * const *argv)
     int sleep_seconds = 1;
     int usemem = 0;
     int tv = 0;
+    int enable_virtio_console = 0;
     std::vector<string> block_files;
 
     while (1) {
         int option_index = optind ? optind : 1;
-        char c = getopt_long(argc, argv, "b:d:e:hMs:Tv",
+        char c = getopt_long(argc, argv, "b:B:Cd:e:hMs:Tv",
                              long_options, &option_index);
         if (c == -1)
             break;
@@ -94,6 +96,9 @@ int main(int argc, char * const *argv)
         case 'B':
             block_files.push_back(string(optarg));
             break;
+	case 'C':
+	    enable_virtio_console = 1;
+	    break;
         case 'd':
             dtb_filename = optarg;
             break;
@@ -157,6 +162,11 @@ int main(int argc, char * const *argv)
     fpga->set_dram_buffer(dramBuffer);
 
     for (string block_file: block_files) {
+	fpga->get_virtio_devices().add_virtio_block_device(block_file);
+    }
+
+    if (enable_virtio_console) {
+	fprintf(stderr, "Enabling virtio console\n");
 	fpga->get_virtio_devices().add_virtio_block_device(block_file);
     }
 

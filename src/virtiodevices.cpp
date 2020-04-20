@@ -53,7 +53,6 @@ void VirtioDevices::set_dram_buffer(uint8_t *buf) {
 
 
 VirtioDevices::VirtioDevices() {
-    console = console_init(1);
     mem_map = phys_mem_map_init();
     irq = (IRQSignal *)mallocz(32 * sizeof(IRQSignal));
     irq_num = 0;
@@ -63,8 +62,6 @@ VirtioDevices::VirtioDevices() {
 
     for (int i = 0; i < 32; i++)
 	irq_init(&irq[i], awsp2_set_irq, (void *)22, i);
-
-    virtio_console = virtio_console_init(virtio_bus, console);
 
     // set up a network device
     virtio_bus->addr += 0x1000;
@@ -88,6 +85,12 @@ void VirtioDevices::add_virtio_block_device(std::string filename)
     virtio_block = virtio_block_init(virtio_bus, block_device);
     fprintf(stderr, "virtio block device %p at addr %08lx\n", virtio_block, virtio_bus->addr);
 
+}
+
+void VirtioDevices::add_virtio_console_device()
+{
+    console = console_init(1);
+    virtio_console = virtio_console_init(virtio_bus, console);
 }
 
 PhysMemoryRange *VirtioDevices::get_phys_mem_range(uint64_t paddr)
@@ -131,7 +134,7 @@ void VirtioDevices::process_io()
     if (ethernet_device) {
         ethernet_device->select_poll(ethernet_device, &rfds, &wfds, &efds, ret);
     }
-#if 0
+
     if (virtio_console && FD_ISSET(stdin_fd, &rfds)) {
         uint8_t buf[128];
         int ret, len;
@@ -142,7 +145,7 @@ void VirtioDevices::process_io()
             virtio_console_write_data(virtio_console, buf, ret);
         }
     }
-#endif
+
 }
 
 int VirtioDevices::has_pending_actions()
