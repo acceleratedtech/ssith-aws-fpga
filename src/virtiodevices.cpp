@@ -24,9 +24,9 @@ void awsp2_set_irq(void *opaque, int irq_num, int level)
 {
     fprintf(stderr, "%s: irq_num=%d level=%d\n", __FUNCTION__, irq_num, level);
     if (level)
-	fpga->irq_set_levels(0xFFFFFFFF);
+        fpga->irq_set_levels(1 << irq_num);
     else
-	fpga->irq_clear_levels(0xFFFFFFFF);
+        fpga->irq_clear_levels(1 << irq_num);
 }
 
 static PhysMemoryRange *fpga_register_ram(PhysMemoryMap *s, uint64_t addr,
