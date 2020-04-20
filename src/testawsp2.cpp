@@ -50,7 +50,7 @@ const struct option long_options[] = {
     { "bootrom", required_argument, 0, 'b' },
     { "cpuverbosity",   required_argument, 0, 'v' },
     { "block", required_argument, 0, 'B' },
-    { "virtio-console", no_rgument, 0, 'C' },
+    { "virtio-console", no_argument, 0, 'C' },
     { "dtb",     required_argument, 0, 'd' },
     { "elf",     required_argument, 0, 'e' },
     { "entry",   required_argument, 0, 'E' },
@@ -167,7 +167,7 @@ int main(int argc, char * const *argv)
 
     if (enable_virtio_console) {
 	fprintf(stderr, "Enabling virtio console\n");
-	fpga->get_virtio_devices().add_virtio_block_device(block_file);
+	fpga->get_virtio_devices().add_virtio_console_device();
     }
 
     // load the ROM code into Flash
