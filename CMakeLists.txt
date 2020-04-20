@@ -1,14 +1,12 @@
 cmake_minimum_required(VERSION 3.10)
 project(ssith_aws_fpga)
 
-set(SIMULATION 1)
-
-if(SIMULATION)
-message(NOTICE " Building for simulation")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DSIMULATION -DBOARD_verilator")
-else()
+if(FPGA)
 message(NOTICE " Building for FPGA")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DDEFAULT_NOPROGRAM=1 -DBOARD_awsf1")
+else()
+message(NOTICE " Building for simulation")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DSIMULATION -DBOARD_verilator")
 endif()
 
 add_subdirectory(src/tinyemu)
