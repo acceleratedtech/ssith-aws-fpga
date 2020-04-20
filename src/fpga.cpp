@@ -572,3 +572,8 @@ void AWSP2::process_io()
         resume();
     }
 }
+
+void AWSP2::set_htif_base_addr(uint64_t baseaddr)
+{
+    htif_base_addr = baseaddr;
+}
