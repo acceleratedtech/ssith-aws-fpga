@@ -213,6 +213,9 @@ int main(int argc, char * const *argv)
     IMemory *memifc = usemem ? static_cast<IMemory *>(&mem) : static_cast<IMemory *>(&fpgamem);
     uint64_t elf_entry = loadElf(memifc, elf_filename, dram_alloc_sz, &tohost_address);
     fprintf(stderr, "elf_entry=%08lx tohost_address=%08lx\n", elf_entry, tohost_address);
+    if (tohost_address) {
+        fpga->set_htif_base_addr(tohost_address);
+    }
 
     if (!entry)
         entry = elf_entry;
