@@ -115,6 +115,7 @@ class AWSP2 {
     int stop_capture;
     int display_tandem;
     bsvvector_Luint8_t_L64 pcis_rsp_data;
+    uint64_t htif_base_addr;
 
     std::mutex client_mutex;
     std::mutex stdin_mutex;
@@ -159,6 +160,8 @@ public:
 
     VirtioDevices &get_virtio_devices() { return virtio_devices; }
     void process_io();
+
+    void set_htif_base_addr(uint64_t baseaddr);
 
  private:
     uint32_t dmi_read(uint32_t addr);

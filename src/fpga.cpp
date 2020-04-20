@@ -1,6 +1,9 @@
 
 #include "fpga.h"
 
+#define TOHOST_OFFSET 0
+#define FROMHOST_OFFSET 8
+
 static int debug_virtio = 0;
 static int debug_stray_io = 0;
 
@@ -168,9 +171,9 @@ void AWSP2_Response::io_awaddr(uint32_t awaddr, uint16_t awlen, uint16_t awid) {
         if (debug_virtio) fprintf(stderr, "virtio awaddr %08x device addr %08lx offset %08x len %d\n", awaddr, pr->addr, offset, awlen);
     } else if (awaddr == 0x60000000) {
         // UART
-    } else if (awaddr == 0x10001000 || awaddr == 0x50001000) {
+    } else if (awaddr == (fpga->htif_base_addr + TOHOST_OFFSET)) {
         // tohost
-    } else if (awaddr == 0x10001008 || awaddr == 0x50001008) {
+    } else if (awaddr == (fpga->htif_base_addr + FROMHOST_OFFSET)) {
         // fromhost
     } else {
         fprintf(stderr, "io_awaddr awaddr=%08x awlen=%d\n", awaddr, awlen);
@@ -205,7 +208,7 @@ void AWSP2_Response::io_araddr(uint32_t araddr, uint16_t arlen, uint16_t arid)
             //fprintf(stderr, "io_rdata %08lx\n", rom.data[offset + i]);
             fpga->request->io_rdata(fpga->rom.data[offset + i], arid, 0, last);
         }
-    } else if (araddr == 0x10001008) {
+    } else if (araddr == (fpga->htif_base_addr + FROMHOST_OFFSET)) {
         uint8_t ch = 0;
         if (fpga->dequeue_stdin(&ch)) {
             uint64_t cmd = (1ul << 56) | (0ul << 48) | ch;
@@ -282,6 +285,7 @@ AWSP2::AWSP2(int id, const Rom &rom)
     request = new AWSP2_RequestProxy(IfcNames_AWSP2_RequestS2H);
     stop_capture = 0;
     display_tandem = 1;
+    htif_base_addr = 0x10001000;
 }
 
 AWSP2::~AWSP2() {
@@ -551,6 +555,7 @@ int AWSP2::dequeue_stdin(uint8_t *chp)
 
 void AWSP2::process_io()
 {
+    // Read from stdin and enqueue for HTIF get char
     char buf[128];
     memset(buf, 0, sizeof(buf));
     int ret = read(0, buf, sizeof(buf));
