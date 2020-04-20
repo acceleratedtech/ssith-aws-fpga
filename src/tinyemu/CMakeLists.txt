@@ -19,7 +19,7 @@ endif()
 
 if (EXISTS "/usr/bin/curl-config")
 set(CMAKE_C_FLAGS "-DCONFIG_FS_NET ${CMAKE_C_FLAGS}")
-set(FS_NET_SOURCES fs_net.c fs_wget.c fs_wget.h)
+set(FS_NET_SOURCES block_net.c fs_net.c fs_wget.c fs_wget.h)
 set(FS_NET_LIBRARIES -lcurl -lssl -lcrypto)
 endif()
 
@@ -61,7 +61,6 @@ set(TINYEMU_SOURCES
   slirp/udp.h
   aes.c
   aes.h
-  block_net.c
   build_filelist.c
   cutils.c
   cutils.h
