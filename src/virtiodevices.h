@@ -1,6 +1,8 @@
 
 #pragma once
 
+#include <string>
+
 extern "C" {
 #include "virtio.h"
 #include "temu.h"
@@ -16,6 +18,8 @@ class VirtioDevices {
   VIRTIODevice *virtio_console;
   VIRTIODevice *virtio_block;
   VIRTIODevice *virtio_net;
+  IRQSignal *irq;
+  int irq_num;
 
  public:
   VirtioDevices();
@@ -25,5 +29,6 @@ class VirtioDevices {
   void process_io();
   int has_pending_actions();
   int perform_pending_actions();
+  void add_virtio_block_device(std::string filename);
 };
 

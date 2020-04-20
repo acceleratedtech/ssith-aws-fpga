@@ -157,6 +157,7 @@ public:
     void enqueue_stdin(const char *buf, int num_chars);
     int dequeue_stdin(uint8_t *chp);
 
+    VirtioDevices &get_virtio_devices() { return virtio_devices; }
     void process_io();
 
  private:

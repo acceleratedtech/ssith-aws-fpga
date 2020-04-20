@@ -22,7 +22,7 @@ extern AWSP2 *fpga;
 
 void awsp2_set_irq(void *opaque, int irq_num, int level)
 {
-    //fprintf(stderr, "%s: irq_num=%d level=%d\n", __FUNCTION__, irq_num, level);
+    fprintf(stderr, "%s: irq_num=%d level=%d\n", __FUNCTION__, irq_num, level);
     if (level)
 	fpga->irq_set_levels(0xFFFFFFFF);
     else
@@ -55,35 +55,39 @@ void VirtioDevices::set_dram_buffer(uint8_t *buf) {
 VirtioDevices::VirtioDevices() {
     console = console_init(1);
     mem_map = phys_mem_map_init();
-    IRQSignal *irq = (IRQSignal *)mallocz(4 * sizeof(IRQSignal));
+    irq = (IRQSignal *)mallocz(32 * sizeof(IRQSignal));
+    irq_num = 0;
     virtio_bus = (VIRTIOBusDef *)mallocz(sizeof(*virtio_bus));
     virtio_bus->mem_map = mem_map;
     virtio_bus->addr = 0x40000000;
-    virtio_bus->irq = irq;
-    irq_init(virtio_bus->irq, awsp2_set_irq, (void *)22, 0);
+
+    for (int i = 0; i < 32; i++)
+	irq_init(&irq[i], awsp2_set_irq, (void *)22, i);
 
     virtio_console = virtio_console_init(virtio_bus, console);
 
-    // set up a block device
-    virtio_bus->addr += 0x1000;
-    virtio_bus->irq += 1;
-    irq_init(virtio_bus->irq, awsp2_set_irq, (void *)22, 0);
-    block_device = block_device_init("block.bin", BF_MODE_RW);
-    fprintf(stderr, "block device %p\n", block_device);
-    virtio_block = virtio_block_init(virtio_bus, block_device);
-    fprintf(stderr, "virtio block device %p at addr %08lx\n", virtio_block, virtio_bus->addr);
-
     // set up a network device
     virtio_bus->addr += 0x1000;
-    virtio_bus->irq += 1;
+    virtio_bus->irq = &irq[irq_num++];
     irq_init(virtio_bus->irq, awsp2_set_irq, (void *)22, 0);
     ethernet_device = slirp_open();
     virtio_net = virtio_net_init(virtio_bus, ethernet_device);
     fprintf(stderr, "ethernet device %p virtio net device %p at addr %08lx\n", ethernet_device, virtio_net, virtio_bus->addr);
-
 }
 
 VirtioDevices::~VirtioDevices() {
+}
+
+void VirtioDevices::add_virtio_block_device(std::string filename)
+{
+    // set up a block device
+    virtio_bus->addr += 0x1000;
+    virtio_bus->irq = &irq[irq_num++];
+    block_device = block_device_init(filename.c_str(), BF_MODE_RW);
+    fprintf(stderr, "block device %s (%p)\n", filename.c_str(), block_device);
+    virtio_block = virtio_block_init(virtio_bus, block_device);
+    fprintf(stderr, "virtio block device %p at addr %08lx\n", virtio_block, virtio_bus->addr);
+
 }
 
 PhysMemoryRange *VirtioDevices::get_phys_mem_range(uint64_t paddr)
@@ -286,3 +290,4 @@ int virtio_memcpy_to_ram(VIRTIODevice *s, virtio_phys_addr_t addr, const uint8_t
 
     return 0;
 }
+

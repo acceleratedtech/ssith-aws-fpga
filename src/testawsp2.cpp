@@ -4,14 +4,18 @@
 #include <getopt.h>
 #include <stdio.h>
 #include <semaphore.h>
+#include <string>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <vector>
 
 #include "GeneratedTypes.h"
 #include "dmaManager.h"
 #include <portal.h>
 #include "fpga.h"
 #include "loadelf.h"
+
+using namespace std;
 
 int copyFile(char *buffer, const char *filename, size_t buffer_size)
 {
@@ -45,6 +49,7 @@ int copyFile(char *buffer, const char *filename, size_t buffer_size)
 const struct option long_options[] = {
     { "bootrom", required_argument, 0, 'b' },
     { "cpuverbosity",   required_argument, 0, 'v' },
+    { "block", required_argument, 0, 'B' },
     { "dtb",     required_argument, 0, 'd' },
     { "elf",     required_argument, 0, 'e' },
     { "entry",   required_argument, 0, 'E' },
@@ -73,6 +78,8 @@ int main(int argc, char * const *argv)
     int sleep_seconds = 1;
     int usemem = 0;
     int tv = 0;
+    std::vector<string> block_files;
+
     while (1) {
         int option_index = optind ? optind : 1;
         char c = getopt_long(argc, argv, "b:d:e:hMs:Tv",
@@ -83,6 +90,9 @@ int main(int argc, char * const *argv)
         switch (c) {
         case 'b':
             bootrom_filename = optarg;
+            break;
+        case 'B':
+            block_files.push_back(string(optarg));
             break;
         case 'd':
             dtb_filename = optarg;
@@ -146,6 +156,10 @@ int main(int argc, char * const *argv)
     fpga = new AWSP2(IfcNames_AWSP2_ResponseH2S, rom);
     fpga->set_dram_buffer(dramBuffer);
 
+    for (string block_file: block_files) {
+	fpga->get_virtio_devices().add_virtio_block_device(block_file);
+    }
+
     // load the ROM code into Flash
     if (bootrom_filename)
         copyFile((char *)romBuffer, bootrom_filename, rom_alloc_sz);
@@ -206,21 +220,21 @@ int main(int argc, char * const *argv)
 
         // event processing is in the other thread
 
-	fpga->process_io();
+        fpga->process_io();
 
-	if (0) {
-	  fpga->halt();
-	  uint64_t dpc = fpga->read_csr(0x7b1);
-	  uint64_t ra = fpga->read_gpr(1);
-	  uint64_t stvec = fpga->read_csr(0x105);
-	  fprintf(stderr, "pc %08lx ra %08lx stvec %08lx\n", dpc, ra, stvec);
-	  if (0 && !tv && dpc >= 0x8200210a) {
-	    tv = 1;
-	    fpga->capture_tv_info(tv);
-	  }
-	  if (dpc == 0x1000 || dpc == 0x80003168 || dpc == 0xffffffe000000154ull) {
+        if (0) {
+          fpga->halt();
+          uint64_t dpc = fpga->read_csr(0x7b1);
+          uint64_t ra = fpga->read_gpr(1);
+          uint64_t stvec = fpga->read_csr(0x105);
+          fprintf(stderr, "pc %08lx ra %08lx stvec %08lx\n", dpc, ra, stvec);
+          if (0 && !tv && dpc >= 0x8200210a) {
+            tv = 1;
+            fpga->capture_tv_info(tv);
+          }
+          if (dpc == 0x1000 || dpc == 0x80003168 || dpc == 0xffffffe000000154ull) {
             for (int i = 0; i < 32; i++) {
-	      fprintf(stderr, "reg %d val %08lx\n", i, fpga->read_gpr(i));
+              fprintf(stderr, "reg %d val %08lx\n", i, fpga->read_gpr(i));
             }
 
             fprintf(stderr, "mepc   %08lx\n", fpga->read_csr(0x341));
@@ -228,9 +242,9 @@ int main(int argc, char * const *argv)
             fprintf(stderr, "mtval  %08lx\n", fpga->read_csr(0x343));
 
             break;
-	  }
-	  fpga->resume();
-	}
+          }
+          fpga->resume();
+        }
 
         sleep(sleep_seconds);
     }
