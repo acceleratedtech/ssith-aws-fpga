@@ -555,14 +555,30 @@ int AWSP2::dequeue_stdin(uint8_t *chp)
 
 void AWSP2::process_io()
 {
-    // Read from stdin and enqueue for HTIF get char
-    char buf[128];
-    memset(buf, 0, sizeof(buf));
-    int ret = read(0, buf, sizeof(buf));
-    if (ret > 0) {
-        enqueue_stdin(buf, ret);
-    }
+    int stdin_fd = 0;
+    int fd_max = -1;
+    fd_set rfds,  wfds, efds;
+    int delay = 10; // ms
+    struct timeval tv;
 
+    FD_ZERO(&rfds);
+    FD_ZERO(&wfds);
+    FD_ZERO(&efds);
+    FD_SET(stdin_fd, &rfds);
+    fd_max = stdin_fd;
+
+    tv.tv_sec = delay / 1000;
+    tv.tv_usec = (delay % 1000) * 1000;
+    int ret = select(fd_max + 1, &rfds, &wfds, &efds, &tv);
+    if (FD_ISSET(stdin_fd, &rfds)) {
+        // Read from stdin and enqueue for HTIF get char
+        char buf[128];
+        memset(buf, 0, sizeof(buf));
+        int ret = read(0, buf, sizeof(buf));
+        if (ret > 0) {
+            enqueue_stdin(buf, ret);
+        }
+    }
     virtio_devices.process_io();
     if (virtio_devices.has_pending_actions()) {
         halt();
