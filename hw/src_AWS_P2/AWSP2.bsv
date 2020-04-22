@@ -139,16 +139,16 @@ module mkAWSP2#(AWSP2_Response response)(AWSP2);
 
    AXI4_Master_Xactor_IFC#(4, 64, 512, 0) ddr_master_xactor <- mkAXI4_Master_Xactor();
    //mkConnection(ddr_master_xactor.axi_side, memFabric.v_from_masters[1]);
-   //let from_dma_pcis = memFabric.v_from_masters[2];
+   let from_dma_pcis = memFabric.v_from_masters[2];
 
 
-`ifndef USE_DDR
    FIFOF#(MemRequest) readReqFifo0 <- mkFIFOF();
    FIFOF#(MemRequest) writeReqFifo0 <- mkFIFOF();
    FIFOF#(MemData#(DataBusWidth))   readDataFifo0 <- mkSizedBRAMFIFOF(64);
    FIFOF#(MemData#(DataBusWidth))   writeDataFifo0 <- mkSizedBRAMFIFOF(64);
    FIFOF#(Bit#(MemTagSize)) doneFifo0 <- mkFIFOF();
 
+`ifndef USE_DDR
    AXI4_Slave_Xactor_IFC#(4, 64, 512, 0) ddr_slave_xactor <- mkAXI4_Slave_Xactor();
    let ddr_xn <- mkConnectionVerbose(to_ddr, ddr_slave_xactor.axi_side);
 
