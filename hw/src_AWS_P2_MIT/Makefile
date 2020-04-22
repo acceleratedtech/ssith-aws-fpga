@@ -48,6 +48,7 @@ CONNECTALFLAGS += -D DataBusWidth=512
 CONNECTALFLAGS += -D AWSF1_CL_DEBUG_BRIDGE
 
 CONNECTALFLAGS += -D AWSF1_DDR_A
+CONNECTALFLAGS += -D AWSF1_DMA_PCIS
 
 ############################################################
 ## copied from src_SSITH_P2 Makefile
