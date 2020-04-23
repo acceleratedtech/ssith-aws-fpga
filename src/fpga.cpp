@@ -1,8 +1,8 @@
 
 #include "fpga.h"
 
-#define TOHOST_OFFSET 0
-#define FROMHOST_OFFSET 8
+#define TOHOST_OFFSET 8
+#define FROMHOST_OFFSET 0
 
 static int debug_virtio = 0;
 static int debug_stray_io = 0;
@@ -177,6 +177,7 @@ void AWSP2_Response::io_awaddr(uint32_t awaddr, uint16_t awlen, uint16_t awid) {
         // fromhost
     } else {
         fprintf(stderr, "io_awaddr awaddr=%08x awlen=%d\n", awaddr, awlen);
+        fprintf(stderr, "htif_base_addr=%08x\n", fpga->htif_base_addr);
     }
     fpga->wdata_count = awlen / 8;
     fpga->wid = awid;
@@ -241,7 +242,7 @@ void AWSP2_Response::io_wdata(uint64_t wdata, uint8_t wstrb) {
         pr->write_func(pr->opaque, offset, wdata, size_log2);
     } else if (awaddr == 0x60000000) {
         console_putchar(wdata);
-    } else if (awaddr == 0x10001000 || awaddr == 0x50001000) {
+    } else if (awaddr == 0x10001008 || awaddr == 0x50001008) {
         // tohost
         uint8_t dev = (wdata >> 56) & 0xFF;
         uint8_t cmd = (wdata >> 48) & 0xFF;
@@ -249,10 +250,17 @@ void AWSP2_Response::io_wdata(uint64_t wdata, uint8_t wstrb) {
         if (dev == 1 && cmd == 1) {
             // putchar
             console_putchar(payload);
+        } else if (dev == 0 && cmd == 0) {
+	  if (payload == 1) {
+            fprintf(stderr, "PASS\n");
+	  } else {
+            fprintf(stderr, "FAIL: error %lu\n", (payload >> 1));
+	  }
+	  //fpga->halt();
         } else {
-            //fprintf(stderr, "\nHTIF: dev=%d cmd=%02x payload=%08lx\n", dev, cmd, payload);
+            fprintf(stderr, "\nHTIF: dev=%d cmd=%02x payload=%08lx\n", dev, cmd, payload);
         }
-    } else if (awaddr == 0x10001008) {
+    } else if (awaddr == 0x10001000) {
         //fprintf(stderr, "\nHTIF: awaddr %08x wdata=%08lx\n", awaddr, wdata);
     } else {
         if (debug_stray_io) fprintf(stderr, "io_wdata wdata=%lx wstrb=%x\n", wdata, wstrb);
@@ -270,7 +278,7 @@ void AWSP2_Response::uart_tohost(uint8_t ch) {
 
 void AWSP2_Response::console_putchar(uint64_t wdata) {
     if (fpga->start_of_line) {
-        //printf("\nCONSOLE: ");
+        printf("\nCONSOLE: ");
         fpga->start_of_line = 0;
     }
     fputc(wdata, stdout);
