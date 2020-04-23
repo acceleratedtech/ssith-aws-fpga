@@ -141,6 +141,9 @@ module mkAWSP2#(AWSP2_Response response)(AWSP2);
    //mkConnection(ddr_master_xactor.axi_side, memFabric.v_from_masters[1]);
    let from_dma_pcis = memFabric.v_from_masters[2];
 
+   FIFOF#(Bit#(8)) uartToHostFifo <- mkFIFOF();
+   FIFOF#(Bit#(8)) uartFromHostFifo <- mkFIFOF();
+
 
    FIFOF#(MemRequest) readReqFifo0 <- mkFIFOF();
    FIFOF#(MemRequest) writeReqFifo0 <- mkFIFOF();
@@ -362,6 +365,11 @@ module mkAWSP2#(AWSP2_Response response)(AWSP2);
       p2_core.interrupt_reqs(truncate(rg_irq_levels[0]));
    endrule
 
+   rule rl_uart_tohost;
+      let ch <- toGet(uartToHostFifo).get();
+      response.uart_tohost(ch);
+   endrule
+
    interface AWSP2_Request request;
       method Action dmi_read(Bit#(7) addr);
         //$display("dmi_read req addr %h", addr);
@@ -460,7 +468,9 @@ module mkAWSP2#(AWSP2_Response response)(AWSP2);
       method Action read_irq_status();
          response.irq_status(rg_irq_levels[0]);
       endmethod
-
+      method Action uart_fromhost(Bit#(8) char);
+         uartFromHostFifo.enq(char);
+      endmethod
    endinterface
 
    interface readClients = vec(readClient0);

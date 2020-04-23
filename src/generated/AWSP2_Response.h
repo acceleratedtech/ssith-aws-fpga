@@ -20,6 +20,7 @@ public:
     int io_wdata ( const uint64_t wdata, const uint8_t wstrb ) { return cb->io_wdata (&pint, wdata, wstrb); };
     int irq_status ( const uint32_t levels ) { return cb->irq_status (&pint, levels); };
     int tandem_packet ( const uint32_t num_bytes, const bsvvector_Luint8_t_L72 bytes ) { return cb->tandem_packet (&pint, num_bytes, bytes); };
+    int uart_tohost ( const uint8_t ch ) { return cb->uart_tohost (&pint, ch); };
 };
 
 extern AWSP2_ResponseCb AWSP2_Response_cbTable;
@@ -48,5 +49,6 @@ public:
     virtual void io_wdata ( const uint64_t wdata, const uint8_t wstrb ) = 0;
     virtual void irq_status ( const uint32_t levels ) = 0;
     virtual void tandem_packet ( const uint32_t num_bytes, const bsvvector_Luint8_t_L72 bytes ) = 0;
+    virtual void uart_tohost ( const uint8_t ch ) = 0;
 };
 #endif // _AWSP2_RESPONSE_H_

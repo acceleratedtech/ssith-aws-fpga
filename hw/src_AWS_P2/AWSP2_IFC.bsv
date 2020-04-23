@@ -23,6 +23,7 @@ interface AWSP2_Request;
   method Action irq_set_levels(Bit#(32) w1s);
   method Action irq_clear_levels(Bit#(32) w1c);
   method Action read_irq_status();
+  method Action uart_fromhost(Bit#(8) ch);
 endinterface
 
 interface AWSP2_Response;
@@ -38,6 +39,7 @@ interface AWSP2_Response;
   method Action irq_status(Bit#(32) levels);
 
   method Action tandem_packet(Bit#(32) num_bytes, Vector#(72, Bit#(8)) bytes);
+  method Action uart_tohost(Bit#(8) ch);
 endinterface
 
 interface AWSP2_Pin_IFC;

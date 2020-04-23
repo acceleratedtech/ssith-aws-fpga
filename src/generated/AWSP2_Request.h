@@ -28,6 +28,7 @@ public:
     int irq_set_levels ( const uint32_t w1s ) { return cb->irq_set_levels (&pint, w1s); };
     int irq_clear_levels ( const uint32_t w1c ) { return cb->irq_clear_levels (&pint, w1c); };
     int read_irq_status (  ) { return cb->read_irq_status (&pint); };
+    int uart_fromhost ( const uint8_t ch ) { return cb->uart_fromhost (&pint, ch); };
 };
 
 extern AWSP2_RequestCb AWSP2_Request_cbTable;
@@ -64,5 +65,6 @@ public:
     virtual void irq_set_levels ( const uint32_t w1s ) = 0;
     virtual void irq_clear_levels ( const uint32_t w1c ) = 0;
     virtual void read_irq_status (  ) = 0;
+    virtual void uart_fromhost ( const uint8_t ch ) = 0;
 };
 #endif // _AWSP2_REQUEST_H_

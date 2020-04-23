@@ -148,6 +148,11 @@ AWSP2(int id)
         }
     }
 
+    virtual void uart_tohost(uint8_t c) {
+      fputc(c, stdout);
+      fflush(stdout);
+    }
+
     uint32_t dmi_status() {
         request->dmi_status();
         wait();

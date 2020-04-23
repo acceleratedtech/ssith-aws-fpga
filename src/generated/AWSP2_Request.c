@@ -183,6 +183,16 @@ int AWSP2_Request_read_irq_status ( struct PortalInternal *p )
     return 0;
 };
 
+int AWSP2_Request_uart_fromhost ( struct PortalInternal *p, const uint8_t ch )
+{
+    volatile unsigned int* temp_working_addr_start = p->transport->mapchannelReq(p, CHAN_NUM_AWSP2_Request_uart_fromhost, 2);
+    volatile unsigned int* temp_working_addr = temp_working_addr_start;
+    if (p->transport->busywait(p, CHAN_NUM_AWSP2_Request_uart_fromhost, "AWSP2_Request_uart_fromhost")) return 1;
+    p->transport->write(p, &temp_working_addr, ch);
+    p->transport->send(p, temp_working_addr_start, (CHAN_NUM_AWSP2_Request_uart_fromhost << 16) | 2, -1);
+    return 0;
+};
+
 AWSP2_RequestCb AWSP2_RequestProxyReq = {
     portal_disconnect,
     AWSP2_Request_set_debug_verbosity,
@@ -201,13 +211,14 @@ AWSP2_RequestCb AWSP2_RequestProxyReq = {
     AWSP2_Request_irq_set_levels,
     AWSP2_Request_irq_clear_levels,
     AWSP2_Request_read_irq_status,
+    AWSP2_Request_uart_fromhost,
 };
 AWSP2_RequestCb *pAWSP2_RequestProxyReq = &AWSP2_RequestProxyReq;
 
-const uint32_t AWSP2_Request_reqinfo = 0x100050;
+const uint32_t AWSP2_Request_reqinfo = 0x110050;
 const char * AWSP2_Request_methodSignatures()
 {
-    return "{\"register_region\": [\"long\", \"long\"], \"ddr_write\": [\"long\", \"long\", \"long\"], \"ddr_read\": [\"long\"], \"io_bdone\": [\"long\", \"long\"], \"irq_set_levels\": [\"long\"], \"read_irq_status\": [], \"set_fabric_verbosity\": [\"long\"], \"memory_ready\": [], \"irq_clear_levels\": [\"long\"], \"io_rdata\": [\"long\", \"long\", \"long\", \"long\"], \"dmi_read\": [\"long\"], \"capture_tv_info\": [\"long\"], \"set_watch_tohost\": [\"long\", \"long\"], \"dmi_write\": [\"long\", \"long\"], \"dmi_status\": [], \"set_debug_verbosity\": [\"long\"]}";
+    return "{\"register_region\": [\"long\", \"long\"], \"ddr_write\": [\"long\", \"long\", \"long\"], \"ddr_read\": [\"long\"], \"io_bdone\": [\"long\", \"long\"], \"irq_set_levels\": [\"long\"], \"read_irq_status\": [], \"uart_fromhost\": [\"long\"], \"set_fabric_verbosity\": [\"long\"], \"memory_ready\": [], \"irq_clear_levels\": [\"long\"], \"io_rdata\": [\"long\", \"long\", \"long\", \"long\"], \"dmi_read\": [\"long\"], \"capture_tv_info\": [\"long\"], \"set_watch_tohost\": [\"long\", \"long\"], \"dmi_write\": [\"long\", \"long\"], \"dmi_status\": [], \"set_debug_verbosity\": [\"long\"]}";
 }
 
 int AWSP2_Request_handleMessage(struct PortalInternal *p, unsigned int channel, int messageFd)
@@ -409,6 +420,12 @@ int AWSP2_Request_handleMessage(struct PortalInternal *p, unsigned int channel, 
         p->transport->recv(p, temp_working_addr, 0, &tmpfd);
         tmp = p->transport->read(p, &temp_working_addr);
         ((AWSP2_RequestCb *)p->cb)->read_irq_status(p);
+      } break;
+    case CHAN_NUM_AWSP2_Request_uart_fromhost: {
+        p->transport->recv(p, temp_working_addr, 1, &tmpfd);
+        tmp = p->transport->read(p, &temp_working_addr);
+        tempdata.uart_fromhost.ch = (uint8_t)(((tmp)&0xfful));
+        ((AWSP2_RequestCb *)p->cb)->uart_fromhost(p, tempdata.uart_fromhost.ch);
       } break;
     default:
         PORTAL_PRINTF("AWSP2_Request_handleMessage: unknown channel 0x%x\n", channel);

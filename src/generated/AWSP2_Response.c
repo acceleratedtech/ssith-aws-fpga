@@ -117,6 +117,16 @@ int AWSP2_Response_tandem_packet ( struct PortalInternal *p, const uint32_t num_
     return 0;
 };
 
+int AWSP2_Response_uart_tohost ( struct PortalInternal *p, const uint8_t ch )
+{
+    volatile unsigned int* temp_working_addr_start = p->transport->mapchannelReq(p, CHAN_NUM_AWSP2_Response_uart_tohost, 2);
+    volatile unsigned int* temp_working_addr = temp_working_addr_start;
+    if (p->transport->busywait(p, CHAN_NUM_AWSP2_Response_uart_tohost, "AWSP2_Response_uart_tohost")) return 1;
+    p->transport->write(p, &temp_working_addr, ch);
+    p->transport->send(p, temp_working_addr_start, (CHAN_NUM_AWSP2_Response_uart_tohost << 16) | 2, -1);
+    return 0;
+};
+
 AWSP2_ResponseCb AWSP2_ResponseProxyReq = {
     portal_disconnect,
     AWSP2_Response_dmi_read_data,
@@ -127,13 +137,14 @@ AWSP2_ResponseCb AWSP2_ResponseProxyReq = {
     AWSP2_Response_io_wdata,
     AWSP2_Response_irq_status,
     AWSP2_Response_tandem_packet,
+    AWSP2_Response_uart_tohost,
 };
 AWSP2_ResponseCb *pAWSP2_ResponseProxyReq = &AWSP2_ResponseProxyReq;
 
-const uint32_t AWSP2_Response_reqinfo = 0x80050;
+const uint32_t AWSP2_Response_reqinfo = 0x90050;
 const char * AWSP2_Response_methodSignatures()
 {
-    return "{\"tandem_packet\": [\"long\", \"long\"], \"io_wdata\": [\"long\", \"long\"], \"irq_status\": [\"long\"], \"ddr_data\": [\"long\"], \"dmi_status_data\": [\"long\"], \"io_araddr\": [\"long\", \"long\", \"long\"], \"io_awaddr\": [\"long\", \"long\", \"long\"], \"dmi_read_data\": [\"long\"]}";
+    return "{\"tandem_packet\": [\"long\", \"long\"], \"io_wdata\": [\"long\", \"long\"], \"uart_tohost\": [\"long\"], \"irq_status\": [\"long\"], \"ddr_data\": [\"long\"], \"dmi_status_data\": [\"long\"], \"io_araddr\": [\"long\", \"long\", \"long\"], \"io_awaddr\": [\"long\", \"long\", \"long\"], \"dmi_read_data\": [\"long\"]}";
 }
 
 int AWSP2_Response_handleMessage(struct PortalInternal *p, unsigned int channel, int messageFd)
@@ -371,6 +382,12 @@ int AWSP2_Response_handleMessage(struct PortalInternal *p, unsigned int channel,
         tempdata.tandem_packet.bytes[69] = (uint8_t)(((tmp>>16)&0xfful));
         tempdata.tandem_packet.bytes[68] = (uint8_t)(((tmp>>24)&0xfful));
         ((AWSP2_ResponseCb *)p->cb)->tandem_packet(p, tempdata.tandem_packet.num_bytes, tempdata.tandem_packet.bytes);
+      } break;
+    case CHAN_NUM_AWSP2_Response_uart_tohost: {
+        p->transport->recv(p, temp_working_addr, 1, &tmpfd);
+        tmp = p->transport->read(p, &temp_working_addr);
+        tempdata.uart_tohost.ch = (uint8_t)(((tmp)&0xfful));
+        ((AWSP2_ResponseCb *)p->cb)->uart_tohost(p, tempdata.uart_tohost.ch);
       } break;
     default:
         PORTAL_PRINTF("AWSP2_Response_handleMessage: unknown channel 0x%x\n", channel);
