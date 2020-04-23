@@ -1,0 +1,19 @@
+language: cpp
+cache:
+  directories:
+sudo: no
+os:
+- linux
+script:
+- mkdir build  
+- cd build; cmake -DFPGA=0 ..; make
+addons:
+  apt:
+    sources:
+    - sourceline: 'ppa:jamey-hicks/connectal'
+    packages:
+    - libelf-dev
+    - cmake
+    - libcurl4-openssl-dev
+    - libsdl-dev
+    - device-tree-compiler
