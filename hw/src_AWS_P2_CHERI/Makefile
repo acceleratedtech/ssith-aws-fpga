@@ -1,4 +1,4 @@
-CONNECTALDIR?=~/connectal
+CONNECTALDIR?= ../connectal
 
 FLUTE_DIR?=../Flute_CHERI
 
