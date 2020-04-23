@@ -31,8 +31,8 @@ public:
     void io_awaddr(uint32_t awaddr, uint16_t awlen, uint16_t awid);
     void io_araddr(uint32_t araddr, uint16_t arlen, uint16_t arid);
     void console_putchar(uint64_t wdata);
-    void io_wdata(uint64_t wdata, uint8_t wstrb);
-
+    virtual void io_wdata(uint64_t wdata, uint8_t wstrb);
+    virtual void uart_tohost(uint8_t ch);
 };
 
 void AWSP2_Response::irq_status ( const uint32_t levels )
@@ -263,6 +263,11 @@ void AWSP2_Response::io_wdata(uint64_t wdata, uint8_t wstrb) {
     }
 }
 
+
+void AWSP2_Response::uart_tohost(uint8_t ch) {
+  console_putchar(ch);
+}
+
 void AWSP2_Response::console_putchar(uint64_t wdata) {
     if (fpga->start_of_line) {
         //printf("\nCONSOLE: ");
@@ -275,7 +280,6 @@ void AWSP2_Response::console_putchar(uint64_t wdata) {
         fpga->start_of_line = 1;
     }
 }
-
 
 AWSP2::AWSP2(int id, const Rom &rom)
   : response(0), rom(rom), last_addr(0), wdata_count(0), wid(0), start_of_line(1)
