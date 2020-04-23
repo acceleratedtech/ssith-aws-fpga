@@ -29,7 +29,7 @@
 	};
 	memory {
 		device_type = "memory";
-		reg = <0x80000000 0x08000000>;
+		reg = <0xC0000000 0x40000000>;
 	};
 	reserved-memory {
 		#address-cells = <1>;
@@ -38,7 +38,7 @@
 
 		linux,dma {
 			compatible = "shared-dma-pool";
-			reg = <0xC0000000 0x08000000>;
+			reg = <0xa0000000 0x20000000>;
 			linux,dma-default;
 			no-map;
 		};
@@ -48,17 +48,17 @@
 		#size-cells = <1>;
 		compatible = "simple-bus";
 		ranges;
-		clint@2000000 {
+		clint@10000000 {
 			compatible = "riscv,clint0";
 			interrupts-extended = <&CPU0_intc 3 &CPU0_intc 7>;
-			reg = <0x02000000 0x00010000>;
+			reg = <0x10000000 0x10000>;
 		};
-		plic: interrupt-controller@c000000 {
+		plic: interrupt-controller@11000000 {
 			#interrupt-cells = <1>;
 			compatible = "riscv,plic0";
 			interrupt-controller;
 			interrupts-extended = <&CPU0_intc 11 &CPU0_intc 9>;
-			reg = <0x0c000000 0x00400000>;
+			reg = <0xc000000 0x400000>;
 			reg-names = "control";
 			riscv,max-priority = <7>;
 			riscv,ndev = <16>;
