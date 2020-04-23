@@ -1,5 +1,7 @@
 # SSITH AWS FPGA
 
+[![Build Status](https://travis-ci.org/acceleratedtech/ssith-aws-fpga.svg?branch=master)](https://travis-ci.org/acceleratedtech/ssith-aws-fpga)
+
 This repository contains the host software for controlling a RISC-V processor running on Amazon AWS F1 FPGA.
 
 ## How to run it:
