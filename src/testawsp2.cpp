@@ -249,6 +249,10 @@ int main(int argc, char * const *argv)
     fpga->write_csr(0x7b1, entry);
     fprintf(stderr, "reading pc val %08lx\n", fpga->read_csr(0x7b1));
 
+    // for loading linux, set pointer to devicetree
+    fpga->write_gpr(10, 0);
+    fpga->write_gpr(11, 0x00001010);
+
     fpga->capture_tv_info(tv);
     // and resume
     fpga->resume();
