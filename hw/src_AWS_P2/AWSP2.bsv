@@ -98,7 +98,10 @@ endmodule
 module mkMemFabric(AXI4_Fabric_IFC#(3, 2, 4, 64, 512, 0));
 
    function Tuple2 #(Bool, Bit #(1)) fn_mem_addr_to_slave_num(Bit #(64) addr);
-      return tuple2(True, 0);
+      if (addr < 64'h40000000)
+          return tuple2(True, 0);
+      else
+          return tuple2(True, 1);
    endfunction
    let memFabric <- mkAXI4_Fabric(fn_mem_addr_to_slave_num);
 
@@ -133,13 +136,22 @@ module mkAWSP2#(AWSP2_Response response)(AWSP2);
    AXI4_Fabric_IFC#(3, 2, 4, 64, 512, 0) memFabric <- mkMemFabric();
    mkConnection(to_slave0, deburster.from_master);
    mkConnection(deburster.to_slave, memController.slave);
-   //let rawmem_xn <- mkConnection(memController.to_raw_mem, memFabric.v_from_masters[0]);
-   //let to_ddr = memFabric.v_to_slaves[0];
-   let to_ddr = memController.to_raw_mem;
+   let rawmem_xn <- mkConnection(memController.to_raw_mem, memFabric.v_from_masters[0]);
+   let to_ddr = memFabric.v_to_slaves[0];
+   //let to_ddr = memController.to_raw_mem;
+
+   // tie off dummy port (later connect to second DRAM bank or UltraRam bank)
+   AXI4_Slave_Xactor_IFC#(4, 64, 512, 0) extra_slave_xactor <- mkAXI4_Slave_Xactor();
+   mkConnection(memFabric.v_to_slaves[1], extra_slave_xactor.axi_side);
 
    AXI4_Master_Xactor_IFC#(4, 64, 512, 0) ddr_master_xactor <- mkAXI4_Master_Xactor();
-   //mkConnection(ddr_master_xactor.axi_side, memFabric.v_from_masters[1]);
+   mkConnection(ddr_master_xactor.axi_side, memFabric.v_from_masters[1]);
    let from_dma_pcis = memFabric.v_from_masters[2];
+
+`ifndef BOARD_awsf1
+    AXI4_Master_Xactor_IFC#(4, 64, 512, 0) dma_pcis_master_xactor <- mkAXI4_Master_Xactor();
+    mkConnection(dma_pcis_master_xactor.axi_side, from_dma_pcis);
+`endif
 
    FIFOF#(Bit#(8)) uartToHostFifo <- mkFIFOF();
    FIFOF#(Bit#(8)) uartFromHostFifo <- mkFIFOF();
@@ -321,31 +333,10 @@ module mkAWSP2#(AWSP2_Response response)(AWSP2);
    endinterface );
 
    Reg#(Bool) rg_addr_map_set <- mkReg(False);
-   function Action fn_reset();
-   action
-      axiFabric.reset();
-      deburster.reset();
-      //memController.server_reset.request.put(?);
-      memFabric.reset();
-      rg_addr_map_set <= False;
-      ddr_master_xactor.reset();
-`ifndef USE_DDR
-      ddr_slave_xactor.reset();
-`endif
-      io_slave_xactor.reset();
-   endaction
-   endfunction
-
-   Reg#(Bool) rg_power_on_reset <- mkReg(False);
-   rule rl_reset if (!rg_power_on_reset);
-      fn_reset();
-      rg_power_on_reset <= True;
-   endrule
-   rule rl_reset_done;
-      $display("memController.server_reset.response.get()");
-      let b <- memController.server_reset.response.get();
-   endrule
    rule rl_set_addr_map if (!rg_addr_map_set);
+      $display("memController.set_addr_map: %h %h",
+                min(soc_map.m_ddr4_0_uncached_addr_base, soc_map.m_ddr4_0_cached_addr_base),
+		max(soc_map.m_ddr4_0_uncached_addr_lim, soc_map.m_ddr4_0_cached_addr_lim));
       memController.set_addr_map(min(soc_map.m_ddr4_0_uncached_addr_base, soc_map.m_ddr4_0_cached_addr_base),
                                  max(soc_map.m_ddr4_0_uncached_addr_lim, soc_map.m_ddr4_0_cached_addr_lim));
       rg_addr_map_set <= True;
@@ -440,7 +431,6 @@ module mkAWSP2#(AWSP2_Response response)(AWSP2);
       method Action memory_ready();
           $display("memory_ready");
           rg_ready <= True;
-	  memFabric.set_verbosity(2);
       endmethod
       method Action capture_tv_info(Bool c);
 `ifdef INCLUDE_TANDEM_VERIF
@@ -504,8 +494,6 @@ module mkConnectionVerbose #(AXI4_Master_IFC #(wd_id, wd_addr, wd_data, wd_user)
 		      axim.m_awregion,
 		      axim.m_awuser);
       axim.m_awready (axis.m_awready);
-      if (axim.m_awvalid)
-            $display("%m: wr_addr_channel: addr %h awready %d", axim.m_awaddr, axis.m_awready);
    endrule
 
    (* fire_when_enabled, no_implicit_conditions *)
@@ -542,8 +530,6 @@ module mkConnectionVerbose #(AXI4_Master_IFC #(wd_id, wd_addr, wd_data, wd_user)
 		      axim.m_arregion,
 		      axim.m_aruser);
       axim.m_arready (axis.m_arready);
-      if (axim.m_arvalid)
-            $display("%m: rd_addr_channel: addr %h arready", axim.m_araddr, axis.m_arready);
    endrule
 
    (* fire_when_enabled, no_implicit_conditions *)
