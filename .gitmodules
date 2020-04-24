@@ -10,3 +10,6 @@
 [submodule "hw/connectal"]
 	path = hw/connectal
 	url = https://github.com/cambridgehackers/connectal
+[submodule "hw/fpgamake"]
+	path = hw/fpgamake
+	url = https://github.com/cambridgehackers/fpgamake
