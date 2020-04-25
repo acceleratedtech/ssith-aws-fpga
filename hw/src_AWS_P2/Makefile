@@ -1,9 +1,9 @@
-CONNECTALDIR?= ../connectal
+CONNECTALDIR?= /home/stoy/git-repos/connectal
 
-FLUTE_DIR?=../Flute
+FLUTE_DIR?=/home/stoy/git-repos/Flute
 
 ############################################################
-## Connectal topgen configuration 
+## Connectal topgen configuration
 ############################################################
 
 S2H_INTERFACES = AWSP2_Request:AWSP2.request
@@ -50,14 +50,14 @@ ARCH ?= RV64ACDFIMSU
 CONNECTALFLAGS += --bscflags="-keep-fires -no-warn-action-shadowing -show-range-conflict"
 CONNECTALFLAGS += -DRV64
 CONNECTALFLAGS += -DSV39
-CONNECTALFLAGS += -DISA_PRIV_M  -DISA_PRIV_S  -DISA_PRIV_U 
-CONNECTALFLAGS += -DISA_I  -DISA_M  -DISA_A  -DISA_C 
-CONNECTALFLAGS += -DISA_F -DISA_D -DISA_FD_DIV 
+CONNECTALFLAGS += -DISA_PRIV_M  -DISA_PRIV_S  -DISA_PRIV_U
+CONNECTALFLAGS += -DISA_I  -DISA_M  -DISA_A  -DISA_C
+CONNECTALFLAGS += -DISA_F -DISA_D -DISA_FD_DIV
 CONNECTALFLAGS += -DISA_FD -DISA_F_OR_D
-CONNECTALFLAGS += -DSHIFT_BARREL   
-CONNECTALFLAGS += -DMULT_SERIAL   
-CONNECTALFLAGS += -DNear_Mem_Caches   
-CONNECTALFLAGS += -DFABRIC64   
+CONNECTALFLAGS += -DSHIFT_BARREL
+CONNECTALFLAGS += -DMULT_SERIAL
+CONNECTALFLAGS += -DNear_Mem_Caches
+CONNECTALFLAGS += -DFABRIC64
 CONNECTALFLAGS += -DINCLUDE_GDB_CONTROL
 CONNECTALFLAGS += -DINCLUDE_TANDEM_VERIF
 CONNECTALFLAGS += -DBRVF_TRACE

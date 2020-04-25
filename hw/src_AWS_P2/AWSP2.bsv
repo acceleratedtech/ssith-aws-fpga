@@ -111,7 +111,7 @@ module mkDeburster(AXI4_Deburster_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User));
     AXI4_Deburster_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) deburster <- mkAXI4_Deburster();
     return deburster;
 endmodule
-    
+
 module mkAWSP2#(AWSP2_Response response)(AWSP2);
 
    let soc_map <- mkSoC_Map();
@@ -138,8 +138,9 @@ module mkAWSP2#(AWSP2_Response response)(AWSP2);
    AXI4_Fabric_IFC#(2, 2, 4, 64, 512, 0) memFabric <- mkMemFabric();
    mkConnection(to_slave0, deburster.from_master);
    mkConnection(deburster.to_slave, memController.slave);
-   let rawmem_xn <- mkConnection(memController.to_raw_mem, memFabric.v_from_masters[0]);
-   let to_ddr = memFabric.v_to_slaves[0];
+   //let rawmem_xn <- mkConnection(memController.to_raw_mem, memFabric.v_from_masters[0]);
+   //let to_ddr = memFabric.v_to_slaves[0];
+   let to_ddr = memController.to_raw_mem;
 
    // tie off dummy port (later connect to second DRAM bank or UltraRam bank)
    AXI4_Slave_Xactor_IFC#(4, 64, 512, 0) extra_slave_xactor <- mkAXI4_Slave_Xactor();
@@ -167,7 +168,7 @@ module mkAWSP2#(AWSP2_Response response)(AWSP2);
 
 `ifndef USE_DDR
    AXI4_Slave_Xactor_IFC#(4, 64, 512, 0) ddr_slave_xactor <- mkAXI4_Slave_Xactor();
-   let ddr_xn <- mkConnectionVerbose(to_ddr, ddr_slave_xactor.axi_side);
+   let ddr_xn <- mkConnection/*Verbose*/(to_ddr, ddr_slave_xactor.axi_side);
 
    rule master0_aw if (rg_ready);
       let req <- pop_o(ddr_slave_xactor.o_wr_addr);

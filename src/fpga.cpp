@@ -177,7 +177,7 @@ void AWSP2_Response::io_awaddr(uint32_t awaddr, uint16_t awlen, uint16_t awid) {
         // fromhost
     } else {
         fprintf(stderr, "io_awaddr awaddr=%08x awlen=%d\n", awaddr, awlen);
-        fprintf(stderr, "htif_base_addr=%08x\n", fpga->htif_base_addr);
+        //fprintf(stderr, "htif_base_addr=%08x\n", fpga->htif_base_addr);
     }
     fpga->wdata_count = awlen / 8;
     fpga->wid = awid;
