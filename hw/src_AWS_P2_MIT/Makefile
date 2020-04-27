@@ -87,6 +87,7 @@ CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Core/Near_Mem_VM
 CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Core/PLIC
 CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Core/RegFiles
 CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Testbench/Fabrics/AXI4
+CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Testbench/SoC
 
 ## for TLM.defines
 CONNECTALFLAGS += $(shell test -d $(BLUESPECDIR)/Libraries/Axi && echo --bsvpath=$(BLUESPECDIR)/Libraries/Axi)
