@@ -50,7 +50,10 @@ const struct option long_options[] = {
     { "bootrom", required_argument, 0, 'b' },
     { "cpuverbosity",   required_argument, 0, 'v' },
     { "block", required_argument, 0, 'B' },
-    { "virtio-console", no_argument, 0, 'C' },
+    { "virtio-console", optional_argument, 0, 'C' },
+    { "htif-console",  optional_argument, 0, 'H' },
+    { "uart-console",  optional_argument, 0, 'U' },
+    { "uart",          required_argument, 0, 'U' },
     { "dtb",     required_argument, 0, 'd' },
     { "elf",     required_argument, 0, 'e' },
     { "entry",   required_argument, 0, 'E' },
@@ -80,11 +83,13 @@ int main(int argc, char * const *argv)
     int usemem = 0;
     int tv = 0;
     int enable_virtio_console = 0;
+    uint64_t htif_enabled = 0;
+    uint64_t uart_enabled = 0;
     std::vector<string> block_files;
 
     while (1) {
         int option_index = optind ? optind : 1;
-        char c = getopt_long(argc, argv, "b:B:Cd:e:hMs:Tv",
+        char c = getopt_long(argc, argv, "b:B:Cd:e:hH:Ms:TvU:",
                              long_options, &option_index);
         if (c == -1)
             break;
@@ -96,9 +101,13 @@ int main(int argc, char * const *argv)
         case 'B':
             block_files.push_back(string(optarg));
             break;
-	case 'C':
-	    enable_virtio_console = 1;
-	    break;
+        case 'C':
+            if (optarg) {
+                enable_virtio_console = strtoul(optarg, 0, 0);
+            } else {
+                enable_virtio_console = 1;
+            }
+            break;
         case 'd':
             dtb_filename = optarg;
             break;
@@ -114,6 +123,13 @@ int main(int argc, char * const *argv)
         case 'h':
             usage(argv[0]);
             return 2;
+        case 'H':
+            if (optarg) {
+                htif_enabled = strtoul(optarg, 0, 0);
+            } else {
+                htif_enabled = 1;
+            }
+            break;
         case 'M':
             usemem = 1;
             break;
@@ -125,6 +141,13 @@ int main(int argc, char * const *argv)
             break;
         case 'v':
             cpuverbosity = strtoul(optarg, 0, 0);
+            break;
+        case 'U':
+            if (optarg) {
+                uart_enabled = strtoul(optarg, 0, 0);
+            } else {
+                uart_enabled = 1;
+            }
             break;
         }
     }
@@ -160,14 +183,15 @@ int main(int argc, char * const *argv)
     Rom rom = { 0x00001000, 0x00010000, (uint64_t *)romBuffer };
     fpga = new AWSP2(IfcNames_AWSP2_ResponseH2S, rom);
     fpga->set_dram_buffer(dramBuffer);
+    fpga->set_uart_enabled(uart_enabled);
 
     for (string block_file: block_files) {
-	fpga->get_virtio_devices().add_virtio_block_device(block_file);
+        fpga->get_virtio_devices().add_virtio_block_device(block_file);
     }
 
     if (enable_virtio_console) {
-	fprintf(stderr, "Enabling virtio console\n");
-	fpga->get_virtio_devices().add_virtio_console_device();
+        fprintf(stderr, "Enabling virtio console\n");
+        fpga->get_virtio_devices().add_virtio_console_device();
     }
 
     // load the ROM code into Flash
@@ -186,10 +210,10 @@ int main(int argc, char * const *argv)
         copyFile((char *)flashBuffer, flash_filename, flash_alloc_sz);
 
     if (1) {
-    // register the DRAM memory object with the SoC (and program the MMU)
-      int objId = dma->reference(dramObject);
-      fprintf(stderr, "DRAM objId %d\n", objId);
-      fpga->register_region(8, objId);
+        // register the DRAM memory object with the SoC (and program the MMU)
+        int objId = dma->reference(dramObject);
+        fprintf(stderr, "DRAM objId %d\n", objId);
+        fpga->register_region(8, objId);
     }
 
     // Unblock memory accesses in the SoC.
@@ -204,13 +228,13 @@ int main(int argc, char * const *argv)
     fprintf(stderr, "dmi state machine status %d\n", fpga->dmi_status());
 
     // load the app code into DRAM
-    uint64_t tohost_address = 0;
     P2Memory mem(dramBuffer);
     AWSP2_Memory fpgamem(fpga);
     if (usemem) {
-      fprintf(stderr, "Using shared memory loader\n");
+        fprintf(stderr, "Using shared memory loader\n");
     }
     IMemory *memifc = usemem ? static_cast<IMemory *>(&mem) : static_cast<IMemory *>(&fpgamem);
+    uint64_t tohost_address = 0;
     uint64_t elf_entry = loadElf(memifc, elf_filename, dram_alloc_sz, &tohost_address);
     fprintf(stderr, "elf_entry=%08lx tohost_address=%08lx\n", elf_entry, tohost_address);
     if (tohost_address) {
@@ -236,27 +260,27 @@ int main(int argc, char * const *argv)
         fpga->process_io();
 
         if (0) {
-          fpga->halt();
-          uint64_t dpc = fpga->read_csr(0x7b1);
-          uint64_t ra = fpga->read_gpr(1);
-          uint64_t stvec = fpga->read_csr(0x105);
-          fprintf(stderr, "pc %08lx ra %08lx stvec %08lx\n", dpc, ra, stvec);
-          if (0 && !tv && dpc >= 0x8200210a) {
-            tv = 1;
-            fpga->capture_tv_info(tv);
-          }
-          if (dpc == 0x1000 || dpc == 0x80003168 || dpc == 0xffffffe000000154ull) {
-            for (int i = 0; i < 32; i++) {
-              fprintf(stderr, "reg %d val %08lx\n", i, fpga->read_gpr(i));
+            fpga->halt();
+            uint64_t dpc = fpga->read_csr(0x7b1);
+            uint64_t ra = fpga->read_gpr(1);
+            uint64_t stvec = fpga->read_csr(0x105);
+            fprintf(stderr, "pc %08lx ra %08lx stvec %08lx\n", dpc, ra, stvec);
+            if (0 && !tv && dpc >= 0x8200210a) {
+                tv = 1;
+                fpga->capture_tv_info(tv);
             }
+            if (dpc == 0x1000 || dpc == 0x80003168 || dpc == 0xffffffe000000154ull) {
+                for (int i = 0; i < 32; i++) {
+                    fprintf(stderr, "reg %d val %08lx\n", i, fpga->read_gpr(i));
+                }
 
-            fprintf(stderr, "mepc   %08lx\n", fpga->read_csr(0x341));
-            fprintf(stderr, "mcause %08lx\n", fpga->read_csr(0x342));
-            fprintf(stderr, "mtval  %08lx\n", fpga->read_csr(0x343));
+                fprintf(stderr, "mepc   %08lx\n", fpga->read_csr(0x341));
+                fprintf(stderr, "mcause %08lx\n", fpga->read_csr(0x342));
+                fprintf(stderr, "mtval  %08lx\n", fpga->read_csr(0x343));
 
-            break;
-          }
-          fpga->resume();
+                break;
+            }
+            fpga->resume();
         }
 
         sleep(sleep_seconds);

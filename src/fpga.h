@@ -116,6 +116,7 @@ class AWSP2 {
     int display_tandem;
     bsvvector_Luint8_t_L64 pcis_rsp_data;
     uint64_t htif_base_addr;
+    uint64_t uart_enabled;
 
     std::mutex client_mutex;
     std::mutex stdin_mutex;
@@ -162,6 +163,7 @@ public:
     void process_io();
 
     void set_htif_base_addr(uint64_t baseaddr);
+    void set_uart_enabled(bool enabled);
 
  private:
     uint32_t dmi_read(uint32_t addr);

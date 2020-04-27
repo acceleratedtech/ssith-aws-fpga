@@ -210,7 +210,7 @@ void AWSP2_Response::io_araddr(uint32_t araddr, uint16_t arlen, uint16_t arid)
         }
     } else if (araddr == (fpga->htif_base_addr + FROMHOST_OFFSET)) {
         uint8_t ch = 0;
-        if (fpga->dequeue_stdin(&ch)) {
+        if (fpga->dequeue_stdin(&ch) && !fpga->uart_enabled) {
             uint64_t cmd = (1ul << 56) | (0ul << 48) | ch;
             fpga->request->io_rdata(cmd, arid, 0, 1);
         } else {
@@ -282,7 +282,7 @@ void AWSP2_Response::console_putchar(uint64_t wdata) {
 }
 
 AWSP2::AWSP2(int id, const Rom &rom)
-  : response(0), rom(rom), last_addr(0), wdata_count(0), wid(0), start_of_line(1)
+  : response(0), rom(rom), last_addr(0), wdata_count(0), wid(0), start_of_line(1), uart_enabled(0)
 {
     sem_init(&sem, 0, 0);
     response = new AWSP2_Response(id, this);
@@ -541,8 +541,13 @@ void AWSP2::set_dram_buffer(uint8_t *buf) {
 void AWSP2::enqueue_stdin(const char *buf, int num_chars)
 {
     std::lock_guard<std::mutex> lock(stdin_mutex);
-    for (int i = 0; i < num_chars; i++)
-        stdin_queue.push(buf[i]);
+    for (int i = 0; i < num_chars; i++) {
+	if (uart_enabled) {
+	    request->uart_fromhost(buf[i]);
+	} else {
+	    stdin_queue.push(buf[i]);
+	}
+    }
 }
 
 int AWSP2::dequeue_stdin(uint8_t *chp)
@@ -596,4 +601,9 @@ void AWSP2::process_io()
 void AWSP2::set_htif_base_addr(uint64_t baseaddr)
 {
     htif_base_addr = baseaddr;
+}
+
+void AWSP2::set_uart_enabled(bool enabled)
+{
+    uart_enabled = enabled;
 }
