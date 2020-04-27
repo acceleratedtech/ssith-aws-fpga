@@ -61,6 +61,26 @@ interface SoC_Map_IFC;
    (* always_ready *)   method  Fabric_Addr  m_near_mem_io_addr_size;
    (* always_ready *)   method  Fabric_Addr  m_near_mem_io_addr_lim;
 
+   (* always_ready *)   method  Fabric_Addr  m_flash_mem_addr_base;
+   (* always_ready *)   method  Fabric_Addr  m_flash_mem_addr_size;
+   (* always_ready *)   method  Fabric_Addr  m_flash_mem_addr_lim;
+
+   (* always_ready *)   method  Fabric_Addr  m_ethernet_0_addr_base;
+   (* always_ready *)   method  Fabric_Addr  m_ethernet_0_addr_size;
+   (* always_ready *)   method  Fabric_Addr  m_ethernet_0_addr_lim;
+
+   (* always_ready *)   method  Fabric_Addr  m_dma_0_addr_base;
+   (* always_ready *)   method  Fabric_Addr  m_dma_0_addr_size;
+   (* always_ready *)   method  Fabric_Addr  m_dma_0_addr_lim;
+
+   (* always_ready *)   method  Fabric_Addr  m_uart16550_0_addr_base;
+   (* always_ready *)   method  Fabric_Addr  m_uart16550_0_addr_size;
+   (* always_ready *)   method  Fabric_Addr  m_uart16550_0_addr_lim;
+
+   (* always_ready *)   method  Fabric_Addr  m_gpio_0_addr_base;
+   (* always_ready *)   method  Fabric_Addr  m_gpio_0_addr_size;
+   (* always_ready *)   method  Fabric_Addr  m_gpio_0_addr_lim;
+
    (* always_ready *)   method  Fabric_Addr  m_boot_rom_addr_base;
    (* always_ready *)   method  Fabric_Addr  m_boot_rom_addr_size;
    (* always_ready *)   method  Fabric_Addr  m_boot_rom_addr_lim;
@@ -106,7 +126,7 @@ module mkSoC_Map (SoC_Map_IFC);
    // ----------------------------------------------------------------
    // Near_Mem_IO (CLINT)
 
-   Fabric_Addr near_mem_io_addr_base = 'h_0200_0000;
+   Fabric_Addr near_mem_io_addr_base = 'h_1000_0000;
    Fabric_Addr near_mem_io_addr_size = 'h_0001_0000;    // 64K
    Fabric_Addr near_mem_io_addr_lim  = near_mem_io_addr_base + near_mem_io_addr_size;
 
@@ -115,14 +135,58 @@ module mkSoC_Map (SoC_Map_IFC);
    endfunction
 
    // ----------------------------------------------------------------
-   // Far_Mem_IO (Other I/O)
+   // Flash Mem
 
-   Fabric_Addr far_mem_io_addr_base = 'h_1000_0000;
-   Fabric_Addr far_mem_io_addr_size = 'h_7000_0000;
-   Fabric_Addr far_mem_io_addr_lim  = far_mem_io_addr_base + far_mem_io_addr_size;
+   Fabric_Addr flash_mem_addr_base = 'h_4000_0000;
+   Fabric_Addr flash_mem_addr_size = 'h_0800_0000;    // 128M
+   Fabric_Addr flash_mem_addr_lim  = flash_mem_addr_base + flash_mem_addr_size;
 
-   function Bool fn_is_far_mem_io_addr (Fabric_Addr addr);
-      return ((far_mem_io_addr_base <= addr) && (addr < far_mem_io_addr_lim));
+   function Bool fn_is_flash_mem_addr (Fabric_Addr addr);
+      return ((flash_mem_addr_base <= addr) && (addr < flash_mem_addr_lim));
+   endfunction
+
+   // ----------------------------------------------------------------
+   // Ethernet 0
+
+   Fabric_Addr ethernet_0_addr_base = 'h_6210_0000;
+   Fabric_Addr ethernet_0_addr_size = 'h_0004_0000;    // 256K
+   Fabric_Addr ethernet_0_addr_lim  = ethernet_0_addr_base + ethernet_0_addr_size;
+
+   function Bool fn_is_ethernet_0_addr (Fabric_Addr addr);
+      return ((ethernet_0_addr_base <= addr) && (addr < ethernet_0_addr_lim));
+   endfunction
+
+   // ----------------------------------------------------------------
+   // DMA 0
+
+   Fabric_Addr dma_0_addr_base = 'h_6220_0000;
+   Fabric_Addr dma_0_addr_size = 'h_0001_0000;    // 64K
+   Fabric_Addr dma_0_addr_lim  = dma_0_addr_base + dma_0_addr_size;
+
+   function Bool fn_is_dma_0_addr (Fabric_Addr addr);
+      return ((dma_0_addr_base <= addr) && (addr < dma_0_addr_lim));
+   endfunction
+
+   // ----------------------------------------------------------------
+   // UART 0
+
+   Fabric_Addr uart16550_0_addr_base = 'h_6230_0000;
+   Fabric_Addr uart16550_0_addr_size = 'h_0000_1000;    // 4K
+   Fabric_Addr uart16550_0_addr_lim  = uart16550_0_addr_base + uart16550_0_addr_size;
+
+   function Bool fn_is_uart16550_0_addr (Fabric_Addr addr);
+      return ((uart16550_0_addr_base <= addr) && (addr < uart16550_0_addr_lim));
+   endfunction
+
+   // ----------------------------------------------------------------
+   // GPIO 0
+
+   Fabric_Addr gpio_0_addr_base = 'h_6FFF_0000;
+   Fabric_Addr gpio_0_addr_size = 'h_0001_0000;    // 64K
+   Fabric_Addr gpio_0_addr_lim  = gpio_0_addr_base + gpio_0_addr_size;
+
+   function Bool fn_is_gpio_0_addr (Fabric_Addr addr);
+      return ((gpio_0_addr_base <= addr) && (addr < gpio_0_addr_lim));
    endfunction
 
    // ----------------------------------------------------------------
@@ -139,7 +203,7 @@ module mkSoC_Map (SoC_Map_IFC);
    // ----------------------------------------------------------------
    // DDR memory 0 uncached
 
-   Fabric_Addr ddr4_0_uncached_addr_base = 'h_C000_0000;
+   Fabric_Addr ddr4_0_uncached_addr_base = 'h_8000_0000;
    Fabric_Addr ddr4_0_uncached_addr_size = 'h_4000_0000;    // 1G
    Fabric_Addr ddr4_0_uncached_addr_lim  = ddr4_0_uncached_addr_base + ddr4_0_uncached_addr_size;
 
@@ -150,7 +214,7 @@ module mkSoC_Map (SoC_Map_IFC);
    // ----------------------------------------------------------------
    // DDR memory 0 cached
 
-   Fabric_Addr ddr4_0_cached_addr_base = 'h_8000_0000;
+   Fabric_Addr ddr4_0_cached_addr_base = 'h_C000_0000;
    Fabric_Addr ddr4_0_cached_addr_size = 'h_4000_0000;    // 1G
    Fabric_Addr ddr4_0_cached_addr_lim  = ddr4_0_cached_addr_base + ddr4_0_cached_addr_size;
 
@@ -189,9 +253,22 @@ module mkSoC_Map (SoC_Map_IFC);
    function Bool fn_is_IO_addr (Fabric_Addr addr);
       return (   fn_is_plic_addr (addr)
 	      || fn_is_near_mem_io_addr (addr)
-	      || fn_is_far_mem_io_addr (addr)
+	      || fn_is_flash_mem_addr (addr)
+	      || fn_is_ethernet_0_addr (addr)
+	      || fn_is_dma_0_addr (addr)
+	      || fn_is_uart16550_0_addr  (addr)
+	      || fn_is_gpio_0_addr (addr)
 	      || fn_is_boot_rom_addr (addr)
 	      || fn_is_ddr4_0_uncached_addr (addr)
+	      || fn_is_flash_regs_addr (addr)
+	      || fn_is_uart1_addr (addr)
+	      || fn_is_i2c_addr (addr)
+	      || fn_is_spi_addr (addr)
+	      || fn_is_uart2_addr (addr)
+	      || fn_is_gpio1_addr (addr)
+	      || fn_is_gpio2_addr (addr)
+	      || fn_is_xdma_control (addr)
+	      || fn_is_xdma_ecam (addr)
 	      );
    endfunction
 
@@ -212,6 +289,26 @@ module mkSoC_Map (SoC_Map_IFC);
    method  Fabric_Addr  m_near_mem_io_addr_base = near_mem_io_addr_base;
    method  Fabric_Addr  m_near_mem_io_addr_size = near_mem_io_addr_size;
    method  Fabric_Addr  m_near_mem_io_addr_lim  = near_mem_io_addr_lim;
+
+   method  Fabric_Addr  m_flash_mem_addr_base = flash_mem_addr_base;
+   method  Fabric_Addr  m_flash_mem_addr_size = flash_mem_addr_size;
+   method  Fabric_Addr  m_flash_mem_addr_lim  = flash_mem_addr_lim;
+
+   method  Fabric_Addr  m_ethernet_0_addr_base = ethernet_0_addr_base;
+   method  Fabric_Addr  m_ethernet_0_addr_size = ethernet_0_addr_size;
+   method  Fabric_Addr  m_ethernet_0_addr_lim  = ethernet_0_addr_lim;
+
+   method  Fabric_Addr  m_dma_0_addr_base = dma_0_addr_base;
+   method  Fabric_Addr  m_dma_0_addr_size = dma_0_addr_size;
+   method  Fabric_Addr  m_dma_0_addr_lim  = dma_0_addr_lim;
+
+   method  Fabric_Addr  m_uart16550_0_addr_base = uart16550_0_addr_base;
+   method  Fabric_Addr  m_uart16550_0_addr_size = uart16550_0_addr_size;
+   method  Fabric_Addr  m_uart16550_0_addr_lim  = uart16550_0_addr_lim;
+
+   method  Fabric_Addr  m_gpio_0_addr_base = gpio_0_addr_base;
+   method  Fabric_Addr  m_gpio_0_addr_size = gpio_0_addr_size;
+   method  Fabric_Addr  m_gpio_0_addr_lim  = gpio_0_addr_lim;
 
    method  Fabric_Addr  m_boot_rom_addr_base = boot_rom_addr_base;
    method  Fabric_Addr  m_boot_rom_addr_size = boot_rom_addr_size;
