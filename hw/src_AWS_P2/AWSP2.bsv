@@ -82,7 +82,7 @@ module mkIOFabric(AXI4_Fabric_IFC#(2, 3, 4, 64, 64, 0));
         else begin
            return tuple2(True, 2);
         end
-    endfunction
+   endfunction
 
    AXI4_Fabric_IFC#(2, 3, 4, 64, 64, 0) axiFabric <- mkAXI4_Fabric(fn_addr_to_slave_num);
 
@@ -117,7 +117,7 @@ module mkAWSP2#(AWSP2_Response response)(AWSP2);
    let soc_map <- mkSoC_Map();
    P2_Core_IFC p2_core <- mkP2_Core();
 
-   Reg#(Bit#(4)) rg_verbosity <- mkReg(0);
+   Reg#(Bit#(4)) rg_verbosity <- mkReg(1); //jes
    Reg#(Bool) rg_ready <- mkReg(False);
 
    Reg#(Bit#(32)) rg_irq_levels[2] <- mkCReg(2, 0);
@@ -132,7 +132,11 @@ module mkAWSP2#(AWSP2_Response response)(AWSP2);
    let to_slave1 = axiFabric.v_to_slaves[1];
    let to_slave2 = axiFabric.v_to_slaves[2];
 
+<<<<<<< HEAD
    AXI4_Deburster_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) deburster <- mkDeburster();
+=======
+   AXI4_Deburster_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) deburster <- mkAXI4_Deburster_A();
+>>>>>>> Separately synthesize deburster, and temporarily simplify 2x2 function
    let memController <- mkAXI_Mem_Controller();
 
    AXI4_Fabric_IFC#(2, 2, 4, 64, 512, 0) memFabric <- mkMemFabric();
@@ -501,4 +505,16 @@ module mkConnectionVerbose #(AXI4_Master_IFC #(wd_id, wd_addr, wd_data, wd_user)
 		     axis.m_ruser);
       axis.m_rready (axim.m_rready);
    endrule
+endmodule
+
+// ================================================================
+// Specialization of parameterized AXI4 Deburster for this SoC.
+
+(* synthesize *)
+module mkAXI4_Deburster_A (AXI4_Deburster_IFC #(Wd_Id,
+						Wd_Addr,
+						Wd_Data,
+						Wd_User));
+   let m <- mkAXI4_Deburster;
+   return m;
 endmodule
