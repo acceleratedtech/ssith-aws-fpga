@@ -47,7 +47,6 @@ import Giraffe_IFC  :: *;
 `endif
 
 import AWSP2_IFC   :: *;
-import AXI_Cache   :: *;
 
 `ifdef BOARD_awsf1
 `ifdef AWSF1_DDR_A
@@ -141,15 +140,12 @@ module mkAWSP2#(AWSP2_Response response)(AWSP2);
    mkConnection(deburster.to_slave, memController.slave);
    let rawmem_xn <- mkConnection(memController.to_raw_mem, memFabric.v_from_masters[0]);
    let to_ddr = memFabric.v_to_slaves[0];
-   //let to_ddr = memController.to_raw_mem;
 
    // tie off dummy port (later connect to second DRAM bank or UltraRam bank)
    AXI4_Slave_Xactor_IFC#(4, 64, 512, 0) extra_slave_xactor <- mkAXI4_Slave_Xactor();
    mkConnection(memFabric.v_to_slaves[1], extra_slave_xactor.axi_side);
 
-   let axiCache <- mkAXI_Cache();
-   mkConnection(axiCache.master, memFabric.v_from_masters[1]);
-   let from_dma_pcis = axiCache.slave;
+   let from_dma_pcis = memFabric.v_from_masters[1];
 
 `ifndef BOARD_awsf1
     AXI4_Master_Xactor_IFC#(4, 64, 512, 0) dma_pcis_master_xactor <- mkAXI4_Master_Xactor();
