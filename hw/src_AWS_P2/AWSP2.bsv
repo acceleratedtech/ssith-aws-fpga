@@ -132,7 +132,7 @@ module mkAWSP2#(AWSP2_Response response)(AWSP2);
    let to_slave1 = axiFabric.v_to_slaves[1];
    let to_slave2 = axiFabric.v_to_slaves[2];
 
-   AXI4_Deburster_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) deburster <- mkAXI4_Deburster_A();
+   AXI4_Deburster_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) deburster <- mkDeburster();
    let memController <- mkAXI_Mem_Controller();
 
    AXI4_Fabric_IFC#(2, 2, 4, 64, 512, 0) memFabric <- mkMemFabric();
@@ -501,16 +501,4 @@ module mkConnectionVerbose #(AXI4_Master_IFC #(wd_id, wd_addr, wd_data, wd_user)
 		     axis.m_ruser);
       axis.m_rready (axim.m_rready);
    endrule
-endmodule
-
-// ================================================================
-// Specialization of parameterized AXI4 Deburster for this SoC.
-
-(* synthesize *)
-module mkAXI4_Deburster_A (AXI4_Deburster_IFC #(Wd_Id,
-						Wd_Addr,
-						Wd_Data,
-						Wd_User));
-   let m <- mkAXI4_Deburster;
-   return m;
 endmodule
