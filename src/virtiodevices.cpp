@@ -64,7 +64,6 @@ VirtioDevices::VirtioDevices() {
 	irq_init(&irq[i], awsp2_set_irq, (void *)22, i);
 
     // set up a network device
-    virtio_bus->addr += 0x1000;
     virtio_bus->irq = &irq[irq_num++];
     irq_init(virtio_bus->irq, awsp2_set_irq, (void *)22, 0);
     ethernet_device = slirp_open();
@@ -90,6 +89,8 @@ void VirtioDevices::add_virtio_block_device(std::string filename)
 void VirtioDevices::add_virtio_console_device()
 {
     console = console_init(1);
+    virtio_bus->addr += 0x1000;
+    virtio_bus->irq = &irq[irq_num++];
     virtio_console = virtio_console_init(virtio_bus, console);
 }
 
