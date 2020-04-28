@@ -1,6 +1,6 @@
-CONNECTALDIR?= /home/stoy/git-repos/connectal
+CONNECTALDIR ?= ../connectal
 
-FLUTE_DIR?=/home/stoy/git-repos/Flute
+FLUTE_DIR ?= ../Flute
 
 ############################################################
 ## Connectal topgen configuration
