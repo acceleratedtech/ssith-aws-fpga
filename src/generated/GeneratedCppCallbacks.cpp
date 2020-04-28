@@ -234,6 +234,10 @@ int AWSP2_Requestread_irq_status_cb (  struct PortalInternal *p ) {
     (static_cast<AWSP2_RequestWrapper *>(p->parent))->read_irq_status ( );
     return 0;
 };
+int AWSP2_Requestuart_fromhost_cb (  struct PortalInternal *p, const uint8_t ch ) {
+    (static_cast<AWSP2_RequestWrapper *>(p->parent))->uart_fromhost ( ch);
+    return 0;
+};
 AWSP2_RequestCb AWSP2_Request_cbTable = {
     AWSP2_Requestdisconnect_cb,
     AWSP2_Requestset_debug_verbosity_cb,
@@ -252,6 +256,7 @@ AWSP2_RequestCb AWSP2_Request_cbTable = {
     AWSP2_Requestirq_set_levels_cb,
     AWSP2_Requestirq_clear_levels_cb,
     AWSP2_Requestread_irq_status_cb,
+    AWSP2_Requestuart_fromhost_cb,
 };
 
 /************** Start of AWSP2_ResponseWrapper CPP ***********/
@@ -292,6 +297,10 @@ int AWSP2_Responsetandem_packet_cb (  struct PortalInternal *p, const uint32_t n
     (static_cast<AWSP2_ResponseWrapper *>(p->parent))->tandem_packet ( num_bytes, bytes);
     return 0;
 };
+int AWSP2_Responseuart_tohost_cb (  struct PortalInternal *p, const uint8_t ch ) {
+    (static_cast<AWSP2_ResponseWrapper *>(p->parent))->uart_tohost ( ch);
+    return 0;
+};
 AWSP2_ResponseCb AWSP2_Response_cbTable = {
     AWSP2_Responsedisconnect_cb,
     AWSP2_Responsedmi_read_data_cb,
@@ -302,5 +311,6 @@ AWSP2_ResponseCb AWSP2_Response_cbTable = {
     AWSP2_Responseio_wdata_cb,
     AWSP2_Responseirq_status_cb,
     AWSP2_Responsetandem_packet_cb,
+    AWSP2_Responseuart_tohost_cb,
 };
 #endif //NO_CPP_PORTAL_CODE
