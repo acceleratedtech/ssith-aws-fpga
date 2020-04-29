@@ -27,7 +27,7 @@ add_executable(ssith_aws_fpga
   src/loadelf.h
   src/virtiodevices.cpp
   src/virtiodevices.h
-  src/testawsp2.cpp)
+  src/main.cpp)
 target_link_libraries(ssith_aws_fpga tinyemu connectal generated pthread elf)
 
 add_executable(ssith_virtio_test
