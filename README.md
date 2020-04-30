@@ -34,7 +34,9 @@ Build FPGA utilities and set them up to run as root:
    sudo chmod u+s /usr/local/bin/fpga-local-cmd
 ```
 
-Install connectal and load drivers
+## Install connectal and load drivers
+
+### Install from packages:
 
 ```bash
   sudo add-apt-repository -y ppa:jamey-hicks/connectal
@@ -43,6 +45,18 @@ Install connectal and load drivers
   modprobe portalmem
   modprobe pcieportal
 ```
+
+### Install from source:
+
+```bash
+  (cd ssith-aws-fpga/hw/connectal/drivers/pcieportal; make)
+  (cd ssith-aws-fpga/hw/connectal/drivers/portalmem; make)
+  fpga-clear-local-fpga -S 0
+  sudo insmod ssith-aws-fpga/hw/connectal/drivers/pcieportal/pcieportal.ko
+  sudo insmod ssith-aws-fpga/hw/connectal/drivers/portalmem/portalmem.ko
+```
+
+Note: You have to recompile each time the kernel is updated.
 
 ## Building and running `ssith_aws_fpga` on FPGA
 
