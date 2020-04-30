@@ -44,9 +44,15 @@ import Core     :: *;
 import PLIC :: *;    // for PLIC_Source_IFC type which is exposed at P2_Core interface
 
 // Main Fabric
+`ifdef HAVE_BLUESTUFF
 import Bluespec_AXI4_Types   :: *;
+import Bluespec_AXI4_Fabric  :: *;
+import Bluespec_Fabric_Defs  :: *;
+`else
+import AXI4_Types   :: *;
 import AXI4_Fabric  :: *;
 import Fabric_Defs  :: *;
+`endif
 
 `ifdef INCLUDE_TANDEM_VERIF
 import TV_Info :: *;
