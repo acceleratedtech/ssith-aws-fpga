@@ -17,13 +17,13 @@ PIN_TYPE_INCLUDE=AWSP2_IFC
 AUTOTOP = --interface pins:AWSP2.pins
 endif
 
-BSVFILES = AWSP2_IFC.bsv
+BSVFILES = ../src_BSV/AWSP2_IFC.bsv
 
 ############################################################
 ## the software source code and compiler flags
 ############################################################
 
-CPPFILES = loadelf.cpp testawsp2.cpp
+CPPFILES = ../src_Software/loadelf.cpp ../src_Software/testawsp2.cpp
 CONNECTALFLAGS += -lelf
 
 

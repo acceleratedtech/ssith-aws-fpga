@@ -17,13 +17,13 @@ PIN_TYPE_INCLUDE=AWSP2_IFC
 AUTOTOP = --interface pins:AWSP2.pins
 endif
 
-BSVFILES = AWSP2_IFC.bsv
+BSVFILES = ../src_BSV/AWSP2_IFC.bsv
 
 ############################################################
 ## the software source code and compiler flags
 ############################################################
 
-CPPFILES = ../src_AWS_P2/loadelf.cpp ../src_AWS_P2/testawsp2.cpp
+CPPFILES = ../src_Software/loadelf.cpp ../src_Software/testawsp2.cpp
 CONNECTALFLAGS += -lelf
 
 
@@ -108,16 +108,10 @@ CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Core/Near_Mem_VM
 CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Core/PLIC
 CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Core/RegFiles
 
-# CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Testbench/Fabrics/AXI4
-
 ## for TLM.defines
 CONNECTALFLAGS += $(shell test -d $(BLUESPECDIR)/Libraries/Axi && echo --bsvpath=$(BLUESPECDIR)/Libraries/Axi)
 CONNECTALFLAGS += $(shell test -d $(BLUESPECDIR)/Libraries/Axi4 && echo --bsvpath=$(BLUESPECDIR)/Libraries/Axi4)
 CONNECTALFLAGS += $(shell test -d $(BLUESPECDIR)/Libraries/Bus && echo --bsvpath=$(BLUESPECDIR)/Libraries/Bus)
-# CONNECTALFLAGS += $(shell test -d $(BLUESPECDIR)/Libraries/TLM3 && echo --bsvpath=$(BLUESPECDIR)/Libraries/TLM3)
-# CONNECTALFLAGS += $(shell test -d $(BLUESPECDIR)/Libraries/AMBA_TLM3/Axi && echo --bsvpath=$(BLUESPECDIR)/Libraries/AMBA_TLM3/Axi)
-# CONNECTALFLAGS += $(shell test -d $(BLUESPECDIR)/Libraries/AMBA_TLM3/Axi4 && echo --bsvpath=$(BLUESPECDIR)/Libraries/AMBA_TLM3/Axi4)
-# CONNECTALFLAGS += $(shell test -d $(BLUESPECDIR)/Libraries/AMBA_TLM3/TLM3 && echo --bsvpath=$(BLUESPECDIR)/Libraries/AMBA_TLM3/TLM3)
 
 ifeq ($(BOARD),awsf1)
 

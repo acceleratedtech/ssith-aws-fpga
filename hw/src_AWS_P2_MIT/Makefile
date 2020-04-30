@@ -17,13 +17,13 @@ PIN_TYPE_INCLUDE=AWSP2_IFC
 AUTOTOP = --interface pins:AWSP2.pins
 endif
 
-BSVFILES = ../src_AWS_P2/AWSP2_IFC.bsv
+BSVFILES = ../src_BSV/AWSP2_IFC.bsv
 
 ############################################################
 ## the software source code and compiler flags
 ############################################################
 
-CPPFILES = ../src_AWS_P2/loadelf.cpp ../src_AWS_P2/testawsp2.cpp
+CPPFILES = ../src_Software/loadelf.cpp ../src_Software/testawsp2.cpp
 CONNECTALFLAGS += -lelf
 
 
