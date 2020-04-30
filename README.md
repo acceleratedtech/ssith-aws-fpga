@@ -31,7 +31,7 @@ Build FPGA utilities and set them up to run as root:
 
 ```bash
    cd aws-fpga
-   . hdk_setup
+   . sdk_setup.sh
    sudo chmod u+s /usr/local/bin/fpga-local-cmd
 ```
 
