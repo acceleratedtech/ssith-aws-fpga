@@ -1,6 +1,10 @@
 
 import Vector     :: *;
+`ifdef HAVE_BLUESTUFF_AXI
+import Bluespec_AXI4_Types :: *;
+`else
 import AXI4_Types :: *;
+`endif
 
 interface AWSP2_Request;
   method Action set_debug_verbosity(Bit#(4) verbosity);

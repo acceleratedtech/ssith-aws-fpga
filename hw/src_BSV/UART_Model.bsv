@@ -47,9 +47,13 @@ import Semi_FIFOF :: *;
 // ================================================================
 // Project imports
 
+`ifdef HAVE_BLUESTUFF_AXI
+import Bluespec_AXI4_Types  :: *;
+import Bluespec_Fabric_Defs :: *;
+`else
 import AXI4_Types  :: *;
 import Fabric_Defs :: *;
-
+`endif
 // ================================================================
 // UART registers and their address offsets
 

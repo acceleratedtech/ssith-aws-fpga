@@ -15,7 +15,11 @@ import ConnectalMemTypes :: *;
 // ================================================================
 // Project imports
 
+`ifdef HAVE_BLUESTUFF_AXI
+import CHERI_P2_Core :: *;
+`else
 import P2_Core  :: *;
+`endif
 import SoC_Map  :: *;
 import UART_Model :: *;
 
@@ -29,11 +33,17 @@ import PLIC :: *;    // for PLIC_Source_IFC type which is exposed at P2_Core int
 import Semi_FIFOF :: *;
 
 // Main Fabric
+`ifdef HAVE_BLUESTUFF_AXI
+import Bluespec_AXI4_Types   :: *;
+import Bluespec_AXI4_Fabric  :: *;
+import Bluespec_Fabric_Defs  :: *;
+`else
 import AXI4_Types   :: *;
 import AXI4_Fabric  :: *;
+import Fabric_Defs  :: *;
+`endif
 import AXI4_Deburster :: *;
 import AXI_Mem_Controller :: *;
-import Fabric_Defs  :: *;
 
 `ifdef INCLUDE_TANDEM_VERIF
 import TV_Info :: *;
@@ -42,8 +52,10 @@ import AXI4_Stream ::*;
 
 `ifdef INCLUDE_GDB_CONTROL
 import Debug_Module :: *;
+`ifdef JTAG_TAP
 import JtagTap      :: *;
 import Giraffe_IFC  :: *;
+`endif
 `endif
 
 import AWSP2_IFC   :: *;

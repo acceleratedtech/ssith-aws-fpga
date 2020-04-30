@@ -24,7 +24,11 @@ import Cur_Cycle  :: *;
 // Project imports
 
 import Semi_FIFOF :: *;
+`ifdef HAVE_BLUESTUFF_AXI
+import Bluespec_AXI4_Types :: *;
+`else
 import AXI4_Types :: *;
+`endif
 
 // ================================================================
 // The interface for the fabric module

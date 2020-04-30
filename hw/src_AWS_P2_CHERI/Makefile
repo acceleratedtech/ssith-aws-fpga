@@ -13,7 +13,7 @@ MEM_WRITE_INTERFACES = lAWSP2.writeClients
 
 ifeq ($(BOARD),awsf1)
 PIN_TYPE=AWSP2_Pin_IFC
-PIN_TYPE_INCLUDE=AWSP2_IFC
+PIN_TYPE_INCLUDE=../src_AWS_P2/AWSP2_IFC
 AUTOTOP = --interface pins:AWSP2.pins
 endif
 
@@ -26,6 +26,12 @@ BSVFILES = ../src_BSV/AWSP2_IFC.bsv
 CPPFILES = ../src_Software/loadelf.cpp ../src_Software/testawsp2.cpp
 CONNECTALFLAGS += -lelf
 
+############################################################
+## Configuring src_BSV
+############################################################
+
+CONNECTALFLAGS += -DHAVE_BLUESTUFF_AXI
+CONNECTALFLAGS += -DP2_CORE=CHERI_P2_Core
 
 ############################################################
 ## Configuring CTSRD-CHERI Flute
@@ -57,6 +63,7 @@ CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/libs/BlueStuff
 
 prebuild::
 	(cd $(FLUTE_DIR)/src_SSITH_P2; make tagsparams)
+	cp -v $(FLUTE_DIR)/src_SSITH_P2/src_BSV/TagTableStructure.bsv .
 
 ############################################################
 ## Configuring connectal platform hardware
@@ -97,7 +104,8 @@ CONNECTALFLAGS += -DXILINX_BSCAN  -DXILINX_XCVU9P
 #CONNECTALFLAGS += -DJTAG_TAP
 
 CONNECTALFLAGS += --bsvpath=.
-CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_SSITH_P2/src_BSV/
+CONNECTALFLAGS += --bsvpath=../src_BSV/
+## should not need anything from $(FLUTE_DIR)/src_SSITH_P2
 CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Core/BSV_Additional_Libs
 CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Core/Core
 CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Core/CPU

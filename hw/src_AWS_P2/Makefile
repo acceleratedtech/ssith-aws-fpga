@@ -67,8 +67,8 @@ CONNECTALFLAGS += -DVERILATOR_PROJECT_ARGS=--trace
 ## this design uses the DMI interface directly
 #CONNECTALFLAGS += -DJTAG_TAP
 
-CONNECTALFLAGS += --bsvpath=.
-CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_SSITH_P2/src_BSV/
+CONNECTALFLAGS += --bsvpath=../src_BSV
+## CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_SSITH_P2/src_BSV/
 CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Core/BSV_Additional_Libs
 CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Core/Core
 CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Core/CPU

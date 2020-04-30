@@ -89,7 +89,6 @@ interface SoC_Map_IFC;
    (* always_ready *)   method  Fabric_Addr  m_pcie_block_registers_addr_lim;
    */
 
-   /*
    (* always_ready *)   method  Range#(Wd_Addr)  m_ethernet_0_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_dma_0_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_uart16550_0_addr_range;
@@ -101,7 +100,6 @@ interface SoC_Map_IFC;
    (* always_ready *)   method  Range#(Wd_Addr)  m_gpio_0_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_gpio_1_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_boot_rom_addr_range;
-   */
    (* always_ready *)   method  Range#(Wd_Addr)  m_ddr4_0_uncached_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_ddr4_0_cached_addr_range;
 
@@ -345,7 +343,6 @@ module mkSoC_Map (SoC_Map_IFC);
    method  Fabric_Addr  m_pcie_block_registers_addr_lim  = pcie_block_registers_addr_lim;
    */
 
-   /*
    method  Range#(Wd_Addr)  m_ethernet_0_addr_range = ethernet_0_addr_range;
    method  Range#(Wd_Addr)  m_dma_0_addr_range = dma_0_addr_range;
    method  Range#(Wd_Addr)  m_uart16550_0_addr_range = uart16550_0_addr_range;
@@ -357,7 +354,6 @@ module mkSoC_Map (SoC_Map_IFC);
    method  Range#(Wd_Addr)  m_gpio_0_addr_range = gpio_0_addr_range;
    method  Range#(Wd_Addr)  m_gpio_1_addr_range = gpio_1_addr_range;
    method  Range#(Wd_Addr)  m_boot_rom_addr_range = boot_rom_addr_range;
-   */
    method  Range#(Wd_Addr)  m_ddr4_0_uncached_addr_range = ddr4_0_uncached_addr_range;
    method  Range#(Wd_Addr)  m_ddr4_0_cached_addr_range = ddr4_0_cached_addr_range;
 

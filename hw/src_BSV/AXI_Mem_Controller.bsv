@@ -73,9 +73,14 @@ import ByteLane   :: *;
 // ================================================================
 // Project imports
 
+`ifdef HAVE_BLUESTUFF_AXI
+import Bluespec_Fabric_Defs :: *;
+import Bluespec_AXI4_Types  :: *;
+`else
 import Fabric_Defs :: *;
-import SoC_Map     :: *;
 import AXI4_Types  :: *;
+`endif
+import SoC_Map     :: *;
 
 // ================================================================
 // Raw mem data width:    512 (bits/ 64 x Byte/ 16 x Word32/ 8 x Word64)

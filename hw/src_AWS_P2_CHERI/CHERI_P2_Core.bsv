@@ -1,6 +1,19 @@
 // Copyright (c) 2018-2019 Bluespec, Inc. All Rights Reserved.
 
-package P2_Core;
+//-
+// AXI (user fields) modifications:
+//     Copyright (c) 2019 Alexandre Joannou
+//     Copyright (c) 2019 Peter Rugg
+//     Copyright (c) 2019 Jonathan Woodruff
+//     All rights reserved.
+//
+//     This software was developed by SRI International and the University of
+//     Cambridge Computer Laboratory (Department of Computer Science and
+//     Technology) under DARPA contract HR0011-18-C-0016 ("ECATS"), as part of the
+//     DARPA SSITH research programme.
+//-
+
+package CHERI_P2_Core;
 
 // ================================================================
 // This package defines the interface and implementation of the 'P2 Core'
@@ -44,8 +57,7 @@ import Core     :: *;
 import PLIC :: *;    // for PLIC_Source_IFC type which is exposed at P2_Core interface
 
 // Main Fabric
-import Bluespec_AXI4_Types   :: *;
-import AXI4_Fabric  :: *;
+import AXI4         :: *;
 import Fabric_Defs  :: *;
 
 `ifdef INCLUDE_TANDEM_VERIF
@@ -55,8 +67,10 @@ import AXI4_Stream ::*;
 
 `ifdef INCLUDE_GDB_CONTROL
 import Debug_Module :: *;
-import JtagTap      :: *;
+`ifdef JTAG_TAP
 import Giraffe_IFC  :: *;
+import JtagTap      :: *;
+`endif
 `endif
 
 // ================================================================
@@ -68,10 +82,12 @@ interface P2_Core_IFC;
    // Core CPU interfaces
 
    // CPU IMem to Fabric master interface
-   interface AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) master0;
+   interface AXI4_Master_Synth #(TAdd#(Wd_MId,1), Wd_Addr, Wd_Data,
+                                 0, 0, 0, 0, 0) master0;
 
    // CPU DMem (incl. I/O) to Fabric master interface
-   interface AXI4_Master_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) master1;
+   interface AXI4_Master_Synth #(TAdd#(Wd_MId,1), Wd_Addr, Wd_Data,
+                                 0, 0, 0, 0, 0) master1;
 
    // External interrupt sources
    (* always_ready, always_enabled, prefix="" *)
@@ -140,8 +156,9 @@ module mkP2_Core (P2_Core_IFC);
 
 `ifdef INCLUDE_GDB_CONTROL
       // Respond to Debug module if this is an ndm-reset
-      if (rg_ndm_reset matches tagged Valid .x)
+      if (rg_ndm_reset matches tagged Valid .x) begin
 	 core.ndm_reset_client.response.put (running);
+      end
       rg_ndm_reset <= tagged Invalid;
 `endif
    endrule
@@ -160,7 +177,6 @@ module mkP2_Core (P2_Core_IFC);
 
    // ================================================================
 `ifdef INCLUDE_GDB_CONTROL
-`ifdef JTAG_TAP
 
    // Instantiate JTAG TAP controller,
    // connect to core.dm_dmi;
@@ -176,6 +192,7 @@ module mkP2_Core (P2_Core_IFC);
    BusReceiver#(Tuple3#(Bit#(7),Bit#(32),Bit#(2))) bus_dmi_req <- mkBusReceiver;
    BusSender#(Tuple2#(Bit#(32),Bit#(2))) bus_dmi_rsp <- mkBusSender(unpack(0));
 
+`ifdef JTAG_TAP
    let jtagtap <- mkJtagTap;
 
    mkConnection(jtagtap.dmi.req_ready, pack(bus_dmi_req.in.ready));
@@ -187,6 +204,7 @@ module mkP2_Core (P2_Core_IFC);
    mkConnection(jtagtap.dmi.rsp_ready, compose(bus_dmi_rsp.out.ready, unpack));
    mkConnection(jtagtap.dmi.rsp_data, w_dmi_rsp_data);
    mkConnection(jtagtap.dmi.rsp_response, w_dmi_rsp_response);
+`endif
 
    rule rl_dmi_req;
       bus_dmi_req.in.data(tuple3(w_dmi_req_addr, w_dmi_req_data, w_dmi_req_op));
@@ -218,7 +236,6 @@ module mkP2_Core (P2_Core_IFC);
    endrule
 
 `endif
-`endif
 
 `ifdef INCLUDE_TANDEM_VERIF
    let tv_xactor <- mkTV_Xactor;
@@ -229,10 +246,10 @@ module mkP2_Core (P2_Core_IFC);
    // INTERFACE
 
    // CPU IMem to Fabric master interface
-   interface AXI4_Master_IFC master0 = core.cpu_imem_master;
+   interface master0 = core.cpu_imem_master;
 
    // CPU DMem to Fabric master interface
-   interface AXI4_Master_IFC master1 = core.cpu_dmem_master;
+   interface master1 = core.cpu_dmem_master;
 
    // External interrupts
    method  Action interrupt_reqs (Bit #(N_External_Interrupt_Sources) reqs);
