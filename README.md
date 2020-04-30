@@ -7,6 +7,7 @@ This repository contains the host software for controlling a RISC-V processor ru
 ## Setting up development tools
 
 ```bash
+  sudo apt-get update
   sudo apt-get install cmake device-tree-compiler build-essential libssl-dev libcurl4-openssl-dev libsdl-dev libelf-dev
 ```
 
@@ -40,6 +41,7 @@ Build FPGA utilities and set them up to run as root:
 
 ```bash
   sudo add-apt-repository -y ppa:jamey-hicks/connectal
+  sudo apt-get update
   sudo apt-get install connectal
   fpga-clear-local-fpga -S 0
   modprobe portalmem
