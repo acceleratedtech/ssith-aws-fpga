@@ -11,7 +11,7 @@
 void IMemory::read(uint32_t start_addr, uint32_t *data, size_t num_bytes)
 {
     for (size_t i = 0; i < num_bytes; i += 4) {
-	data[i / 4] = read32(start_addr + i);
+        data[i / 4] = read32(start_addr + i);
     }
 }
 
@@ -145,6 +145,23 @@ uint64_t loadElf(IMemory *mem, const char *elf_filename, size_t max_mem_size, ui
         exit(1);
     }
 
+    Elf64_Phdr phdr;
+    uint64_t base_va = 0x80000000;
+    uint64_t base_pa = 0x80000000;
+    for (int cnt = 0; cnt < ehdr.e_phnum; ++cnt) {
+        gelf_getphdr(e, cnt, &phdr);
+        fprintf(stderr, "phdr %d type %x flags %x va %08lx pa %08lx\n", cnt, phdr.p_type, phdr.p_flags, phdr.p_vaddr, phdr.p_paddr);
+        // phdr 0 type 1 flags 7 va ffffffc000000000 pa c0200000
+        // phdr 1 type 2 flags 6 va ffffffc001b2c038 pa c1d2c038
+        // phdr 2 type 6474e551 flags 6 va 00000000 pa 00000000
+        // phdr 3 type 4 flags 4 va ffffffc001aa5098 pa c1ca5098
+
+        if (phdr.p_type == PT_LOAD) {
+            base_va = phdr.p_vaddr;
+            base_pa = phdr.p_paddr;
+        }
+    }
+
     // Grab the string section index
     size_t shstrndx = ehdr.e_shstrndx;
     Elf_Scn  *scn   = 0;
@@ -169,7 +186,9 @@ uint64_t loadElf(IMemory *mem, const char *elf_filename, size_t max_mem_size, ui
             data = elf_getdata (scn, data);
 
             // n_initialized += data->d_size;
-            size_t max_addr = (shdr.sh_addr + data->d_size - 1) & ~0xC0000000ul;    // shdr.sh_size + 4;
+            uint32_t section_base_addr = shdr.sh_addr - base_va + base_pa;
+            size_t max_addr = (section_base_addr + data->d_size - 1);    // shdr.sh_size + 4;
+            fprintf(stderr, "section_base_addr %08x max_addr %08lx\n", section_base_addr, max_addr);
 
             if (strcmp(sec_name, ".tohost") == 0 || strcmp(sec_name, ".htif") == 0) {
                 if (tohost_address != 0) {
@@ -177,15 +196,15 @@ uint64_t loadElf(IMemory *mem, const char *elf_filename, size_t max_mem_size, ui
                 }
             } else {
                 if (max_addr >= max_mem_size) {
-                    fprintf(stdout, "INTERNAL ERROR: max_addr (0x%0lx) > buffer size (0x%0lx)\n",
+                    fprintf(stdout, "INTERNAL ERROR: max_addr (0x%0lx) > buffer size (0x%0lx) -1-\n",
                             max_addr, max_mem_size);
                     fprintf(stdout, "    Please increase the #define in this program, recompile, and run again\n");
                     fprintf(stdout, "    Abandoning this run\n");
-                    //exit(1);
+                    exit(1);
                 }
 
                 if (shdr.sh_type != SHT_NOBITS) {
-		    mem->write(shdr.sh_addr, (uint32_t *)data->d_buf, data->d_size);
+                    mem->write(shdr.sh_addr - base_va + base_pa, (uint32_t *)data->d_buf, data->d_size);
                 }
             }
 
@@ -206,7 +225,9 @@ uint64_t loadElf(IMemory *mem, const char *elf_filename, size_t max_mem_size, ui
             data = elf_getdata (scn, data);
 
             // n_initialized += data->d_size;
-            size_t max_addr = (shdr.sh_addr + data->d_size - 1) & ~0xC0000000ul;    // shdr.sh_size + 4;
+            uint32_t section_base_addr = shdr.sh_addr - base_va + base_pa;
+            size_t max_addr = (section_base_addr + data->d_size - 1);    // shdr.sh_size + 4;
+            fprintf(stderr, "section_base_addr %08x max_addr %08lx\n", section_base_addr, max_addr);
 
             if (strcmp(sec_name, ".tohost") == 0 || strcmp(sec_name, ".htif") == 0) {
                 if (tohost_address != 0) {
@@ -222,7 +243,7 @@ uint64_t loadElf(IMemory *mem, const char *elf_filename, size_t max_mem_size, ui
                 }
 
                 if (shdr.sh_type != SHT_NOBITS) {
-		    mem->write(shdr.sh_addr, (uint32_t *)data->d_buf, data->d_size);
+                    mem->write(shdr.sh_addr - base_va + base_pa, (uint32_t *)data->d_buf, data->d_size);
                 }
             }
 
