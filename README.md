@@ -43,7 +43,7 @@ Build FPGA utilities and set them up to run as root:
   sudo add-apt-repository -y ppa:jamey-hicks/connectal
   sudo apt-get update
   sudo apt-get install connectal
-  fpga-clear-local-fpga -S 0
+  fpga-clear-local-image -S 0
   modprobe portalmem
   modprobe pcieportal
 ```
