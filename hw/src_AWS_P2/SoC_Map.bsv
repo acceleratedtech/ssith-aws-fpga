@@ -115,7 +115,7 @@ module mkSoC_Map (SoC_Map_IFC);
    // ----------------------------------------------------------------
    // PLIC
 
-   Fabric_Addr plic_addr_base = 'h_1100_0000;
+   Fabric_Addr plic_addr_base = 'h_0C00_0000;
    Fabric_Addr plic_addr_size = 'h_0040_0000;    // 4M
    Fabric_Addr plic_addr_lim  = plic_addr_base + plic_addr_size;
 
@@ -126,7 +126,7 @@ module mkSoC_Map (SoC_Map_IFC);
    // ----------------------------------------------------------------
    // Near_Mem_IO (CLINT)
 
-   Fabric_Addr near_mem_io_addr_base = 'h_1002_0000;
+   Fabric_Addr near_mem_io_addr_base = 'h_1000_0000;
    Fabric_Addr near_mem_io_addr_size = 'h_0001_0000;    // 64K
    Fabric_Addr near_mem_io_addr_lim  = near_mem_io_addr_base + near_mem_io_addr_size;
 
