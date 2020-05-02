@@ -35,4 +35,4 @@ public:
     virtual void write(uint32_t start_addr, const uint32_t *data, size_t num_bytes);
 };
 
-uint64_t loadElf(IMemory *mem, const char *elf_filename, size_t max_mem_size, uint64_t *tohost_address);
+uint64_t loadElf(IMemory *mem, const char *elf_filename, size_t max_mem_size, AWSP2 *fpga);
