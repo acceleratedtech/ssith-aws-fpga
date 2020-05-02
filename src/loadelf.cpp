@@ -192,7 +192,7 @@ uint64_t loadElf(IMemory *mem, const char *elf_filename, size_t max_mem_size, ui
 
             if (strcmp(sec_name, ".tohost") == 0 || strcmp(sec_name, ".htif") == 0) {
                 if (tohost_address != 0) {
-                    *tohost_address = shdr.sh_addr;
+                    *tohost_address = shdr.sh_addr - base_va + base_pa;
                 }
             } else {
                 if (data->d_size > max_mem_size) {
