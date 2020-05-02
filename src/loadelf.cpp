@@ -208,8 +208,8 @@ uint64_t loadElf(IMemory *mem, const char *elf_filename, size_t max_mem_size, ui
                 }
             }
 
-            fprintf (stdout, "addr %16lx to addr %16lx; size 0x%8lx (= %0ld) bytes\n",
-                     shdr.sh_addr, shdr.sh_addr + data->d_size, data->d_size, data->d_size);
+            fprintf (stdout, "addr %16x to addr %16lx; size 0x%8lx (= %0ld) bytes\n",
+                     section_base_addr, section_base_addr + data->d_size, data->d_size, data->d_size);
 
         }
 
