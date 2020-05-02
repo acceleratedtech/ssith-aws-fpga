@@ -162,6 +162,7 @@ module mkP2_Core (P2_Core_IFC);
 
    // ================================================================
 `ifdef INCLUDE_GDB_CONTROL
+`ifdef JTAG_TAP
 
    // Instantiate JTAG TAP controller,
    // connect to core.dm_dmi;
@@ -177,7 +178,6 @@ module mkP2_Core (P2_Core_IFC);
    BusReceiver#(Tuple3#(Bit#(7),Bit#(32),Bit#(2))) bus_dmi_req <- mkBusReceiver;
    BusSender#(Tuple2#(Bit#(32),Bit#(2))) bus_dmi_rsp <- mkBusSender(unpack(0));
 
-`ifdef JTAG_TAP
    let jtagtap <- mkJtagTap;
 
    mkConnection(jtagtap.dmi.req_ready, pack(bus_dmi_req.in.ready));
@@ -189,7 +189,6 @@ module mkP2_Core (P2_Core_IFC);
    mkConnection(jtagtap.dmi.rsp_ready, compose(bus_dmi_rsp.out.ready, unpack));
    mkConnection(jtagtap.dmi.rsp_data, w_dmi_rsp_data);
    mkConnection(jtagtap.dmi.rsp_response, w_dmi_rsp_response);
-`endif
 
    rule rl_dmi_req;
       bus_dmi_req.in.data(tuple3(w_dmi_req_addr, w_dmi_req_data, w_dmi_req_op));
@@ -221,6 +220,10 @@ module mkP2_Core (P2_Core_IFC);
    endrule
 
 `endif
+<<<<<<< HEAD
+=======
+`endif
+>>>>>>> Restore baseline Flute core
 
 `ifdef INCLUDE_TANDEM_VERIF
    let tv_xactor <- mkTV_Xactor;
