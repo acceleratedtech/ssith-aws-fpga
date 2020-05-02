@@ -233,6 +233,7 @@ uint64_t loadElf(IMemory *mem, const char *elf_filename, size_t max_mem_size, ui
 
             }
 
+            fprintf(stdout, "Parsed\n");
         }
         else {
             fprintf(stdout, "Ignored\n");
