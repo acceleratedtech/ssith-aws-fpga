@@ -47,7 +47,12 @@ CONNECTALFLAGS += -D AWSF1_DMA_PCIS
 
 ARCH ?= RV64ACDFIMSU
 
-CONNECTALFLAGS += --bscflags="-keep-fires -no-warn-action-shadowing -show-range-conflict"
+BSCFLAGS += \
+	-keep-fires -aggressive-conditions -no-warn-action-shadowing -no-show-timestamps \
+	-suppress-warnings G0020    \
+	+RTS -K128M -RTS  -show-range-conflict
+
+CONNECTALFLAGS += --bscflags="$(BSCFLAGS)"
 CONNECTALFLAGS += -DRV64
 CONNECTALFLAGS += -DSV39
 CONNECTALFLAGS += -DISA_PRIV_M  -DISA_PRIV_S  -DISA_PRIV_U
