@@ -90,7 +90,7 @@ void AWSP2_Memory::write(uint32_t start_addr, const uint32_t *data, size_t num_b
 }
 
 
-uint64_t loadElf(IMemory *mem, const char *elf_filename, size_t max_mem_size, uint64_t *tohost_address)
+uint64_t loadElf(IMemory *mem, const char *elf_filename, size_t max_mem_size, AWSP2 *fpga)
 {
     // Verify the elf library version
     if (elf_version(EV_CURRENT) == EV_NONE) {
@@ -190,10 +190,12 @@ uint64_t loadElf(IMemory *mem, const char *elf_filename, size_t max_mem_size, ui
             size_t max_addr = (section_base_addr + data->d_size - 1);    // shdr.sh_size + 4;
             fprintf(stderr, "section_base_addr %08x max_addr %08lx\n", section_base_addr, max_addr);
 
-            if (strcmp(sec_name, ".tohost") == 0 || strcmp(sec_name, ".htif") == 0) {
-                if (tohost_address != 0) {
-                    *tohost_address = section_base_addr;
-                }
+            if (strcmp(sec_name, ".htif") == 0) {
+                fpga->set_htif_base_addr(section_base_addr);
+            } else if (strcmp(sec_name, ".tohost") == 0) {
+                fpga->set_tohost_addr(section_base_addr);
+            } else if (strcmp(sec_name, ".fromhost") == 0) {
+                fpga->set_fromhost_addr(section_base_addr);
             } else {
                 if (data->d_size > max_mem_size) {
                     fprintf(stdout, "INTERNAL ERROR: section size (0x%0lx) > buffer size (0x%0lx)\n",
