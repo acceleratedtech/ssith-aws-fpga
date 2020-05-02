@@ -195,9 +195,9 @@ uint64_t loadElf(IMemory *mem, const char *elf_filename, size_t max_mem_size, ui
                     *tohost_address = shdr.sh_addr;
                 }
             } else {
-                if (max_addr >= max_mem_size) {
-                    fprintf(stdout, "INTERNAL ERROR: max_addr (0x%0lx) > buffer size (0x%0lx) -1-\n",
-                            max_addr, max_mem_size);
+                if (data->d_size > max_mem_size) {
+                    fprintf(stdout, "INTERNAL ERROR: section size (0x%0lx) > buffer size (0x%0lx)\n",
+                            data->d_size, max_mem_size);
                     fprintf(stdout, "    Please increase the #define in this program, recompile, and run again\n");
                     fprintf(stdout, "    Abandoning this run\n");
                     exit(1);
