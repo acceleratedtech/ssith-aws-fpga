@@ -242,7 +242,7 @@ void AWSP2_Response::io_wdata(uint64_t wdata, uint8_t wstrb) {
         pr->write_func(pr->opaque, offset, wdata, size_log2);
     } else if (awaddr == 0x60000000) {
         console_putchar(wdata);
-    } else if (awaddr == 0x10001008 || awaddr == 0x50001008) {
+    } else if (awaddr == (fpga->htif_base_addr + TOHOST_OFFSET)) {
         // tohost
         uint8_t dev = (wdata >> 56) & 0xFF;
         uint8_t cmd = (wdata >> 48) & 0xFF;
@@ -260,7 +260,7 @@ void AWSP2_Response::io_wdata(uint64_t wdata, uint8_t wstrb) {
         } else {
             fprintf(stderr, "\nHTIF: dev=%d cmd=%02x payload=%08lx\n", dev, cmd, payload);
         }
-    } else if (awaddr == 0x10001000) {
+    } else if (awaddr == (fpga->htif_base_addr + FROMHOST_OFFSET)) {
         //fprintf(stderr, "\nHTIF: awaddr %08x wdata=%08lx\n", awaddr, wdata);
     } else {
         if (debug_stray_io) fprintf(stderr, "io_wdata wdata=%lx wstrb=%x\n", wdata, wstrb);
