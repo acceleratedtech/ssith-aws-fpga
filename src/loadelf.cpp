@@ -192,7 +192,7 @@ uint64_t loadElf(IMemory *mem, const char *elf_filename, size_t max_mem_size, ui
 
             if (strcmp(sec_name, ".tohost") == 0 || strcmp(sec_name, ".htif") == 0) {
                 if (tohost_address != 0) {
-                    *tohost_address = shdr.sh_addr - base_va + base_pa;
+                    *tohost_address = section_base_addr;
                 }
             } else {
                 if (data->d_size > max_mem_size) {
@@ -204,7 +204,7 @@ uint64_t loadElf(IMemory *mem, const char *elf_filename, size_t max_mem_size, ui
                 }
 
                 if (shdr.sh_type != SHT_NOBITS) {
-                    mem->write(shdr.sh_addr - base_va + base_pa, (uint32_t *)data->d_buf, data->d_size);
+                    mem->write(section_base_addr, (uint32_t *)data->d_buf, data->d_size);
                 }
             }
 
