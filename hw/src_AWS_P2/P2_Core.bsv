@@ -220,10 +220,7 @@ module mkP2_Core (P2_Core_IFC);
    endrule
 
 `endif
-<<<<<<< HEAD
-=======
 `endif
->>>>>>> Restore baseline Flute core
 
 `ifdef INCLUDE_TANDEM_VERIF
    let tv_xactor <- mkTV_Xactor;
