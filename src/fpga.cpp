@@ -3,6 +3,7 @@
 
 #define TOHOST_OFFSET 0
 #define FROMHOST_OFFSET 8
+#define FIRST_VIRTIO_IRQ 1
 
 static int debug_virtio = 0;
 static int debug_stray_io = 0;
@@ -290,7 +291,7 @@ void AWSP2_Response::console_putchar(uint64_t wdata) {
 }
 
 AWSP2::AWSP2(int id, const Rom &rom)
-  : response(0), rom(rom), last_addr(0), wdata_count(0), wid(0), start_of_line(1), uart_enabled(0)
+  : response(0), rom(rom), last_addr(0), wdata_count(0), wid(0), start_of_line(1), uart_enabled(0), virtio_devices(FIRST_VIRTIO_IRQ)
 {
     sem_init(&sem, 0, 0);
     response = new AWSP2_Response(id, this);
