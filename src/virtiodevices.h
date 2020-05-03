@@ -22,7 +22,7 @@ class VirtioDevices {
   int irq_num;
 
  public:
-  VirtioDevices();
+  VirtioDevices(int first_irq_num = 0);
   ~VirtioDevices();
   PhysMemoryRange *get_phys_mem_range(uint64_t paddr);
   void set_dram_buffer(uint8_t *buf);
