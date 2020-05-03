@@ -99,6 +99,14 @@ struct Rom {
   uint64_t *data;
 };
 
+struct AXI_Write_State {
+  uint32_t awaddr;
+  uint16_t wdata_count;
+  uint16_t wid;
+  AXI_Write_State(uint32_t awaddr, uint16_t wdata_count, uint16_t wid)
+    : awaddr(awaddr), wdata_count(wdata_count), wid(wid) {}
+};
+
 class AWSP2_Response;
 class AWSP2 {
     sem_t sem;
@@ -109,9 +117,7 @@ class AWSP2 {
     uint32_t rsp_data;
     uint32_t last_addr;
     int start_of_line;
-    uint32_t awaddr;
-    uint32_t wdata_count;
-    uint32_t wid;
+    std::queue<AXI_Write_State> io_write_queue;
     int stop_capture;
     int display_tandem;
     bsvvector_Luint8_t_L64 pcis_rsp_data;
