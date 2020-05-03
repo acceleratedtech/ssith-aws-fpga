@@ -165,7 +165,7 @@ void AWSP2_Response::tandem_packet(const uint32_t num_bytes, const bsvvector_Lui
 }
 
 void AWSP2_Response::io_awaddr(uint32_t awaddr, uint16_t awlen, uint16_t awid) {
-    fpga->awaddr = awaddr;
+    fpga->io_write_queue.emplace(awaddr, awlen / 8, awid);
     PhysMemoryRange *pr = fpga->virtio_devices.get_phys_mem_range(awaddr);
     if (pr) {
         uint32_t offset = awaddr - pr->addr;
@@ -180,8 +180,6 @@ void AWSP2_Response::io_awaddr(uint32_t awaddr, uint16_t awlen, uint16_t awid) {
         fprintf(stderr, "io_awaddr awaddr=%08x awlen=%d\n", awaddr, awlen);
         //fprintf(stderr, "htif_base_addr=%08x\n", fpga->htif_base_addr);
     }
-    fpga->wdata_count = awlen / 8;
-    fpga->wid = awid;
 }
 
 void AWSP2_Response::io_araddr(uint32_t araddr, uint16_t arlen, uint16_t arid)
@@ -231,7 +229,8 @@ void AWSP2_Response::io_araddr(uint32_t araddr, uint16_t arlen, uint16_t arid)
 }
 
 void AWSP2_Response::io_wdata(uint64_t wdata, uint8_t wstrb) {
-    uint32_t awaddr = fpga->awaddr;
+    AXI_Write_State &io_write = fpga->io_write_queue.front();
+    uint32_t awaddr = io_write.awaddr;
     PhysMemoryRange *pr = fpga->virtio_devices.get_phys_mem_range(awaddr);
     if (pr) {
         int size_log2 = 2;
@@ -266,9 +265,10 @@ void AWSP2_Response::io_wdata(uint64_t wdata, uint8_t wstrb) {
     } else {
         if (debug_stray_io) fprintf(stderr, "io_wdata wdata=%lx wstrb=%x\n", wdata, wstrb);
     }
-    fpga->wdata_count -= 1;
-    if (fpga->wdata_count <= 0) {
-        fpga->request->io_bdone(fpga->wid, 0);
+    io_write.wdata_count -= 1;
+    if (io_write.wdata_count == 0) {
+        fpga->request->io_bdone(io_write.wid, 0);
+        fpga->io_write_queue.pop();
     }
 }
 
@@ -291,7 +291,7 @@ void AWSP2_Response::console_putchar(uint64_t wdata) {
 }
 
 AWSP2::AWSP2(int id, const Rom &rom)
-  : response(0), rom(rom), last_addr(0), wdata_count(0), wid(0), start_of_line(1), uart_enabled(0), virtio_devices(FIRST_VIRTIO_IRQ)
+  : response(0), rom(rom), last_addr(0), start_of_line(1), uart_enabled(0), virtio_devices(FIRST_VIRTIO_IRQ)
 {
     sem_init(&sem, 0, 0);
     response = new AWSP2_Response(id, this);
