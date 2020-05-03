@@ -55,8 +55,10 @@ import AXI4_Stream ::*;
 
 `ifdef INCLUDE_GDB_CONTROL
 import Debug_Module :: *;
+`ifdef JTAG_TAP
 import JtagTap      :: *;
 import Giraffe_IFC  :: *;
+`endif
 `endif
 
 // ================================================================
@@ -92,6 +94,8 @@ interface P2_Core_IFC;
 
 `ifdef JTAG_TAP
    interface JTAG_IFC jtag;
+`else
+   interface DM_Common::DMI dmi;
 `endif
 `endif
 endinterface
@@ -255,6 +259,8 @@ module mkP2_Core (P2_Core_IFC);
 
 `ifdef JTAG_TAP
    interface JTAG_IFC jtag = jtagtap.jtag;
+`else
+   interface DMA dmi = core.dm_dmi;
 `endif
 
 `endif
