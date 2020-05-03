@@ -6,7 +6,8 @@
 	compatible = "unknown,unknown";
 	model = "unknown,unknown";
 	chosen {
-		bootargs = "earlyprintk console=hvc0 loglevel=15";
+		bootargs = "earlyprintk console=ttyS0,115200 loglevel=15";
+		stdout-path = &ns16550;
 	};
 	cpus {
 		#address-cells = <1>;
@@ -63,6 +64,14 @@
 			riscv,max-priority = <7>;
 			riscv,ndev = <16>;
 		};
+		ns16550: uart@62300000 {
+			current-speed = <115200>;
+			compatible = "ns16550a";
+			interrupts-extended = <&plic 1>;
+			reg = <0x62300000 0x1000>;
+			clock-frequency = <125000000>;
+			reg-shift = <2>;
+		};
 	};
 
 	virtio_block@40000000 {
@@ -83,8 +92,4 @@
 		interrupt-parent = <&plic>;
 		interrupts = <2>;
 	};
-
-    htif {
-        compatible = "ucb,htif0";
-    };
 };
