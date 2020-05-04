@@ -279,7 +279,7 @@ void AWSP2_Response::uart_tohost(uint8_t ch) {
 
 void AWSP2_Response::console_putchar(uint64_t wdata) {
     if (fpga->start_of_line) {
-        printf("\nCONSOLE: ");
+        printf("CONSOLE: ");
         fpga->start_of_line = 0;
     }
     fputc(wdata, stdout);
