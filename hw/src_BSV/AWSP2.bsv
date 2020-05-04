@@ -138,7 +138,7 @@ module mkAWSP2#(AWSP2_Response response)(AWSP2);
    let soc_map <- mkSoC_Map();
    P2_Core_IFC p2_core <- mkP2_Core();
 
-   Reg#(Bit#(4)) rg_verbosity <- mkReg(1); //jes
+   Reg#(Bit#(4)) rg_verbosity <- mkReg(0);
    Reg#(Bool) rg_ready <- mkReg(False);
 
    Reg#(Bit#(32)) rg_irq_levels[3] <- mkCReg(3, 0);
