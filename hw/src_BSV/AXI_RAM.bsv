@@ -13,9 +13,12 @@ interface AXI_BRAM;
    interface AXI4_Slave_IFC#(6, 64, 512, 0) portB;
 endinterface
 
+(* synthesize *)
 module mkAXI_BRAM(AXI_BRAM);
    AXI4_Slave_Xactor_IFC#(6, 64, 512, 0) bram_slave_xactor_portA <- mkAXI4_Slave_Xactor();
    AXI4_Slave_Xactor_IFC#(6, 64, 512, 0) bram_slave_xactor_portB <- mkAXI4_Slave_Xactor();
+
+   Reg#(Bit#(2)) rg_verbosity <- mkReg(0);
 
    let addrShift = valueOf(TLog#(TDiv#(512, 8)));
    let bramConfig = defaultValue;
@@ -31,7 +34,8 @@ module mkAXI_BRAM(AXI_BRAM);
                                              address: truncate(req.awaddr >> addrShift),
                                               responseOnWrite: False,
                                               datain: wdata.wdata });
-      $display("banka write %h", req.awaddr);
+      if (rg_verbosity > 0)
+         $display("banka write %h size %d len %d wstrb %h", req.awaddr, req.awsize, req.awlen, wdata.wstrb);
       bram_slave_xactor_portA.i_wr_resp.enq(AXI4_Wr_Resp { bid: req.awid, bresp: 0, buser: req.awuser });
    endrule
    rule rl_banka_ar;
@@ -40,7 +44,8 @@ module mkAXI_BRAM(AXI_BRAM);
                                              address: truncate(req.araddr >> addrShift),
                                              responseOnWrite: False,
                                              datain: 0 });
-      $display("banka read %h", req.araddr);
+      if (rg_verbosity > 0)
+         $display("banka read %h size %d len %d", req.araddr, req.arsize, req.arlen);
       bankaFifo.enq(req.arid);
    endrule
    rule rl_banka_rdata;
@@ -57,7 +62,8 @@ module mkAXI_BRAM(AXI_BRAM);
                                              address: truncate(req.awaddr >> addrShift),
                                              responseOnWrite: False,
                                              datain: wdata.wdata });
-      $display("bankb write %h", req.awaddr);
+      if (rg_verbosity > 0)
+         $display("bankb write %h", req.awaddr);
       bram_slave_xactor_portB.i_wr_resp.enq(AXI4_Wr_Resp { bid: req.awid, bresp: 0, buser: req.awuser });
    endrule
    rule rl_bankb_ar;
@@ -66,7 +72,8 @@ module mkAXI_BRAM(AXI_BRAM);
                                              address: truncate(req.araddr >> addrShift),
                                              responseOnWrite: False,
                                              datain: 0 });
-      $display("bankb read %h", req.araddr);
+      if (rg_verbosity > 0)
+         $display("bankb read %h", req.araddr);
       bankbFifo.enq(req.arid);
    endrule
    rule rl_bankb_rdata;
