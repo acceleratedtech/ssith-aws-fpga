@@ -1,6 +1,6 @@
 // Copyright (c) 2018-2020 Bluespec, Inc. All Rights Reserved
 
-package Bluespec_Fabric_Defs;
+package Fabric_Defs;
 
 // ================================================================
 // Defines key parameters of the AXI4/AXI4-Lite system interconnect
@@ -29,7 +29,7 @@ import Bluespec_AXI4_Types :: *;
 
 // ----------------
 // Width of fabric 'id' buses
-typedef  4             Wd_Id;
+typedef  6             Wd_Id;
 typedef  Bit #(Wd_Id)  Fabric_Id;
 
 // ----------------

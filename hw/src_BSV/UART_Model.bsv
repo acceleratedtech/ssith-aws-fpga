@@ -49,11 +49,11 @@ import Semi_FIFOF :: *;
 
 `ifdef HAVE_BLUESTUFF_AXI
 import Bluespec_AXI4_Types  :: *;
-import Bluespec_Fabric_Defs :: *;
 `else
 import AXI4_Types  :: *;
-import Fabric_Defs :: *;
 `endif
+import Fabric_Defs :: *;
+
 // ================================================================
 // UART registers and their address offsets
 

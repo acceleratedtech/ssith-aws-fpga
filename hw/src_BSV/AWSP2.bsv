@@ -36,14 +36,14 @@ import Semi_FIFOF :: *;
 `ifdef HAVE_BLUESTUFF_AXI
 import Bluespec_AXI4_Types   :: *;
 import Bluespec_AXI4_Fabric  :: *;
-import Bluespec_Fabric_Defs  :: *;
 `else
 import AXI4_Types   :: *;
 import AXI4_Fabric  :: *;
-import Fabric_Defs  :: *;
 `endif
+import Fabric_Defs  :: *;
 import AXI4_Deburster :: *;
 import AXI_Mem_Controller :: *;
+import AXI_RAM        :: *;
 
 `ifdef INCLUDE_TANDEM_VERIF
 import TV_Info :: *;
@@ -77,7 +77,7 @@ endinterface
 
 
 (* synthesize *)
-module mkIOFabric(AXI4_Fabric_IFC#(2, 3, 4, 64, 64, 0));
+module mkIOFabric(AXI4_Fabric_IFC#(2, 3, 6, 64, 64, 0));
 
     let soc_map <- mkSoC_Map();
 
@@ -96,7 +96,7 @@ module mkIOFabric(AXI4_Fabric_IFC#(2, 3, 4, 64, 64, 0));
         end
    endfunction
 
-   AXI4_Fabric_IFC#(2, 3, 4, 64, 64, 0) axiFabric <- mkAXI4_Fabric(fn_addr_to_slave_num);
+   AXI4_Fabric_IFC#(2, 3, 6, 64, 64, 0) axiFabric <- mkAXI4_Fabric(fn_addr_to_slave_num);
 
    method reset = axiFabric.reset;
    method set_verbosity = axiFabric.set_verbosity;
@@ -105,10 +105,19 @@ module mkIOFabric(AXI4_Fabric_IFC#(2, 3, 4, 64, 64, 0));
 endmodule
 
 (* synthesize *)
-module mkMemFabric(AXI4_Fabric_IFC#(2, 2, 4, 64, 512, 0));
-
+module mkMemFabric(AXI4_Fabric_IFC#(1, 2, 6, 64, 512, 0));
+   let soc_map <- mkSoC_Map();
    function Tuple2 #(Bool, Bit #(1)) fn_mem_addr_to_slave_num(Bit #(64) addr);
-      return tuple2(True, 0);
+      let min_mem_addr = min(soc_map.m_ddr4_0_uncached_addr_base, soc_map.m_ddr4_0_cached_addr_base);
+      let uncached_mem_base = soc_map.m_ddr4_0_uncached_addr_base - min_mem_addr;
+      let uncached_mem_lim = soc_map.m_ddr4_0_uncached_addr_lim - min_mem_addr;
+      // cached memory base has been subtracted from the address
+      if ((uncached_mem_base <= addr) && (addr < uncached_mem_lim)) begin
+         return tuple2(True, 1);
+      end
+      else begin
+          return tuple2(True, 0);
+      end
    endfunction
    let memFabric <- mkAXI4_Fabric(fn_mem_addr_to_slave_num);
 
@@ -132,12 +141,12 @@ module mkAWSP2#(AWSP2_Response response)(AWSP2);
    Reg#(Bit#(4)) rg_verbosity <- mkReg(1); //jes
    Reg#(Bool) rg_ready <- mkReg(False);
 
-   Reg#(Bit#(32)) rg_irq_levels[2] <- mkCReg(2, 0);
+   Reg#(Bit#(32)) rg_irq_levels[3] <- mkCReg(3, 0);
 
    Vector#(16, Reg#(Bit#(8)))    objIds <- replicateM(mkReg(0));
 
 
-   AXI4_Fabric_IFC#(2, 3, 4, 64, 64, 0) axiFabric <- mkIOFabric();
+   AXI4_Fabric_IFC#(2, 3, 6, 64, 64, 0) axiFabric <- mkIOFabric();
    mkConnection(p2_core.master0, axiFabric.v_from_masters[0]);
    mkConnection(p2_core.master1, axiFabric.v_from_masters[1]);
    let to_slave0 = axiFabric.v_to_slaves[0];
@@ -147,21 +156,20 @@ module mkAWSP2#(AWSP2_Response response)(AWSP2);
    AXI4_Deburster_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) deburster <- mkDeburster();
    let memController <- mkAXI_Mem_Controller();
 
-   AXI4_Fabric_IFC#(2, 2, 4, 64, 512, 0) memFabric <- mkMemFabric();
+   AXI4_Fabric_IFC#(1, 2, 6, 64, 512, 0) memFabric <- mkMemFabric();
    mkConnection(to_slave0, deburster.from_master);
    mkConnection(deburster.to_slave, memController.slave);
-   //let rawmem_xn <- mkConnection(memController.to_raw_mem, memFabric.v_from_masters[0]);
-   //let to_ddr = memFabric.v_to_slaves[0];
-   let to_ddr = memController.to_raw_mem;
+   let rawmem_xn <- mkConnection(memController.to_raw_mem, memFabric.v_from_masters[0]);
+   let to_ddr = memFabric.v_to_slaves[0];
 
-   // tie off dummy port (later connect to second DRAM bank or UltraRam bank)
-   AXI4_Slave_Xactor_IFC#(4, 64, 512, 0) extra_slave_xactor <- mkAXI4_Slave_Xactor();
-   mkConnection(memFabric.v_to_slaves[1], extra_slave_xactor.axi_side);
+   // BRAM
+   let axiBRAM <- mkAXI_BRAM();
+   mkConnection(memFabric.v_to_slaves[1], axiBRAM.portA);
 
-   let from_dma_pcis = memFabric.v_from_masters[1];
+   let from_dma_pcis = axiBRAM.portB;
 
 `ifndef BOARD_awsf1
-    AXI4_Master_Xactor_IFC#(4, 64, 512, 0) dma_pcis_master_xactor <- mkAXI4_Master_Xactor();
+    AXI4_Master_Xactor_IFC#(6, 64, 512, 0) dma_pcis_master_xactor <- mkAXI4_Master_Xactor();
     mkConnection(dma_pcis_master_xactor.axi_side, from_dma_pcis);
 `endif
 
@@ -179,7 +187,7 @@ module mkAWSP2#(AWSP2_Response response)(AWSP2);
    FIFOF#(Bit#(MemTagSize)) doneFifo0 <- mkFIFOF();
 
 `ifndef USE_DDR
-   AXI4_Slave_Xactor_IFC#(4, 64, 512, 0) ddr_slave_xactor <- mkAXI4_Slave_Xactor();
+   AXI4_Slave_Xactor_IFC#(6, 64, 512, 0) ddr_slave_xactor <- mkAXI4_Slave_Xactor();
    let ddr_xn <- mkConnection/*Verbose*/(to_ddr, ddr_slave_xactor.axi_side);
 
    rule master0_aw if (rg_ready);
@@ -194,8 +202,8 @@ module mkAWSP2#(AWSP2_Response response)(AWSP2);
       let burstLen = fromInteger(valueOf(TDiv#(DataBusWidth,8))) * (awlen + 1);
       let memreq = MemRequest { sglId: extend(objId), offset: extend(byteaddr), burstLen: extend(burstLen), tag: extend(awid) };
       if (rg_verbosity > 1 || truncate(awaddr) != byteaddr)
-	 $display("master0 awaddr %h awlen=%d awsize=%d awid=%d byteaddr=%h objId=%d burstLen=%d",
-		  awaddr, awlen, awsize, awid, byteaddr, objId, burstLen);
+         $display("master0 awaddr %h awlen=%d awsize=%d awid=%d byteaddr=%h objId=%d burstLen=%d",
+                  awaddr, awlen, awsize, awid, byteaddr, objId, burstLen);
 
       writeReqFifo0.enq(memreq);
    endrule
@@ -230,8 +238,8 @@ module mkAWSP2#(AWSP2_Response response)(AWSP2);
       let burstLen = fromInteger(valueOf(TDiv#(DataBusWidth,8))) * (arlen + 1);
       let memreq = MemRequest { sglId: extend(objId), offset: extend(byteaddr), burstLen: extend(burstLen), tag: extend(arid) };
       if (rg_verbosity > 1 || truncate(araddr) != byteaddr)
-	 $display("master0 araddr %h arlen=%d arsize=%d arid=%d byteaddr=%h objId=%d burstLen=%d",
-		   araddr, arlen, arsize, arid, byteaddr, objId, burstLen);
+         $display("master0 araddr %h arlen=%d arsize=%d arid=%d byteaddr=%h objId=%d burstLen=%d",
+                   araddr, arlen, arsize, arid, byteaddr, objId, burstLen);
       readReqFifo0.enq(memreq);
    endrule
 
@@ -241,14 +249,14 @@ module mkAWSP2#(AWSP2_Response response)(AWSP2);
       if (rg_verbosity > 1) $display("master0 rdata %h rid %d last %d", rdata.data, rdata.tag, rdata.last);
       ddr_slave_xactor.i_rd_data.enq(AXI4_Rd_Data { rid: truncate(rdata.tag),
                                                     rdata: rdata.data,
-			                            rresp: 0,
-			                            rlast: rdata.last,
-			                            ruser: 0 }); // ruser
+                                                    rresp: 0,
+                                                    rlast: rdata.last,
+                                                    ruser: 0 }); // ruser
 
    endrule
 `endif // not USE_DDR
 
-   AXI4_Slave_Xactor_IFC#(4, 64, 64, 0) io_slave_xactor <- mkAXI4_Slave_Xactor();
+   AXI4_Slave_Xactor_IFC#(6, 64, 64, 0) io_slave_xactor <- mkAXI4_Slave_Xactor();
    mkConnection(to_slave2, io_slave_xactor.axi_side);
 
    rule master1_aw if (rg_ready);
@@ -263,7 +271,7 @@ module mkAWSP2#(AWSP2_Response response)(AWSP2);
       let objId = objIds[objNumber];
       let burstLen = 8 * (len + 1);
       if (rg_verbosity > 0)
-	  $display("master1 awaddr %h len=%d size=%d id=%d objId=%d objOffset=%h burstLen=%d", awaddr, len, size, awid, objId, objOffset, burstLen);
+          $display("master1 awaddr %h len=%d size=%d id=%d objId=%d objOffset=%h burstLen=%d", awaddr, len, size, awid, objId, objOffset, burstLen);
       response.io_awaddr(truncate(awaddr), extend(burstLen), extend(awid));
    endrule
 
@@ -289,7 +297,7 @@ module mkAWSP2#(AWSP2_Response response)(AWSP2);
       let objId = objIds[objNumber];
       let burstLen = 8 * (len + 1);
       if (rg_verbosity > 0)
-	  $display("master1 araddr %h len=%d size=%d id=%d objId=%d objOffset=%h", araddr, len, size, arid, objId, objOffset);
+          $display("master1 araddr %h len=%d size=%d id=%d objId=%d objOffset=%h", araddr, len, size, arid, objId, objOffset);
       response.io_araddr(truncate(araddr), extend(burstLen), extend(arid));
    endrule
 
@@ -351,7 +359,7 @@ module mkAWSP2#(AWSP2_Response response)(AWSP2);
    rule rl_set_addr_map if (!rg_addr_map_set);
       $display("memController.set_addr_map: %h %h",
                 min(soc_map.m_ddr4_0_uncached_addr_base, soc_map.m_ddr4_0_cached_addr_base),
-		max(soc_map.m_ddr4_0_uncached_addr_lim, soc_map.m_ddr4_0_cached_addr_lim));
+                max(soc_map.m_ddr4_0_uncached_addr_lim, soc_map.m_ddr4_0_cached_addr_lim));
       memController.set_addr_map(min(soc_map.m_ddr4_0_uncached_addr_base, soc_map.m_ddr4_0_cached_addr_base),
                                  max(soc_map.m_ddr4_0_uncached_addr_lim, soc_map.m_ddr4_0_cached_addr_lim));
       uart.set_addr_map(soc_map.m_uart16550_0_addr_base, soc_map.m_uart16550_0_addr_lim);
@@ -421,10 +429,10 @@ module mkAWSP2#(AWSP2_Response response)(AWSP2);
       endmethod
 
       method Action irq_set_levels(Bit#(32) w1s);
-         rg_irq_levels[1] <= w1s | rg_irq_levels[1];
+         rg_irq_levels[2] <= w1s | rg_irq_levels[2];
       endmethod
       method Action irq_clear_levels(Bit#(32) w1c);
-         rg_irq_levels[1] <= ~w1c & rg_irq_levels[1];
+         rg_irq_levels[2] <= ~w1c & rg_irq_levels[2];
       endmethod
       method Action read_irq_status();
          response.irq_status(rg_irq_levels[0]);
@@ -447,70 +455,70 @@ module mkAWSP2#(AWSP2_Response response)(AWSP2);
 endmodule
 
 module mkConnectionVerbose #(AXI4_Master_IFC #(wd_id, wd_addr, wd_data, wd_user) axim,
-		      AXI4_Slave_IFC  #(wd_id, wd_addr, wd_data, wd_user) axis)
-		    (Empty);
+                      AXI4_Slave_IFC  #(wd_id, wd_addr, wd_data, wd_user) axis)
+                    (Empty);
 
    (* fire_when_enabled, no_implicit_conditions *)
    rule rl_wr_addr_channel;
       axis.m_awvalid (axim.m_awvalid,
-		      axim.m_awid,
-		      axim.m_awaddr,
-		      axim.m_awlen,
-		      axim.m_awsize,
-		      axim.m_awburst,
-		      axim.m_awlock,
-		      axim.m_awcache,
-		      axim.m_awprot,
-		      axim.m_awqos,
-		      axim.m_awregion,
-		      axim.m_awuser);
+                      axim.m_awid,
+                      axim.m_awaddr,
+                      axim.m_awlen,
+                      axim.m_awsize,
+                      axim.m_awburst,
+                      axim.m_awlock,
+                      axim.m_awcache,
+                      axim.m_awprot,
+                      axim.m_awqos,
+                      axim.m_awregion,
+                      axim.m_awuser);
       axim.m_awready (axis.m_awready);
    endrule
 
    (* fire_when_enabled, no_implicit_conditions *)
    rule rl_wr_data_channel;
       axis.m_wvalid (axim.m_wvalid,
-		     axim.m_wdata,
-		     axim.m_wstrb,
-		     axim.m_wlast,
-		     axim.m_wuser);
+                     axim.m_wdata,
+                     axim.m_wstrb,
+                     axim.m_wlast,
+                     axim.m_wuser);
       axim.m_wready (axis.m_wready);
    endrule
 
    (* fire_when_enabled, no_implicit_conditions *)
    rule rl_wr_response_channel;
       axim.m_bvalid (axis.m_bvalid,
-		     axis.m_bid,
-		     axis.m_bresp,
-		     axis.m_buser);
+                     axis.m_bid,
+                     axis.m_bresp,
+                     axis.m_buser);
       axis.m_bready (axim.m_bready);
    endrule
 
    (* fire_when_enabled, no_implicit_conditions *)
    rule rl_rd_addr_channel;
       axis.m_arvalid (axim.m_arvalid,
-		      axim.m_arid,
-		      axim.m_araddr,
-		      axim.m_arlen,
-		      axim.m_arsize,
-		      axim.m_arburst,
-		      axim.m_arlock,
-		      axim.m_arcache,
-		      axim.m_arprot,
-		      axim.m_arqos,
-		      axim.m_arregion,
-		      axim.m_aruser);
+                      axim.m_arid,
+                      axim.m_araddr,
+                      axim.m_arlen,
+                      axim.m_arsize,
+                      axim.m_arburst,
+                      axim.m_arlock,
+                      axim.m_arcache,
+                      axim.m_arprot,
+                      axim.m_arqos,
+                      axim.m_arregion,
+                      axim.m_aruser);
       axim.m_arready (axis.m_arready);
    endrule
 
    (* fire_when_enabled, no_implicit_conditions *)
    rule rl_rd_data_channel;
       axim.m_rvalid (axis.m_rvalid,
-		     axis.m_rid,
-		     axis.m_rdata,
-		     axis.m_rresp,
-		     axis.m_rlast,
-		     axis.m_ruser);
+                     axis.m_rid,
+                     axis.m_rdata,
+                     axis.m_rresp,
+                     axis.m_rlast,
+                     axis.m_ruser);
       axis.m_rready (axim.m_rready);
    endrule
 endmodule
