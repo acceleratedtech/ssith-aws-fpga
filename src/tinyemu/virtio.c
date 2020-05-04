@@ -545,8 +545,6 @@ static void queue_notify(VIRTIODevice *s, int queue_idx)
                        queue_idx, read_size, write_size);
             }
 #endif
-	    fprintf(stderr, "queue_notify: idx=%d read_size=%d write_size=%d\n",
-		    queue_idx, read_size, write_size);
             if (s->device_recv(s, queue_idx, desc_idx,
                                read_size, write_size) < 0)
                 break;
@@ -781,7 +779,6 @@ static void virtio_mmio_write(void *opaque, uint32_t offset,
             break;
 #endif
         case VIRTIO_MMIO_STATUS:
-	  fprintf(stderr, "VIRTIO_MMIO_STATUS s %p val %08x\n", s, val);
             s->status = val;
             if (val == 0) {
                 /* reset */
@@ -794,11 +791,9 @@ static void virtio_mmio_write(void *opaque, uint32_t offset,
             }
             break;
         case VIRTIO_MMIO_QUEUE_READY:
-	    fprintf(stderr, "VIRTIO_MMIO_READY s %p val %08x\n", s, val);
             s->queue[s->queue_sel].ready = val & 1;
             break;
         case VIRTIO_MMIO_QUEUE_NOTIFY:
-            //fprintf(stderr, "VIRTIO_MMIO_QUEUE_NOTIFY s %p val %08x\n", s, val);
             if (val < MAX_QUEUE) {
                 if (1) {
                     s->pending_queue_notify |= (1 << val);
@@ -1192,7 +1187,6 @@ static int virtio_net_recv_request(VIRTIODevice *s, int queue_idx,
     uint8_t *buf;
     int len;
 
-    fprintf(stderr, "%s: queue_idx=%d desc_idx %d\n", __FUNCTION__, queue_idx, desc_idx);
     if (queue_idx == 1) {
         /* send to network */
         if (memcpy_from_queue(s, &h, queue_idx, desc_idx, 0, s1->header_size) < 0)
@@ -1200,7 +1194,6 @@ static int virtio_net_recv_request(VIRTIODevice *s, int queue_idx,
         len = read_size - s1->header_size;
         buf = malloc(len);
         memcpy_from_queue(s, buf, queue_idx, desc_idx, s1->header_size, len);
-	fprintf(stderr, "%s: calling write_packet len %d\n", __FUNCTION__, len);
         es->write_packet(es, buf, len);
         free(buf);
         virtio_consume_desc(s, queue_idx, desc_idx, 0);
@@ -1213,8 +1206,6 @@ static BOOL virtio_net_can_write_packet(EthernetDevice *es)
     VIRTIODevice *s = es->device_opaque;
     QueueState *qs = &s->queue[0];
     uint16_t avail_idx;
-
-    fprintf(stderr, "%s: qs->ready %d\n", __FUNCTION__, qs->ready);
 
     if (!qs->ready)
         return FALSE;
@@ -1235,7 +1226,6 @@ static void virtio_net_write_packet(EthernetDevice *es, const uint8_t *buf, int 
 
     if (!qs->ready)
         return;
-    fprintf(stderr, "%s: buf_len %d\n", __FUNCTION__, buf_len);
     avail_idx = virtio_read16(s, qs->avail_addr + 2);
     if (qs->last_avail_idx == avail_idx)
         return;
@@ -1246,7 +1236,6 @@ static void virtio_net_write_packet(EthernetDevice *es, const uint8_t *buf, int 
     len = s1->header_size + buf_len;
     if (len > write_size)
         return;
-    fprintf(stderr, "%s: desc_idx %d len %d\n", __FUNCTION__, desc_idx, len);
     memset(&h, 0, s1->header_size);
     memcpy_to_queue(s, queue_idx, desc_idx, 0, &h, s1->header_size);
     memcpy_to_queue(s, queue_idx, desc_idx, s1->header_size, buf, buf_len);
@@ -2707,10 +2696,8 @@ void virtio_perform_pending_actions(VIRTIODevice *s)
     if (s->pending_queue_notify) {
 	int notify = s->pending_queue_notify;
 	s->pending_queue_notify = 0;
-	fprintf(stderr, "%s: pending queue notify %x\n", __FUNCTION__, notify);
         for (int i = 0; i < 32; i++) {
             if (notify & (1 << i)) {
-		fprintf(stderr, "%s: queue_notify(%d)\n", __FUNCTION__, i);
                 queue_notify(s, i);
                 notify &= ~(1 << i);
             }
