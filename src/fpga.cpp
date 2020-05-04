@@ -197,7 +197,7 @@ void AWSP2_Response::io_araddr(uint32_t araddr, uint16_t arlen, uint16_t arid)
             fpga->request->io_rdata(val, arid, 0, last);
             if (debug_virtio)
                 fprintf(stderr, "virtio araddr %0x device addr %08lx offset %08x len %d val %08lx last %d\n",
-                        araddr + offset, pr->addr, offset, arlen, val, last);
+                        araddr + i * 4, pr->addr, offset, arlen, val, last);
             offset += 4;
         }
     } else if (fpga->rom.base <= araddr && araddr < fpga->rom.limit) {
