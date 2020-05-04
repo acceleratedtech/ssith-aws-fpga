@@ -14,37 +14,9 @@
 #include <portal.h>
 #include "fpga.h"
 #include "loadelf.h"
+#include "util.h"
 
 using namespace std;
-
-int copyFile(char *buffer, const char *filename, size_t buffer_size)
-{
-    int fd = open(filename, O_RDONLY);
-    if (fd < 0) {
-        fprintf(stderr, "Error: failed to open file %s: %s\n", filename, strerror(errno));
-        return -errno;
-    }
-    size_t bytes_copied = 0;
-    do {
-        char readbuf[4096];
-        size_t readsize = sizeof(readbuf);
-        if (readsize > (buffer_size - bytes_copied))
-            readsize = (buffer_size - bytes_copied);
-        int bytes_read = read(fd, readbuf, readsize);
-        if (readsize <= 0) {
-            fprintf(stderr, "Error: failed to read file %s at offset %ld: %s\n", filename, bytes_copied, strerror(errno));
-            return -errno;
-        }
-        if (!bytes_read)
-            break;
-        memcpy(buffer + bytes_copied, readbuf, bytes_read);
-        bytes_copied += bytes_read;
-        fprintf(stderr, "Copied %d bytes %ld bytes total readsize %ld\n", bytes_read, bytes_copied, readsize);
-    } while (bytes_copied < buffer_size);
-    close(fd);
-    fprintf(stderr, "Read %ld bytes from %s\n", bytes_copied, filename);
-    return bytes_copied;
-}
 
 const struct option long_options[] = {
     { "bootrom", required_argument, 0, 'b' },
@@ -234,6 +206,12 @@ int main(int argc, char * const *argv)
         fprintf(stderr, "Using shared memory loader\n");
     }
     IMemory *memifc = usemem ? static_cast<IMemory *>(&mem) : static_cast<IMemory *>(&fpgamem);
+
+#ifdef USE_PCIS_DMA_Memory
+    PCIS_DMA_Memory pcis_dma_memory(fpga, 0x80000000, 0xC0000000);
+    memifc = static_cast<IMemory *>(&pcis_dma_memory);
+#endif
+
     uint64_t elf_entry = loadElf(memifc, elf_filename, dram_alloc_sz, fpga);
     fprintf(stderr, "elf_entry=%08lx\n", elf_entry);
 

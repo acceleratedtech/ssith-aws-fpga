@@ -25,6 +25,8 @@ add_executable(ssith_aws_fpga
   src/fpga.cpp
   src/loadelf.cpp
   src/loadelf.h
+  src/util.cpp
+  src/util.h
   src/virtiodevices.cpp
   src/virtiodevices.h
   src/main.cpp)
@@ -35,6 +37,8 @@ add_executable(ssith_virtio_test
   src/fpga.cpp
   src/loadelf.cpp
   src/loadelf.h
+  src/util.cpp
+  src/util.h
   src/virtiodevices.cpp
   src/virtiodevices.h
   src/test/virtiotest.cpp
