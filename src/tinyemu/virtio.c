@@ -1097,7 +1097,7 @@ static int virtio_block_recv_request(VIRTIODevice *s, int queue_idx,
     VIRTIOBlockDevice *s1 = (VIRTIOBlockDevice *)s;
     BlockDevice *bs = s1->bs;
     BlockRequestHeader h;
-    uint8_t *buf;
+    uint8_t *buf, buf1[1];
     int len, ret;
 
     if (s1->req_in_progress)
@@ -1138,6 +1138,9 @@ static int virtio_block_recv_request(VIRTIODevice *s, int queue_idx,
         }
         break;
     default:
+        buf1[0] = VIRTIO_BLK_S_UNSUPP;
+        memcpy_to_queue(s, queue_idx, desc_idx, 0, buf1, sizeof(buf1));
+        virtio_consume_desc(s, queue_idx, desc_idx, 1);
         break;
     }
     return 0;
