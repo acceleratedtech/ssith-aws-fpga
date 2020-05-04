@@ -22,7 +22,7 @@ extern AWSP2 *fpga;
 
 void awsp2_set_irq(void *opaque, int irq_num, int level)
 {
-    fprintf(stderr, "%s: irq_num=%d level=%d\n", __FUNCTION__, irq_num, level);
+    if (debug) fprintf(stderr, "%s: irq_num=%d level=%d\n", __FUNCTION__, irq_num, level);
     if (level)
         fpga->irq_set_levels(1 << irq_num);
     else
@@ -158,7 +158,7 @@ int VirtioDevices::perform_pending_actions()
 {
     if (virtio_net != 0) {
 	if (virtio_has_pending_actions(virtio_net)) {
-	    fprintf(stderr, "performing pending net actions\n");
+	    if (debug) fprintf(stderr, "performing pending net actions\n");
 	    virtio_perform_pending_actions(virtio_net);
 	}
     }
