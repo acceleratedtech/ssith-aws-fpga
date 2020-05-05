@@ -3,12 +3,16 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <gelf.h>
 
 #include "loadelf.h"
 #include "util.h"
+
+int debug_pcis_write = 0;
+int debug_p2_memcpy = 0;
 
 void IMemory::read(uint32_t start_addr, uint32_t *data, size_t num_bytes)
 {
@@ -95,6 +99,20 @@ void AWSP2_Memory::write(uint32_t start_addr, const uint32_t *data, size_t num_b
 PCIS_DMA_Memory::PCIS_DMA_Memory(AWSP2 *fpga, uint32_t uncached_base_addr, uint32_t cached_base_addr)
     : fpga(fpga), uncached_base_addr(uncached_base_addr), cached_base_addr(cached_base_addr), helper_loaded(0)
 {
+    pcis_fd = 0;
+    pcis_buffer = 0;
+}
+
+PCIS_DMA_Memory::~PCIS_DMA_Memory()
+{
+    if (pcis_buffer) {
+        munmap(pcis_buffer, pcis_buffer_size);
+        pcis_buffer = 0;
+    }
+    if (pcis_fd) {
+        close(pcis_fd);
+        pcis_fd = 0;
+    }
 }
 
 uint32_t PCIS_DMA_Memory::read32(uint32_t addr)
@@ -122,18 +140,40 @@ void PCIS_DMA_Memory::write64(uint32_t addr, uint64_t data)
 void PCIS_DMA_Memory::write(uint32_t start_addr, const uint32_t *data, size_t num_bytes)
 {
     if (!helper_loaded)
-	load_helper();
+        load_helper();
 
-    uint32_t chunk_addr = start_addr;
     uint32_t end_addr = start_addr + num_bytes;
     const uint32_t max_chunk_size = 4096;
 
-    for (int chunk = start_addr; chunk < end_addr; chunk += max_chunk_size) {
-	size_t chunk_size = (num_bytes < max_chunk_size) ? num_bytes : max_chunk_size;
-	fprintf(stderr, "PCIS_DMA_Memory::write chunk %08x chunk_size %ld\n", chunk, chunk_size);
-	fpga->ddr_write(uncached_base_addr, data, chunk_size);
-	fprintf(stderr, "PCIS_DMA_Memory::write callin p2_memcpy\n");
-	p2_memcpy(chunk_addr, uncached_base_addr, chunk_size / 8, uncached_base_addr + max_chunk_size); 
+    for (uint32_t chunk_addr = start_addr; chunk_addr < end_addr; chunk_addr += max_chunk_size, num_bytes -= max_chunk_size, data += max_chunk_size/4) {
+        size_t chunk_size = (num_bytes < max_chunk_size) ? num_bytes : max_chunk_size;
+        size_t rounded_chunk_size = (chunk_size + 7) & ~7;
+        if (debug_pcis_write) fprintf(stderr, "PCIS_DMA_Memory::write chunk %08x chunk_size %ld / %ld\n", chunk_addr, chunk_size, rounded_chunk_size);
+        if (pcis_buffer) {
+            if (debug_p2_memcpy) fprintf(stderr, "Copying to PCIS DMA buffer ... ");
+            memset(pcis_buffer, 0, rounded_chunk_size);
+            memcpy(pcis_buffer, data, chunk_size);
+            if (debug_p2_memcpy) fprintf(stderr, "done\n");
+        } else {
+            fpga->ddr_write(uncached_base_addr, data, chunk_size);
+        }
+        if (debug_p2_memcpy) fprintf(stderr, "PCIS_DMA_Memory::write calling p2_memcpy chunk_addr %08x uncached base %08x done addr %08x\n", chunk_addr, uncached_base_addr, uncached_base_addr + max_chunk_size);
+        p2_memcpy(chunk_addr, uncached_base_addr, rounded_chunk_size / 8, uncached_base_addr + max_chunk_size);
+        if (debug_p2_memcpy) fprintf(stderr, "done\n");
+
+        if (0) {
+            uint64_t *data64 = (uint64_t *)data;
+            size_t count = rounded_chunk_size / 8;
+            for (size_t i = 0; i < rounded_chunk_size / 8; i++) {
+                uint64_t expected;
+                memcpy(&expected, &data64[i], sizeof(expected));
+                uint32_t cached_addr = chunk_addr + 8 * i;
+                uint64_t actual = fpga->read64(cached_addr);
+                if (expected != actual)
+                    fprintf(stderr, "Mismatch at %08x expected %08lx actual %08lx (%ld/%ld)\n", cached_addr, expected, actual, i, count);
+            }
+        }
+
     }
 }
 
@@ -152,26 +192,46 @@ void PCIS_DMA_Memory::p2_memcpy(uint32_t cached_dest, uint32_t uncached_source, 
     fpga->write32(done_addr, 0);
     // dpc
     fpga->write_csr(0x7b1, helper_entry_point);
+    if (debug_p2_memcpy) fprintf(stderr, "Calling helper pc %08x\n", helper_entry_point);
     fpga->resume();
     while (1) {
-	uint32_t done = fpga->read32(done_addr);
-	if (done == count)
-	    break;
+        uint32_t done = fpga->read32(done_addr);
+        if (done == count)
+            break;
     }
     fpga->halt();
 }
 
+// riscv-unknown-linux-gnu-gcc -O -c src/helpers/memcpy.c
+// riscv-unknown-linux-gnu-objcopy -O binary memcpy.o memcpy.bin
+// hexdump -x memcpy.bin
+
+static uint16_t riscv_memcpy[] = {
+    0x872a, 0x87b2, 0xca19, 0x4601, 0x05a1, 0x0721, 0xb503, 0xff85,
+    0x3c23, 0xfea7, 0x0605, 0x99e3, 0xfec7, 0xc29c, 0xa001
+};
+
 void PCIS_DMA_Memory::load_helper()
 {
-    helper_loaded = 1;
     uint8_t buffer[128];
-    fprintf(stderr, "loading memcpy helper ...");
-    helper_entry_point = cached_base_addr + 0x100000000 - 128;
-    copyFile((char *)buffer, "build/memcpy.bin", sizeof(buffer));
+    helper_entry_point = cached_base_addr + 0x10000000 - 128;
+    fprintf(stderr, "loading memcpy helper at %08x ... ", helper_entry_point);
+    memcpy((char *)buffer, (char *)riscv_memcpy, sizeof(riscv_memcpy));
     for (int i = 0; i < sizeof(buffer); i += 4) {
-	fpga->write32(helper_entry_point + i, *(uint32_t *)(buffer + i));
+        fpga->write32(helper_entry_point + i, *(uint32_t *)(buffer + i));
     }
     fprintf(stderr, " done\n");
+    helper_loaded = 1;
+
+    fprintf(stderr, "mapping PCIS DMA memory ... ");
+    pcis_fd = open("/dev/portal_dma_pcis", O_RDWR);
+    if (pcis_fd < 0) {
+        fprintf(stderr, "error: opening /dev/portal_dma_pcis %s\n", strerror(errno));
+        return;
+    }
+    pcis_buffer_size = 65536;
+    pcis_buffer = (uint8_t *)mmap(0, pcis_buffer_size, PROT_READ|PROT_WRITE, MAP_SHARED, pcis_fd, 0);
+    fprintf(stderr, "done\n");
 }
 
 uint64_t loadElf(IMemory *mem, const char *elf_filename, size_t max_mem_size, AWSP2 *fpga)

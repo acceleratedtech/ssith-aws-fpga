@@ -42,8 +42,12 @@ class PCIS_DMA_Memory : public IMemory {
     uint32_t cached_base_addr;
     int helper_loaded;
     uint32_t helper_entry_point;
+    int pcis_fd;
+    uint8_t *pcis_buffer;
+    size_t pcis_buffer_size;
 public:
     PCIS_DMA_Memory(AWSP2 *fpga, uint32_t uncached_base_addr, uint32_t cached_base_addr);
+    virtual ~PCIS_DMA_Memory();
     virtual uint32_t read32(uint32_t addr);
     virtual uint64_t read64(uint32_t addr);
     virtual void write32(uint32_t addr, uint32_t data);
