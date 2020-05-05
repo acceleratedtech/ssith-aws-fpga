@@ -18,26 +18,43 @@
 
 using namespace std;
 
+#ifdef SIMULATION
+#define DEFAULT_DMA_ENABLED 0
+#else
+#define DEFAULT_DMA_ENABLED 1
+#endif
+
 const struct option long_options[] = {
+    { "block", required_argument, 0, 'B' },
     { "bootrom", required_argument, 0, 'b' },
     { "cpuverbosity",   required_argument, 0, 'v' },
-    { "block", required_argument, 0, 'B' },
-    { "virtio-console", optional_argument, 0, 'C' },
-    { "htif-console",  optional_argument, 0, 'H' },
-    { "uart-console",  optional_argument, 0, 'U' },
-    { "uart",          required_argument, 0, 'U' },
+    { "dma",     optional_argument, 0, 'D' },
     { "dtb",     required_argument, 0, 'd' },
     { "elf",     required_argument, 0, 'e' },
     { "entry",   required_argument, 0, 'E' },
+    { "help",    no_argument, 0, 'h' },
+    { "htif-console",  optional_argument, 0, 'H' },
     { "sleep-seconds", required_argument, 0, 's' },
     { "tv",      no_argument,       0, 'T' },
+    { "uart",          optional_argument, 0, 'U' },
+    { "uart-console",  optional_argument, 0, 'U' },
     { "usemem",  no_argument,       0, 'M' },
+    { "virtio-console", optional_argument, 0, 'C' },
     { 0,         0,                 0, 0 }
 };
 
 void usage(const char *name)
 {
-    fprintf(stderr, "Usage: %s [-b bootrombin] [--bootrom bootrombin] [--elf elf] [ -e elf] [elf] [--cpuverbosity n] [--sleep-seconds n]\n", name);
+    fprintf(stderr, "Usage: %s [options] [elf]\n", name);
+    for (const struct option *option = long_options; option->name != 0; option++) {
+	if (option->has_arg == required_argument) {
+	    fprintf(stderr, "        --%s arg\n", option->name);
+	} else if (option->has_arg == optional_argument) {
+	    fprintf(stderr, "        --%s [arg]\n", option->name);
+	} else {
+	    fprintf(stderr, "        --%s\n", option->name);
+	}
+    }
 }
 
 AWSP2 *fpga;
@@ -55,11 +72,12 @@ int main(int argc, char * const *argv)
     int enable_virtio_console = 0;
     uint64_t htif_enabled = 0;
     uint64_t uart_enabled = 0;
+    int dma_enabled = DEFAULT_DMA_ENABLED;
     std::vector<string> block_files;
 
     while (1) {
         int option_index = optind ? optind : 1;
-        char c = getopt_long(argc, argv, "b:B:Cd:e:hH:Ms:TvU:",
+        char c = getopt_long(argc, argv, "b:B:Cd:D:e:hH:Mp:s:TvU:",
                              long_options, &option_index);
         if (c == -1)
             break;
@@ -80,6 +98,14 @@ int main(int argc, char * const *argv)
             break;
         case 'd':
             dtb_filename = optarg;
+            break;
+        case 'D':
+            if (optarg) {
+                dma_enabled = strtoul(optarg, 0, 0);
+            } else {
+                dma_enabled = 1;
+            }
+	    fprintf(stderr, "DMA %d\n", dma_enabled);
             break;
         case 'e':
             elf_filename = optarg;
@@ -115,6 +141,7 @@ int main(int argc, char * const *argv)
             } else {
                 uart_enabled = 1;
             }
+	    fprintf(stderr, "UART %d\n", dma_enabled);
             break;
         }
     }
@@ -194,7 +221,8 @@ int main(int argc, char * const *argv)
 
 #ifdef USE_PCIS_DMA_Memory
     PCIS_DMA_Memory pcis_dma_memory(fpga, 0x80000000, 0xC0000000);
-    memifc = static_cast<IMemory *>(&pcis_dma_memory);
+    if (dma_enabled)
+        memifc = static_cast<IMemory *>(&pcis_dma_memory);
 #endif
 
     uint64_t elf_entry = loadElf(memifc, elf_filename, dram_alloc_sz, fpga);
