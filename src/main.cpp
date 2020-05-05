@@ -29,7 +29,6 @@ const struct option long_options[] = {
     { "dtb",     required_argument, 0, 'd' },
     { "elf",     required_argument, 0, 'e' },
     { "entry",   required_argument, 0, 'E' },
-    { "flash",   required_argument, 0, 'f' },
     { "sleep-seconds", required_argument, 0, 's' },
     { "tv",      no_argument,       0, 'T' },
     { "usemem",  no_argument,       0, 'M' },
@@ -38,7 +37,7 @@ const struct option long_options[] = {
 
 void usage(const char *name)
 {
-    fprintf(stderr, "Usage: %s [-b bootrombin] [--bootrom bootrombin] [--flash flashbin] [--elf elf] [ -e elf] [elf] [--cpuverbosity n] [--sleep-seconds n]\n", name);
+    fprintf(stderr, "Usage: %s [-b bootrombin] [--bootrom bootrombin] [--elf elf] [ -e elf] [elf] [--cpuverbosity n] [--sleep-seconds n]\n", name);
 }
 
 AWSP2 *fpga;
@@ -48,7 +47,6 @@ int main(int argc, char * const *argv)
     const char *bootrom_filename = 0;
     const char *dtb_filename = 0;
     const char *elf_filename = 0;
-    const char *flash_filename = 0;
     int cpuverbosity = 0;
     uint32_t entry = 0;
     int sleep_seconds = 1;
@@ -88,9 +86,6 @@ int main(int argc, char * const *argv)
             break;
         case 'E':
             entry = strtoul(optarg, 0, 0);
-            break;
-        case 'f':
-            flash_filename = optarg;
             break;
         case 'h':
             usage(argv[0]);
@@ -140,16 +135,10 @@ int main(int argc, char * const *argv)
     uint8_t *romBuffer = (uint8_t *)portalMmap(romObject, rom_alloc_sz);
     fprintf(stderr, "romBuffer=%lx\n", (long)romBuffer);
 
-    // allocate a shared memory object for Flash
-    size_t flash_alloc_sz = 0x08000000;
-    int flashObject = portalAlloc(flash_alloc_sz, 0);
-    uint8_t *flashBuffer = (uint8_t *)portalMmap(flashObject, flash_alloc_sz);
-    fprintf(stderr, "flashBuffer=%lx\n", (long)flashBuffer);
-
     size_t dram_alloc_sz = 1024*1024*1024;
     int dramObject = portalAlloc(dram_alloc_sz, 0);
     uint8_t *dramBuffer = (uint8_t *)portalMmap(dramObject, dram_alloc_sz);
-    memset(dramBuffer, 0x0, flash_alloc_sz);
+    memset(dramBuffer, 0x0, dram_alloc_sz);
     fprintf(stderr, "dramBuffer=%lx\n", (long)dramBuffer);
 
     Rom rom = { 0x00001000, 0x00010000, (uint64_t *)romBuffer };
@@ -166,7 +155,7 @@ int main(int argc, char * const *argv)
         fpga->get_virtio_devices().add_virtio_console_device();
     }
 
-    // load the ROM code into Flash
+    // load the ROM code
     if (bootrom_filename)
         copyFile((char *)romBuffer, bootrom_filename, rom_alloc_sz);
 
@@ -176,10 +165,6 @@ int main(int argc, char * const *argv)
 
     if (dtb_filename)
         copyFile((char *)romBuffer + 0x10, dtb_filename, rom_alloc_sz - 0x10);
-
-    // where is this coming from?
-    if (flash_filename)
-        copyFile((char *)flashBuffer, flash_filename, flash_alloc_sz);
 
     if (1) {
         // register the DRAM memory object with the SoC (and program the MMU)
