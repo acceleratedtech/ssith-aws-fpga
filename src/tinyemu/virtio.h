@@ -68,6 +68,7 @@ void virtio_set_debug(VIRTIODevice *s, int debug_flags);
 
 int virtio_has_pending_actions(VIRTIODevice *s);
 void virtio_perform_pending_actions(VIRTIODevice *s);
+void virtio_wait_for_pending_actions(int timeout);
 
 /* block device */
 

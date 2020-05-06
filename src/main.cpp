@@ -275,7 +275,7 @@ int main(int argc, char * const *argv)
             fpga->resume();
         }
 
-        sleep(sleep_seconds);
+        fpga->wait_for_io(sleep_seconds);
     }
     return 0;
 }

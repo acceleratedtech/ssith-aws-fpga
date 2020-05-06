@@ -109,7 +109,7 @@ void VirtioDevices::process_io()
     int stdin_fd = 0;
     int fd_max = -1;
     fd_set rfds,  wfds, efds;
-    int delay = 10; // ms
+    int delay = 0; // ms
     struct timeval tv;
 
     FD_ZERO(&rfds);
@@ -179,6 +179,11 @@ int VirtioDevices::perform_pending_actions()
     if (virtio_block != 0) {
 	virtio_perform_pending_actions(virtio_block);
     }
+}
+
+void VirtioDevices::wait_for_pending_actions(int timeout)
+{
+    virtio_wait_for_pending_actions(timeout);
 }
 
 uint16_t virtio_read16(VIRTIODevice *s, virtio_phys_addr_t addr)

@@ -169,6 +169,7 @@ public:
 
     VirtioDevices &get_virtio_devices() { return virtio_devices; }
     void process_io();
+    void wait_for_io(int timeout);
 
     void set_htif_base_addr(uint64_t baseaddr);
     void set_tohost_addr(uint64_t addr);

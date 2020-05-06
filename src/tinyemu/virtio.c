@@ -27,8 +27,10 @@
 #include <inttypes.h>
 #include <assert.h>
 #include <stdarg.h>
+#include <pthread.h>
 
 #include <sys/random.h>
+#include <sys/time.h>
 
 #include "cutils.h"
 #include "list.h"
@@ -156,6 +158,10 @@ struct VIRTIODevice {
     uint32_t pending_queue_notify;
     uint8_t  pending_irq_clear;
 };
+
+static pthread_mutex_t pending_actions_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t pending_actions_cond = PTHREAD_COND_INITIALIZER;
+static uint8_t pending_actions;
 
 static uint32_t virtio_mmio_read(void *opaque, uint32_t offset1, int size_log2);
 static void virtio_mmio_write(void *opaque, uint32_t offset,
@@ -789,7 +795,11 @@ static void virtio_mmio_write(void *opaque, uint32_t offset,
             if (val == 0) {
                 /* reset */
                 if (1) {
+                    pthread_mutex_lock(&pending_actions_lock);
+                    pending_actions = 1;
                     s->pending_irq_clear = 1;
+                    pthread_cond_signal(&pending_actions_cond);
+                    pthread_mutex_unlock(&pending_actions_lock);
                 } else {
                     set_irq(s->irq, 0);
                 }
@@ -802,7 +812,11 @@ static void virtio_mmio_write(void *opaque, uint32_t offset,
         case VIRTIO_MMIO_QUEUE_NOTIFY:
             if (val < MAX_QUEUE) {
                 if (1) {
+                    pthread_mutex_lock(&pending_actions_lock);
+                    pending_actions = 1;
                     s->pending_queue_notify |= (1 << val);
+                    pthread_cond_signal(&pending_actions_cond);
+                    pthread_mutex_unlock(&pending_actions_lock);
                 } else {
                     queue_notify(s, val);
                 }
@@ -811,7 +825,11 @@ static void virtio_mmio_write(void *opaque, uint32_t offset,
         case VIRTIO_MMIO_INTERRUPT_ACK:
             s->int_status &= ~val;
             if (1) {
+                pthread_mutex_lock(&pending_actions_lock);
+                pending_actions = 1;
                 s->pending_irq_clear = 1;
+                pthread_cond_signal(&pending_actions_cond);
+                pthread_mutex_unlock(&pending_actions_lock);
             } else {
                 if (s->int_status == 0) {
                     set_irq(s->irq, 0);
@@ -2758,4 +2776,20 @@ void virtio_perform_pending_actions(VIRTIODevice *s)
                 break;
         }
     }
+}
+void virtio_wait_for_pending_actions(int timeout)
+{
+    struct timeval tv;
+    struct timespec ts;
+    gettimeofday(&tv, NULL);
+    ts.tv_sec = tv.tv_sec + timeout;
+    ts.tv_nsec = tv.tv_usec * 1000;
+
+    pthread_mutex_lock(&pending_actions_lock);
+    /* we allow spurious wakeups for simplicity */
+    if (!pending_actions)
+        pthread_cond_timedwait(&pending_actions_cond, &pending_actions_lock, &ts);
+    /* clear now; caller expected to perform them */
+    pending_actions = 0;
+    pthread_mutex_unlock(&pending_actions_lock);
 }
