@@ -210,7 +210,7 @@ void AWSP2_Response::io_araddr(uint32_t araddr, uint16_t arlen, uint16_t arid)
         }
     } else if (araddr == fpga->fromhost_addr) {
         uint8_t ch = 0;
-        if (fpga->dequeue_stdin(&ch) && !fpga->uart_enabled) {
+        if (fpga->htif_enabled && fpga->dequeue_stdin(&ch)) {
             uint64_t cmd = (1ul << 56) | (0ul << 48) | ch;
             fpga->request->io_rdata(cmd, arid, 0, 1);
         } else {
@@ -291,7 +291,7 @@ void AWSP2_Response::console_putchar(uint64_t wdata) {
 }
 
 AWSP2::AWSP2(int id, const Rom &rom)
-  : response(0), rom(rom), last_addr(0), start_of_line(1), uart_enabled(0), virtio_devices(FIRST_VIRTIO_IRQ)
+  : response(0), rom(rom), last_addr(0), start_of_line(1), htif_enabled(0), uart_enabled(0), virtio_devices(FIRST_VIRTIO_IRQ)
 {
     sem_init(&sem, 0, 0);
     response = new AWSP2_Response(id, this);
@@ -579,22 +579,24 @@ void AWSP2::process_io()
     int delay = 10; // ms
     struct timeval tv;
 
-    FD_ZERO(&rfds);
-    FD_ZERO(&wfds);
-    FD_ZERO(&efds);
-    FD_SET(stdin_fd, &rfds);
-    fd_max = stdin_fd;
+    if (htif_enabled || uart_enabled) {
+        FD_ZERO(&rfds);
+        FD_ZERO(&wfds);
+        FD_ZERO(&efds);
+        FD_SET(stdin_fd, &rfds);
+        fd_max = stdin_fd;
 
-    tv.tv_sec = delay / 1000;
-    tv.tv_usec = (delay % 1000) * 1000;
-    int ret = select(fd_max + 1, &rfds, &wfds, &efds, &tv);
-    if (FD_ISSET(stdin_fd, &rfds)) {
-        // Read from stdin and enqueue for HTIF get char
-        char buf[128];
-        memset(buf, 0, sizeof(buf));
-        int ret = read(0, buf, sizeof(buf));
-        if (ret > 0) {
-            enqueue_stdin(buf, ret);
+        tv.tv_sec = delay / 1000;
+        tv.tv_usec = (delay % 1000) * 1000;
+        int ret = select(fd_max + 1, &rfds, &wfds, &efds, &tv);
+        if (FD_ISSET(stdin_fd, &rfds)) {
+            // Read from stdin and enqueue for HTIF/UART get char
+            char buf[128];
+            memset(buf, 0, sizeof(buf));
+            int ret = read(0, buf, sizeof(buf));
+            if (ret > 0) {
+                enqueue_stdin(buf, ret);
+            }
         }
     }
     virtio_devices.process_io();
@@ -621,6 +623,11 @@ void AWSP2::set_tohost_addr(uint64_t addr)
 void AWSP2::set_fromhost_addr(uint64_t addr)
 {
     fromhost_addr = addr;
+}
+
+void AWSP2::set_htif_enabled(bool enabled)
+{
+    htif_enabled = enabled;
 }
 
 void AWSP2::set_uart_enabled(bool enabled)

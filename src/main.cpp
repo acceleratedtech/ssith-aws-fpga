@@ -171,6 +171,7 @@ int main(int argc, char * const *argv)
     Rom rom = { 0x00001000, 0x00010000, (uint64_t *)romBuffer };
     fpga = new AWSP2(IfcNames_AWSP2_ResponseH2S, rom);
     fpga->set_dram_buffer(dramBuffer);
+    fpga->set_htif_enabled(htif_enabled);
     fpga->set_uart_enabled(uart_enabled);
 
     for (string block_file: block_files) {
