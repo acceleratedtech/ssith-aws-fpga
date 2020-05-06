@@ -123,6 +123,7 @@ class AWSP2 {
     bsvvector_Luint8_t_L64 pcis_rsp_data;
     uint64_t tohost_addr;
     uint64_t fromhost_addr;
+    uint64_t htif_enabled;
     uint64_t uart_enabled;
 
     std::mutex client_mutex;
@@ -172,6 +173,7 @@ public:
     void set_htif_base_addr(uint64_t baseaddr);
     void set_tohost_addr(uint64_t addr);
     void set_fromhost_addr(uint64_t addr);
+    void set_htif_enabled(bool enabled);
     void set_uart_enabled(bool enabled);
 
  private:
