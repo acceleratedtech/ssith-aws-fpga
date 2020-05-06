@@ -18,6 +18,7 @@ class VirtioDevices {
   VIRTIODevice *virtio_console;
   VIRTIODevice *virtio_block;
   VIRTIODevice *virtio_net;
+  VIRTIODevice *virtio_entropy;
   IRQSignal *irq;
   int irq_num;
 

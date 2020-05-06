@@ -68,6 +68,12 @@ VirtioDevices::VirtioDevices(int first_irq_num) {
     ethernet_device = slirp_open();
     virtio_net = virtio_net_init(virtio_bus, ethernet_device);
     fprintf(stderr, "ethernet device %p virtio net device %p at addr %08lx\n", ethernet_device, virtio_net, virtio_bus->addr);
+
+    // set up an entropy device
+    //virtio_bus->addr += 0x1000;
+    //virtio_bus->irq = &irq[irq_num++];
+    //virtio_entropy = virtio_entropy_init(virtio_bus);
+    //fprintf(stderr, "virtio entropy device %p at addr %08lx\n", virtio_entropy, virtio_bus->addr);
 }
 
 VirtioDevices::~VirtioDevices() {
@@ -151,6 +157,7 @@ void VirtioDevices::process_io()
 int VirtioDevices::has_pending_actions()
 {
     return (virtio_net != 0 && virtio_has_pending_actions(virtio_net))
+	|| (virtio_entropy != 0 && virtio_has_pending_actions(virtio_entropy))
 	|| (virtio_block != 0 && virtio_has_pending_actions(virtio_block));
 }
 
@@ -161,6 +168,9 @@ int VirtioDevices::perform_pending_actions()
 	    if (debug) fprintf(stderr, "performing pending net actions\n");
 	    virtio_perform_pending_actions(virtio_net);
 	}
+    }
+    if (virtio_entropy != 0) {
+	virtio_perform_pending_actions(virtio_entropy);
     }
     if (virtio_block != 0) {
 	virtio_perform_pending_actions(virtio_block);
