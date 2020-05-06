@@ -6,17 +6,33 @@ import FIFO         :: *;
 import GetPut       :: *;
 
 import Semi_FIFOF   :: *;
+`ifdef HAVE_BLUESTUFF_AXI
+import AXI4         :: *;
+`else
 import AXI4_Types   :: *;
+`endif
 
+`ifdef HAVE_BLUESTUFF_AXI
+interface AXI_BRAM;
+   interface AXI4_Slave#(6, 64, 512, 0, 0, 0, 0, 0) portA;
+   interface AXI4_Slave#(6, 64, 512, 0, 0, 0, 0, 0) portB;
+endinterface
+`else
 interface AXI_BRAM;
    interface AXI4_Slave_IFC#(6, 64, 512, 0) portA;
    interface AXI4_Slave_IFC#(6, 64, 512, 0) portB;
 endinterface
+`endif
 
 (* synthesize *)
 module mkAXI_BRAM(AXI_BRAM);
+`ifdef HAVE_BLUESTUFF_AXI
+   AXI4_Slave_Xactor#(6, 64, 512, 0, 0, 0, 0, 0) bram_slave_xactor_portA <- mkAXI4_Slave_Xactor();
+   AXI4_Slave_Xactor#(6, 64, 512, 0, 0, 0, 0, 0) bram_slave_xactor_portB <- mkAXI4_Slave_Xactor();
+`else
    AXI4_Slave_Xactor_IFC#(6, 64, 512, 0) bram_slave_xactor_portA <- mkAXI4_Slave_Xactor();
    AXI4_Slave_Xactor_IFC#(6, 64, 512, 0) bram_slave_xactor_portB <- mkAXI4_Slave_Xactor();
+`endif
 
    Reg#(Bit#(2)) rg_verbosity <- mkReg(0);
 
