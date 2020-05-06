@@ -609,6 +609,11 @@ void AWSP2::process_io()
     }
 }
 
+void AWSP2::wait_for_io(int timeout)
+{
+    virtio_devices.wait_for_pending_actions(timeout);
+}
+
 void AWSP2::set_htif_base_addr(uint64_t baseaddr)
 {
     tohost_addr = baseaddr + TOHOST_OFFSET;
