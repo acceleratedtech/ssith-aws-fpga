@@ -89,4 +89,9 @@
 		interrupts-extended = <&plic 4>;
 		reg = <0x40002000 0x1000>;
 	};
+	virtio_block@40003000 {
+		compatible = "virtio,mmio";
+		interrupts-extended = <&plic 5>;
+		reg = <0x40003000 0x1000>;
+	};
 };

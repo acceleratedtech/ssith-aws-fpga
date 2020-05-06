@@ -28,6 +28,8 @@
 #include <assert.h>
 #include <stdarg.h>
 
+#include <sys/random.h>
+
 #include "cutils.h"
 #include "list.h"
 #include "virtio.h"
@@ -245,6 +247,10 @@ static void virtio_init(VIRTIODevice *s, VIRTIOBusDef *bus,
         case 3:
             pci_device_id = 0x1003; /* console */
             class_id = 0x0780;
+            break;
+        case 4:
+            pci_device_id = 0x1005; /* entropy source */
+            class_id = 0x1000;
             break;
         case 9:
             pci_device_id = 0x1040 + device_id; /* use new device ID */
@@ -1390,6 +1396,53 @@ VIRTIODevice *virtio_console_init(VIRTIOBusDef *bus, CharacterDevice *cs)
     s->common.queue[0].manual_recv = TRUE;
 
     s->cs = cs;
+    return (VIRTIODevice *)s;
+}
+
+/*********************************************************************/
+/* entropy device */
+
+typedef struct VIRTIOEntropyDevice {
+    VIRTIODevice common;
+    uint8_t buf[256];
+} VIRTIOEntropyDevice;
+
+static int virtio_entropy_recv_request(VIRTIODevice *s, int queue_idx,
+                                       int desc_idx, int read_size,
+                                       int write_size)
+{
+    VIRTIOEntropyDevice *s1 = (VIRTIOEntropyDevice *)s;
+    int offset, block_size, ret;
+
+    if (queue_idx == 0) {
+        offset = 0;
+        while (offset < write_size) {
+            block_size = sizeof(s1->buf);
+            if (write_size - offset < block_size) {
+                block_size = write_size - offset;
+            }
+            ret = getrandom(&s1->buf, block_size, 0);
+            /* reads up to 256 bytes should always succeed */
+            if (ret > 0) {
+                memcpy_to_queue(s, queue_idx, desc_idx, offset, &s1->buf, ret);
+                offset += ret;
+            } else {
+                abort();
+            }
+        }
+        virtio_consume_desc(s, queue_idx, desc_idx, write_size);
+    }
+    return 0;
+}
+
+VIRTIODevice *virtio_entropy_init(VIRTIOBusDef *bus)
+{
+    VIRTIOEntropyDevice *s;
+
+    s = mallocz(sizeof(*s));
+    virtio_init(&s->common, bus,
+                4, 0, virtio_entropy_recv_request);
+
     return (VIRTIODevice *)s;
 }
 
