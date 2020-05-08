@@ -15,11 +15,7 @@ import ConnectalMemTypes :: *;
 // ================================================================
 // Project imports
 
-`ifdef HAVE_BLUESTUFF_AXI
-import CHERI_P2_Core :: *;
-`else
 import P2_Core  :: *;
-`endif
 import SoC_Map  :: *;
 import UART_Model :: *;
 
