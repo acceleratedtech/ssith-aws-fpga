@@ -4,6 +4,7 @@ cache:
 sudo: no
 os:
 - linux
+dist: bionic
 script:
 - mkdir build  
 - cd build; cmake -DFPGA=0 ..; make
