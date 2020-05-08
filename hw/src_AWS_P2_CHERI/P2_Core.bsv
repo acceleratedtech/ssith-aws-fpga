@@ -13,7 +13,7 @@
 //     DARPA SSITH research programme.
 //-
 
-package CHERI_P2_Core;
+package P2_Core;
 
 // ================================================================
 // This package defines the interface and implementation of the 'P2 Core'
