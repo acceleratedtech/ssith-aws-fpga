@@ -62,8 +62,8 @@ CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/libs/BlueStuff
 # Generate Bluespec CHERI tag controller source file
 
 prebuild::
-	(cd $(FLUTE_DIR)/src_SSITH_P2; make tagsparams)
-	cp -v $(FLUTE_DIR)/src_SSITH_P2/src_BSV/TagTableStructure.bsv .
+	$(MAKE) -C $(FLUTE_DIR)/src_SSITH_P2 src_BSV/TagTableStructure.bsv
+	cp -uv $(FLUTE_DIR)/src_SSITH_P2/src_BSV/TagTableStructure.bsv .
 
 ############################################################
 ## Configuring connectal platform hardware
