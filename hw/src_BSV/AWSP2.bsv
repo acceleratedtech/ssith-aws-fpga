@@ -62,6 +62,17 @@ import AWSP2_IFC   :: *;
 `endif
 `endif
 
+`ifdef HAVE_BLUESTUFF_ROUTABLE
+import Routable :: *;
+`define SOC_MAP_BASE(soc_map, field) rangeBase(soc_map.m_``field``_range)
+`define SOC_MAP_SIZE(soc_map, field) rangeSize(soc_map.m_``field``_range)
+`define SOC_MAP_LIM (soc_map, field) rangeTop (soc_map.m_``field``_range)
+`else
+`define SOC_MAP_BASE(soc_map, field) soc_map.m_``field``_base
+`define SOC_MAP_SIZE(soc_map, field) soc_map.m_``field``_size
+`define SOC_MAP_LIM (soc_map, field) soc_map.m_``field``_lim
+`endif
+
 interface AWSP2;
   interface AWSP2_Request request;
   interface Vector#(1, MemReadClient#(DataBusWidth)) readClients;
@@ -78,13 +89,13 @@ module mkIOFabric(AXI4_Fabric_IFC#(2, 3, 6, 64, 64, 0));
     let soc_map <- mkSoC_Map();
 
     function Tuple2 #(Bool, Bit #(TLog #(3))) fn_addr_to_slave_num(Bit #(64) addr);
-        if ((soc_map.m_ddr4_0_uncached_addr_base <= addr) && (addr < soc_map.m_ddr4_0_uncached_addr_lim)) begin
+        if ((`SOC_MAP_BASE(soc_map, ddr4_0_uncached_addr) <= addr) && (addr < `SOC_MAP_LIM(soc_map, ddr4_0_uncached_addr))) begin
            return tuple2(True, 0);
         end
-        else if ((soc_map.m_ddr4_0_cached_addr_base <= addr) && (addr < soc_map.m_ddr4_0_cached_addr_lim)) begin
+        else if ((`SOC_MAP_BASE(soc_map, ddr4_0_cached_addr) <= addr) && (addr < `SOC_MAP_LIM(soc_map, ddr4_0_cached_addr))) begin
            return tuple2(True, 0);
         end
-        else if ((soc_map.m_uart16550_0_addr_base <= addr) && (addr < soc_map.m_uart16550_0_addr_lim)) begin
+        else if ((`SOC_MAP_BASE(soc_map, uart16550_0_addr) <= addr) && (addr < `SOC_MAP_LIM(soc_map, uart16550_0_addr))) begin
            return tuple2(True, 1);
         end
         else begin
@@ -104,9 +115,9 @@ endmodule
 module mkMemFabric(AXI4_Fabric_IFC#(1, 2, 6, 64, 512, 0));
    let soc_map <- mkSoC_Map();
    function Tuple2 #(Bool, Bit #(1)) fn_mem_addr_to_slave_num(Bit #(64) addr);
-      let min_mem_addr = min(soc_map.m_ddr4_0_uncached_addr_base, soc_map.m_ddr4_0_cached_addr_base);
-      let uncached_mem_base = soc_map.m_ddr4_0_uncached_addr_base - min_mem_addr;
-      let uncached_mem_lim = soc_map.m_ddr4_0_uncached_addr_lim - min_mem_addr;
+      let min_mem_addr = min(`SOC_MAP_BASE(soc_map, ddr4_0_uncached_addr), `SOC_MAP_BASE(soc_map, ddr4_0_cached_addr));
+      let uncached_mem_base = `SOC_MAP_BASE(soc_map, ddr4_0_uncached_addr) - min_mem_addr;
+      let uncached_mem_lim = `SOC_MAP_LIM(soc_map, ddr4_0_uncached_addr) - min_mem_addr;
       // cached memory base has been subtracted from the address
       if ((uncached_mem_base <= addr) && (addr < uncached_mem_lim)) begin
          return tuple2(True, 1);
@@ -354,11 +365,11 @@ module mkAWSP2#(AWSP2_Response response)(AWSP2);
    Reg#(Bool) rg_addr_map_set <- mkReg(False);
    rule rl_set_addr_map if (!rg_addr_map_set);
       $display("memController.set_addr_map: %h %h",
-                min(soc_map.m_ddr4_0_uncached_addr_base, soc_map.m_ddr4_0_cached_addr_base),
-                max(soc_map.m_ddr4_0_uncached_addr_lim, soc_map.m_ddr4_0_cached_addr_lim));
-      memController.set_addr_map(min(soc_map.m_ddr4_0_uncached_addr_base, soc_map.m_ddr4_0_cached_addr_base),
-                                 max(soc_map.m_ddr4_0_uncached_addr_lim, soc_map.m_ddr4_0_cached_addr_lim));
-      uart.set_addr_map(soc_map.m_uart16550_0_addr_base, soc_map.m_uart16550_0_addr_lim);
+                min(`SOC_MAP_BASE(soc_map, ddr4_0_uncached_addr), `SOC_MAP_BASE(soc_map, ddr4_0_cached_addr)),
+                max(`SOC_MAP_LIM(soc_map, ddr4_0_uncached_addr), `SOC_MAP_LIM(soc_map, ddr4_0_cached_addr)));
+      memController.set_addr_map(min(`SOC_MAP_BASE(soc_map, ddr4_0_uncached_addr), `SOC_MAP_BASE(soc_map, ddr4_0_cached_addr)),
+                                 max(`SOC_MAP_LIM(soc_map, ddr4_0_uncached_addr), `SOC_MAP_LIM(soc_map, ddr4_0_cached_addr)));
+      uart.set_addr_map(`SOC_MAP_BASE(soc_map, uart16550_0_addr), `SOC_MAP_LIM(soc_map, uart16550_0_addr));
       rg_addr_map_set <= True;
    endrule
 
