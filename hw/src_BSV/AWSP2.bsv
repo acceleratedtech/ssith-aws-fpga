@@ -33,15 +33,11 @@ import PLIC :: *;    // for PLIC_Source_IFC type which is exposed at P2_Core int
 import Semi_FIFOF :: *;
 
 // Main Fabric
-`ifdef HAVE_BLUESTUFF_AXI
-import Bluespec_AXI4_Types   :: *;
-import Bluespec_AXI4_Fabric  :: *;
-`else
-import AXI4_Types   :: *;
-import AXI4_Fabric  :: *;
-`endif
-import Fabric_Defs  :: *;
-import AXI4_Deburster :: *;
+import AWS_AXI4_Types   :: *;
+import AWS_AXI4_Fabric  :: *;
+import AWS_Fabric_Defs  :: *;
+import AWS_AXI4_Deburster :: *;
+import AWS_AXI4_Connection :: *;
 import AXI_Mem_Controller :: *;
 import AXI_RAM        :: *;
 

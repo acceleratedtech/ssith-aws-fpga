@@ -73,12 +73,8 @@ import ByteLane   :: *;
 // ================================================================
 // Project imports
 
-`ifdef HAVE_BLUESTUFF_AXI
-import Bluespec_AXI4_Types  :: *;
-`else
-import AXI4_Types  :: *;
-`endif
-import Fabric_Defs :: *;
+import AWS_AXI4_Types  :: *;
+import AWS_Fabric_Defs :: *;
 import SoC_Map     :: *;
 
 // ================================================================

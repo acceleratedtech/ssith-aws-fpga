@@ -1,6 +1,6 @@
 // Copyright (c) 2018-2020 Bluespec, Inc. All Rights Reserved
 
-package Fabric_Defs;
+package AWS_Fabric_Defs;
 
 // ================================================================
 // Defines key parameters of the AXI4/AXI4-Lite system interconnect
@@ -22,7 +22,7 @@ package Fabric_Defs;
 // ================================================================
 // Project imports
 
-import Bluespec_AXI4_Types :: *;
+import AWS_AXI4_Types :: *;
 
 // ================================================================
 // Fabric parameters
