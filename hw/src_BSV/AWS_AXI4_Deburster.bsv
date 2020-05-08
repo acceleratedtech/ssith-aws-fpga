@@ -1,6 +1,6 @@
 // Copyright (c) 2019 Bluespec, Inc. All Rights Reserved
 
-package AXI4_Deburster;
+package AWS_AXI4_Deburster;
 
 // ================================================================
 // This package defines a AXI4-slave-to-AXI4-slave conversion module.
@@ -24,11 +24,7 @@ import Cur_Cycle  :: *;
 // Project imports
 
 import Semi_FIFOF :: *;
-`ifdef HAVE_BLUESTUFF_AXI
-import Bluespec_AXI4_Types :: *;
-`else
-import AXI4_Types :: *;
-`endif
+import AWS_AXI4_Types :: *;
 
 // ================================================================
 // The interface for the fabric module
@@ -323,4 +319,4 @@ endmodule
 
 // ================================================================
 
-endpackage: AXI4_Deburster
+endpackage: AWS_AXI4_Deburster

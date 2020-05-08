@@ -1,6 +1,6 @@
 // Copyright (c) 2019 Bluespec, Inc.  All Rights Reserved
 
-package Bluespec_AXI4_Types;
+package AWS_AXI4_Types;
 
 // ================================================================
 // Facilities for ARM AXI4, consisting of 5 independent channels:

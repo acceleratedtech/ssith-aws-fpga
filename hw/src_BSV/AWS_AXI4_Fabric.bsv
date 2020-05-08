@@ -1,6 +1,6 @@
 // Copyright (c) 2013-2019 Bluespec, Inc. All Rights Reserved
 
-package Bluespec_AXI4_Fabric;
+package AWS_AXI4_Fabric;
 
 // ================================================================
 // This package defines a fabric connecting CPUs, Memories and DMAs
@@ -23,7 +23,7 @@ import Cur_Cycle  :: *;
 // Project imports
 
 import Semi_FIFOF :: *;
-import Bluespec_AXI4_Types :: *;
+import AWS_AXI4_Types :: *;
 
 // ================================================================
 // The interface for the fabric module
@@ -445,4 +445,4 @@ endmodule
 
 // ================================================================
 
-endpackage: Bluespec_AXI4_Fabric
+endpackage: AWS_AXI4_Fabric

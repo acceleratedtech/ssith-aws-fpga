@@ -28,8 +28,8 @@ import Semi_FIFOF :: *;
 // ================================================================
 // Project imports
 
-import AXI4_Types  :: *;
-import Fabric_Defs :: *;
+import AWS_AXI4_Types  :: *;
+import AWS_Fabric_Defs :: *;
 
 // ================================================================
 // Interface
