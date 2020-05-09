@@ -137,40 +137,54 @@ void PCIS_DMA_Memory::write64(uint32_t addr, uint64_t data)
     fpga->write64(addr, data);
 }
 
-void PCIS_DMA_Memory::write(uint32_t start_addr, const uint32_t *data, size_t num_bytes)
+void PCIS_DMA_Memory::write(uint32_t start_addr, const uint32_t *data32, size_t num_bytes)
 {
     if (!helper_loaded)
         load_helper();
 
+    char *data = (char *)data32;
     uint32_t end_addr = start_addr + num_bytes;
     const uint32_t max_chunk_size = 4096;
+    uint32_t first_chunk_offset = start_addr & 7;
+    uint32_t aligned_start_addr = start_addr - first_chunk_offset;
+    uint32_t num_chunks = (num_bytes + first_chunk_offset + (max_chunk_size - 1)) / max_chunk_size;
+    uint32_t last_padded_chunk_size = first_chunk_offset + num_bytes - (num_chunks - 1) * max_chunk_size;
 
-    for (uint32_t chunk_addr = start_addr; chunk_addr < end_addr; chunk_addr += max_chunk_size, num_bytes -= max_chunk_size, data += max_chunk_size/4) {
-        size_t chunk_size = (num_bytes < max_chunk_size) ? num_bytes : max_chunk_size;
-        size_t rounded_chunk_size = (chunk_size + 7) & ~7;
-        if (debug_pcis_write) fprintf(stderr, "PCIS_DMA_Memory::write chunk %08x chunk_size %ld / %ld\n", chunk_addr, chunk_size, rounded_chunk_size);
+    for (uint32_t chunk_idx = 0; chunk_idx < num_chunks; ++chunk_idx) {
+        uint32_t chunk_offset = (chunk_idx == 0) ? first_chunk_offset : 0;
+        uint32_t chunk_addr = aligned_start_addr + chunk_offset + chunk_idx * max_chunk_size;
+        size_t padded_chunk_size = (chunk_idx == num_chunks - 1) ? last_padded_chunk_size : max_chunk_size;
+        size_t chunk_size = padded_chunk_size - chunk_offset;
+        uint32_t data_offset = chunk_addr - start_addr;
+
+        if (debug_pcis_write) fprintf(stderr, "PCIS_DMA_Memory::write chunk %08x chunk_size %ld / %ld\n", chunk_addr, chunk_size, padded_chunk_size);
         if (pcis_buffer) {
             if (debug_p2_memcpy) fprintf(stderr, "Copying to PCIS DMA buffer ... ");
-            memset(pcis_buffer, 0, rounded_chunk_size);
-            memcpy(pcis_buffer, data, chunk_size);
+            memset(pcis_buffer, 0, padded_chunk_size);
+            memcpy(pcis_buffer + chunk_offset, data + data_offset, chunk_size);
             if (debug_p2_memcpy) fprintf(stderr, "done\n");
         } else {
-            fpga->ddr_write(uncached_base_addr, data, chunk_size);
+            fpga->ddr_write(uncached_base_addr + chunk_offset, (const uint32_t *)&data[data_offset], chunk_size);
         }
-        if (debug_p2_memcpy) fprintf(stderr, "PCIS_DMA_Memory::write calling p2_memcpy chunk_addr %08x uncached base %08x done addr %08x\n", chunk_addr, uncached_base_addr, uncached_base_addr + max_chunk_size);
-        p2_memcpy(chunk_addr, uncached_base_addr, rounded_chunk_size / 8, uncached_base_addr + max_chunk_size);
+        if (debug_p2_memcpy) fprintf(stderr, "PCIS_DMA_Memory::write calling p2_memcpy chunk_addr %08x uncached base + offset %08x chunk_size %ld done addr %08x\n", chunk_addr, uncached_base_addr + chunk_offset, chunk_size, uncached_base_addr + max_chunk_size);
+        p2_memcpy(chunk_addr, uncached_base_addr + chunk_offset, chunk_size, uncached_base_addr + max_chunk_size);
         if (debug_p2_memcpy) fprintf(stderr, "done\n");
 
         if (0) {
-            uint64_t *data64 = (uint64_t *)data;
-            size_t count = rounded_chunk_size / 8;
-            for (size_t i = 0; i < rounded_chunk_size / 8; i++) {
-                uint64_t expected;
-                memcpy(&expected, &data64[i], sizeof(expected));
-                uint32_t cached_addr = chunk_addr + 8 * i;
-                uint64_t actual = fpga->read64(cached_addr);
+            uint32_t last_read_addr = 0;
+            uint64_t last_read_data = 0;
+            for (size_t i = 0; i < chunk_size; i++) {
+                uint32_t byte_addr = chunk_addr + i;
+                uint32_t block_offset = byte_addr & 7;
+                uint32_t block_addr = byte_addr - block_offset;
+                if (block_addr != last_read_addr) {
+                    last_read_data = fpga->read64(block_addr);
+                    last_read_addr = block_addr;
+                }
+                uint8_t expected = data[data_offset + i];
+                uint8_t actual = (last_read_data >> (block_offset * 8)) & 0xFF;
                 if (expected != actual)
-                    fprintf(stderr, "Mismatch at %08x expected %08lx actual %08lx (%ld/%ld)\n", cached_addr, expected, actual, i, count);
+                    fprintf(stderr, "Mismatch at %08x expected %08x actual %08x (%ld/%ld)\n", byte_addr, expected, actual, i, chunk_size);
             }
         }
 
@@ -207,8 +221,14 @@ void PCIS_DMA_Memory::p2_memcpy(uint32_t cached_dest, uint32_t uncached_source, 
 // hexdump -x memcpy.bin
 
 static uint16_t riscv_memcpy[] = {
-    0x872a, 0x87b2, 0xca19, 0x4601, 0x05a1, 0x0721, 0xb503, 0xff85,
-    0x3c23, 0xfea7, 0x0605, 0x99e3, 0xfec7, 0xc29c, 0xa001
+    0x07b3, 0x40b0, 0x8b9d, 0x7363, 0x00f6, 0x87b2, 0x0833, 0x00f5,
+    0x0c63, 0x0105, 0x872e, 0x0705, 0x4883, 0xfff7, 0x0505, 0x0fa3,
+    0xff15, 0x1ae3, 0xfea8, 0x95be, 0x0733, 0x40f6, 0x7793, 0xff87,
+    0x97c2, 0x0563, 0x02f8, 0x88ae, 0x8542, 0xb303, 0x0008, 0x0521,
+    0x08a1, 0x3c23, 0xfe65, 0x9ae3, 0xfea7, 0x87b3, 0x4107, 0x17e1,
+    0x9be1, 0x8513, 0x0087, 0x07b3, 0x00a8, 0x95aa, 0x8b1d, 0x973e,
+    0x0a63, 0x00f7, 0x0585, 0xc503, 0xfff5, 0x0785, 0x8fa3, 0xfea7,
+    0x1ae3, 0xfef7, 0xe290, 0xa001
 };
 
 void PCIS_DMA_Memory::load_helper()
