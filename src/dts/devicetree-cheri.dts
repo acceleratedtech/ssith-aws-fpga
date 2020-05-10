@@ -1,0 +1,97 @@
+/dts-v1/;
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	compatible = "unknown,unknown";
+	model = "unknown,unknown";
+	chosen {
+		bootargs = "earlyprintk console=ttyS0,115200 loglevel=15";
+		stdout-path = &ns16550;
+	};
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		timebase-frequency = <125000000>;
+		CPU0: cpu@0 {
+			device_type = "cpu";
+			reg = <0>;
+			status = "okay";
+			compatible = "riscv";
+			riscv,isa = "rv64imafdc";
+			mmu-type = "riscv,sv39";
+			clock-frequency = <125000000>;
+			CPU0_intc: interrupt-controller {
+				#interrupt-cells = <1>;
+				interrupt-controller;
+				compatible = "riscv,cpu-intc";
+			};
+		};
+	};
+	memory {
+		device_type = "memory";
+		reg = <0xC0000000 0x3F000000>;
+	};
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		reserved: linux,dma {
+			compatible = "shared-dma-pool";
+			reg = <0xa0000000 0x20000000>;
+			linux,dma-default;
+			no-map;
+		};
+	};
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges;
+		clint@10000000 {
+			compatible = "riscv,clint0";
+			interrupts-extended = <&CPU0_intc 3 &CPU0_intc 7>;
+			reg = <0x10000000 0x10000>;
+		};
+		plic: interrupt-controller@c000000 {
+			#interrupt-cells = <1>;
+			compatible = "riscv,plic0";
+			interrupt-controller;
+			interrupts-extended = <&CPU0_intc 11 &CPU0_intc 9>;
+			reg = <0x0c000000 0x400000>;
+			reg-names = "control";
+			riscv,max-priority = <7>;
+			riscv,ndev = <16>;
+		};
+		ns16550: uart@62300000 {
+			current-speed = <115200>;
+			compatible = "ns16550a";
+			interrupts-extended = <&plic 1>;
+			reg = <0x62300000 0x1000>;
+			clock-frequency = <125000000>;
+			reg-shift = <2>;
+		};
+	};
+
+	virtio_block@40000000 {
+		compatible = "virtio,mmio";
+		interrupts-extended = <&plic 2>;
+		reg = <0x40000000 0x100>;
+	};
+	virtio_block@40001000 {
+		compatible = "virtio,mmio";
+		interrupts-extended = <&plic 3>;
+		reg = <0x40001000 0x1000>;
+	};
+	virtio_block@40002000 {
+		compatible = "virtio,mmio";
+		interrupts-extended = <&plic 4>;
+		reg = <0x40002000 0x1000>;
+	};
+	virtio_block@40003000 {
+		compatible = "virtio,mmio";
+		interrupts-extended = <&plic 5>;
+		reg = <0x40003000 0x1000>;
+	};
+};

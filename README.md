@@ -13,6 +13,8 @@ sudo apt-get install cmake device-tree-compiler build-essential libssl-dev libcu
 
 ## Building `ssith_aws_fpga` for simulation
 
+**NOTE** For CHERI, you *must* use `src/dts/devicetree-cheri.dts` in place of `src/dts/devicetree.dts`.
+
 ```bash
 mkdir build
 cd build
@@ -63,6 +65,8 @@ sudo insmod ssith-aws-fpga/hw/connectal/drivers/portalmem/portalmem.ko
 Note: You have to recompile each time the kernel is updated.
 
 ## Building and running `ssith_aws_fpga` on FPGA
+
+**NOTE** For CHERI, you *must* use `src/dts/devicetree-cheri.dts` in place of `src/dts/devicetree.dts`.
 
 ```bash
 mkdir build
