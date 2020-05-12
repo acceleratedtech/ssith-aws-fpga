@@ -24,6 +24,10 @@ using namespace std;
 #define DEFAULT_DMA_ENABLED 1
 #endif
 
+#define BOOTROM_BASE  (0x70000000)
+#define BOOTROM_LIMIT (0x70010000)
+#define DEVICETREE_OFFSET (0x20)
+
 const struct option long_options[] = {
     { "block", required_argument, 0, 'B' },
     { "bootrom", required_argument, 0, 'b' },
@@ -168,7 +172,7 @@ int main(int argc, char * const *argv)
     memset(dramBuffer, 0x0, dram_alloc_sz);
     fprintf(stderr, "dramBuffer=%lx\n", (long)dramBuffer);
 
-    Rom rom = { 0x00001000, 0x00010000, (uint64_t *)romBuffer };
+    Rom rom = { BOOTROM_BASE, BOOTROM_LIMIT, (uint64_t *)romBuffer };
     fpga = new AWSP2(IfcNames_AWSP2_ResponseH2S, rom);
     fpga->set_dram_buffer(dramBuffer);
     fpga->set_htif_enabled(htif_enabled);
@@ -178,21 +182,21 @@ int main(int argc, char * const *argv)
         fpga->get_virtio_devices().add_virtio_block_device(block_file);
     }
 
-    if (enable_virtio_console) {
-        fprintf(stderr, "Enabling virtio console\n");
-        fpga->get_virtio_devices().add_virtio_console_device();
-    }
+    uint32_t *bootInstrs = (uint32_t *)romBuffer;
+    bootInstrs[0] = 0x0000006f; // loop forever
+    bootInstrs[1] = 0x0000006f; // loop forever
 
     // load the ROM code
     if (bootrom_filename)
         copyFile((char *)romBuffer, bootrom_filename, rom_alloc_sz);
 
-    uint32_t *bootInstrs = (uint32_t *)romBuffer;
-    bootInstrs[0] = 0x0000006f; // loop forever
-    bootInstrs[1] = 0x0000006f; // loop forever
+    if (enable_virtio_console) {
+        fprintf(stderr, "Enabling virtio console\n");
+        fpga->get_virtio_devices().add_virtio_console_device();
+    }
 
     if (dtb_filename)
-        copyFile((char *)romBuffer + 0x10, dtb_filename, rom_alloc_sz - 0x10);
+        copyFile((char *)romBuffer + DEVICETREE_OFFSET, dtb_filename, rom_alloc_sz - 0x10);
 
     if (1) {
         // register the DRAM memory object with the SoC (and program the MMU)
@@ -239,7 +243,7 @@ int main(int argc, char * const *argv)
 
     // for loading linux, set pointer to devicetree
     fpga->write_gpr(10, 0);
-    fpga->write_gpr(11, 0x00001010);
+    fpga->write_gpr(11, BOOTROM_BASE + DEVICETREE_OFFSET);
 
     fpga->capture_tv_info(tv);
     // and resume
