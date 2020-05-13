@@ -22,8 +22,8 @@ cmake ..
 make
 cd ..
 dtc -I dts -O dtb -o build/devicetree.dtb src/dts/devicetree.dts
-ln -s hw/src_AWS_P2/verilator/bin/vlsim build
-ln -s hw/src_AWS_P2/verilator/bin/libconnectal-sim.so build
+ln -s ../hw/src_AWS_P2/verilator/bin/vlsim build
+ln -s ../hw/src_AWS_P2/verilator/bin/libconnectal-sim.so build
 LD_LIBRARY_PATH=./build ./build/ssith_aws_fpga --dtb build/devicetree.dtb  --elf foo.elf
 ```
 
