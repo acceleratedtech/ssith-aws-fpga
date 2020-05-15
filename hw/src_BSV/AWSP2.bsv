@@ -34,6 +34,8 @@ import AWS_AXI4_Fabric  :: *;
 import AWS_Fabric_Defs  :: *;
 import AWS_AXI4_Deburster :: *;
 import AWS_AXI4_Connection :: *;
+import AWS_AXI4_Id_Reflector :: *;
+import AWS_AXI4_Downsizer :: *;
 import AXI_Mem_Controller :: *;
 import AXI_RAM        :: *;
 
@@ -169,7 +171,11 @@ module mkAWSP2#(AWSP2_Response response)(AWSP2);
    let axiBRAM <- mkAXI_BRAM();
    mkConnection(memFabric.v_to_slaves[1], axiBRAM.portA);
 
-   let from_dma_pcis = axiBRAM.portB;
+   AXI4_Downsizer_IFC #(0, 64, 512, 64, 0) downsizer <- mkAXI4_Downsizer();
+   mkConnection(downsizer.to_slave, p2_core.slave0);
+   AXI4_Id_Reflector_IFC #(6, 64, 512, 0) id_reflector <- mkAXI4_Id_Reflector();
+   mkConnection(id_reflector.to_slave, downsizer.from_master);
+   let from_dma_pcis = id_reflector.from_master;
 
 `ifndef BOARD_awsf1
     AXI4_Master_Xactor_IFC#(6, 64, 512, 0) dma_pcis_master_xactor <- mkAXI4_Master_Xactor();
