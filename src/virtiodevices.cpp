@@ -106,6 +106,11 @@ PhysMemoryRange *VirtioDevices::get_phys_mem_range(uint64_t paddr)
     return ::get_phys_mem_range(mem_map, paddr);
 }
 
+uint8_t *VirtioDevices::phys_mem_get_ram_ptr(uint64_t paddr, BOOL is_rw)
+{
+    return ::phys_mem_get_ram_ptr(mem_map, paddr, is_rw);
+}
+
 void VirtioDevices::process_io()
 {
     int stdin_fd = 0;
