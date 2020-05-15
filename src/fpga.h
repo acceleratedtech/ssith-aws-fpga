@@ -107,11 +107,14 @@ struct AXI_Write_State {
     : awaddr(awaddr), wdata_count(wdata_count), wid(wid) {}
 };
 
+class DmaManager;
+
 class AWSP2_Response;
 class AWSP2 {
     sem_t sem;
     AWSP2_Response *response;
     AWSP2_RequestProxy *request;
+    DmaManager *dma;
     Rom rom;
     VirtioDevices virtio_devices;
     uint32_t dram_base_addr;
@@ -143,6 +146,7 @@ public:
 
     uint32_t dmi_status();
 
+    void map_simulated_dram();
     void map_pcis_dma();
     void unmap_pcis_dma();
     void ddr_read(uint32_t addr, bsvvector_Luint8_t_L64 data);
@@ -159,6 +163,9 @@ public:
     uint64_t read64(uint32_t addr);
     void write32(uint32_t addr, uint32_t val);
     void write64(uint32_t addr, uint64_t val);
+
+    void write(uint32_t addr, uint8_t *data, size_t num_bytes);
+
     void halt(int timeout = 100);
     void resume(int timeout = 100);
 

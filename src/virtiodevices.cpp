@@ -47,8 +47,8 @@ static PhysMemoryRange *fpga_register_ram(PhysMemoryMap *s, uint64_t addr,
 
 void VirtioDevices::set_dram_buffer(uint8_t *buf) {
     dramBuffer = buf;
-    fpga_register_ram(mem_map, 0x80000000, 0x08000000, 0, buf);
-    fpga_register_ram(mem_map, 0xC0000000, 0x08000000, 0, buf);
+    fpga_register_ram(mem_map, 0x80000000, 0x40000000, 0, buf);
+    fpga_register_ram(mem_map, 0xC0000000, 0x40000000, 0, buf);
 }
 
 
@@ -186,132 +186,5 @@ int VirtioDevices::perform_pending_actions()
 void VirtioDevices::wait_for_pending_actions(int timeout)
 {
     virtio_wait_for_pending_actions(timeout);
-}
-
-uint16_t virtio_read16(VIRTIODevice *s, virtio_phys_addr_t addr)
-{
-    uint8_t *ptr;
-    if (addr & 1)
-        return 0; /* unaligned access are not supported */
-
-    uint32_t val32 = fpga->read32(addr & ~3);
-    if (addr & 2) {
-      return (val32 >> 16) & 0x0000FFFF;
-    } else {
-      return (val32 >> 0) & 0x0000FFFF;
-    }
-}
-
-uint32_t virtio_read32(VIRTIODevice *s, virtio_phys_addr_t addr)
-{
-    uint8_t *ptr;
-    if (addr & 1)
-        return 0; /* unaligned access are not supported */
-
-    uint32_t val32 = fpga->read32(addr & ~3);
-    return val32;
-}
-
-void virtio_write16(VIRTIODevice *s, virtio_phys_addr_t addr, uint16_t val)
-{
-    uint8_t *ptr;
-    if (addr & 1)
-        return; /* unaligned access are not supported */
-    uint32_t val32 = fpga->read32(addr & ~3);
-    if (addr & 2) {
-      val32 = (val32 & 0x0000FFFF) | (val << 16);
-    } else {
-      val32 = (val32 & 0xFFFF0000) | (val << 0);
-    }
-    fpga->write32((addr & ~3), val32);
-}
-
-void virtio_write32(VIRTIODevice *s, virtio_phys_addr_t addr, uint32_t val)
-{
-    uint8_t *ptr;
-    if (addr & 3)
-        return; /* unaligned access are not supported */
-    fpga->write32(addr, val);
-}
-
-int virtio_memcpy_from_ram(VIRTIODevice *s, uint8_t *buf, virtio_phys_addr_t addr, int count)
-{
-    uint8_t *ptr;
-    int l;
-
-    virtio_phys_addr_t last_addr = 0;
-    uint32_t val32 = 0;
-    if (debug) fprintf(stderr, "%s: addr %08lx count %d\n", __FUNCTION__, addr, count);
-    if (((addr & 3) == 0) && ((count & 3) == 0)) {
-	while (count) {
-	    val32 = fpga->read32(addr);
-	    memcpy(buf, &val32, 4);
-	    addr  += 4;
-	    count -= 4;
-	    buf   += 4;
-	}
-    } else {
-	while (count) {
-	    virtio_phys_addr_t base_addr = addr & ~3;
-	    if (last_addr != base_addr) {
-		val32 = fpga->read32(base_addr);
-		last_addr = base_addr;
-	    }
-	    uint8_t val = val32 >> ((addr & 3) * 8);
-	    if (debug) fprintf(stderr, "addr %08lx offset %d val32 %08x val %02x\n", addr, (int)(addr & 3), val32, val);
-	    *buf = val;
-	    addr++;
-	    count--;
-	    buf++;
-	}
-    }
-    return count;
-}
-
-int virtio_memcpy_to_ram(VIRTIODevice *s, virtio_phys_addr_t addr, const uint8_t *buf, int count)
-{
-    uint8_t *ptr;
-    int l;
-
-    virtio_phys_addr_t last_addr = 0;
-    uint32_t val32 = 0;
-    if (debug) fprintf(stderr, "%s: addr %08lx count %d\n", __FUNCTION__, addr, count);
-    if (((addr & 3) == 0) && ((count & 3) == 0)) {
-	while (count) {
-	    memcpy(&val32, buf, 4);
-	    fpga->write32(addr, val32);
-	    addr  += 4;
-	    count -= 4;
-	    buf   += 4;
-	}
-    } else {
-	while (count) {
-	    virtio_phys_addr_t base_addr = addr & ~3;
-	    if (last_addr != base_addr) {
-		if (last_addr) {
-		    if (debug) fprintf(stderr, "write32 %08lx %08x\n", last_addr, val32);
-		    fpga->write32(last_addr, val32);
-		}
-		val32 = fpga->read32(base_addr);
-		last_addr = base_addr;
-	    }
-	    uint8_t bitpos = ((addr & 3) * 8);
-	    uint32_t mask = 0xFFFF << bitpos;
-	    uint8_t val = *buf;
-	    uint32_t newval32 = (val32 & ~mask) | (val << bitpos);
-	    if (debug)
-		fprintf(stderr, "addr %08lx offset %d val32 %08x val %02x newval32 %08x\n",
-			addr, (int)(addr & 3), val32, val, newval32);
-	    val32 = newval32;
-	    addr++;
-	    count--;
-	    buf++;
-	}
-	if (debug)
-	    fprintf(stderr, "write32 %08lx %08x\n", last_addr, val32);
-	fpga->write32(last_addr, val32);
-    }
-
-    return 0;
 }
 

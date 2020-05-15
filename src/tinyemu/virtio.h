@@ -54,12 +54,14 @@ typedef struct {
 
 typedef struct VIRTIODevice VIRTIODevice; 
 
+#if 0
 uint16_t virtio_read16(VIRTIODevice *s, virtio_phys_addr_t addr);
 uint32_t virtio_read32(VIRTIODevice *s, virtio_phys_addr_t addr);
 void virtio_write16(VIRTIODevice *s, virtio_phys_addr_t addr, uint16_t val);
 void virtio_write32(VIRTIODevice *s, virtio_phys_addr_t addr, uint32_t val);
 int virtio_memcpy_from_ram(VIRTIODevice *s, uint8_t *buf, virtio_phys_addr_t addr, int count);
 int virtio_memcpy_to_ram(VIRTIODevice *s, virtio_phys_addr_t addr, const uint8_t *buf, int count);
+#endif
 
 #define VIRTIO_DEBUG_IO (1 << 0)
 #define VIRTIO_DEBUG_9P (1 << 1)

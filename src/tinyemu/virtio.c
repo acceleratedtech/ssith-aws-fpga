@@ -191,13 +191,11 @@ static void virtio_reset(VIRTIODevice *s)
 
 static uint8_t *virtio_pci_get_ram_ptr(VIRTIODevice *s, virtio_phys_addr_t paddr, BOOL is_rw)
 {
-    assert(0);
     return pci_device_get_dma_ptr(s->pci_dev, paddr, is_rw);
 }
 
 static uint8_t *virtio_mmio_get_ram_ptr(VIRTIODevice *s, virtio_phys_addr_t paddr, BOOL is_rw)
 {
-    assert(0);
     return phys_mem_get_ram_ptr(s->mem_map, paddr, is_rw);
 }
 
@@ -314,7 +312,6 @@ static void virtio_init(VIRTIODevice *s, VIRTIOBusDef *bus,
     virtio_reset(s);
 }
 
-#if 0
 static uint16_t virtio_read16(VIRTIODevice *s, virtio_phys_addr_t addr)
 {
     uint8_t *ptr;
@@ -388,7 +385,6 @@ static int virtio_memcpy_to_ram(VIRTIODevice *s, virtio_phys_addr_t addr,
     }
     return 0;
 }
-#endif
 
 static int get_desc(VIRTIODevice *s, VIRTIODesc *desc,
                     int queue_idx, int desc_idx)
