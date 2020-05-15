@@ -1,5 +1,10 @@
 
 #include "fpga.h"
+#include <ctype.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 #define TOHOST_OFFSET 0
 #define FROMHOST_OFFSET 8
@@ -200,14 +205,16 @@ void AWSP2_Response::io_araddr(uint32_t araddr, uint16_t arlen, uint16_t arid)
         }
     } else if (fpga->rom.base <= araddr && araddr < fpga->rom.limit) {
         int offset = (araddr - fpga->rom.base) / 8;
-        //fprintf(stderr, "rom offset %x data %08lx\n", (int)(araddr - rom.base), rom.data[offset]);
+        //fprintf(stderr, "rom offset %x data %08lx\n", (int)(araddr - fpga->rom.base), fpga->rom.data[offset]);
         for (int i = 0; i < arlen / 8; i++) {
             int last = i == ((arlen / 8) - 1);
-            //fprintf(stderr, "io_rdata %08lx\n", rom.data[offset + i]);
+            //fprintf(stderr, "io_rdata %08lx\n", fpga->rom.data[offset + i]);
             fpga->request->io_rdata(fpga->rom.data[offset + i], arid, 0, last);
         }
     } else if (araddr == fpga->fromhost_addr) {
         uint8_t ch = 0;
+        if (arlen != 0)
+          fprintf(stderr, "ERROR: fromhost araddr %08x arlen %d\n", araddr, arlen);
         if (fpga->htif_enabled && fpga->dequeue_stdin(&ch)) {
             uint64_t cmd = (1ul << 56) | (0ul << 48) | ch;
             fpga->request->io_rdata(cmd, arid, 0, 1);
@@ -219,7 +226,6 @@ void AWSP2_Response::io_araddr(uint32_t araddr, uint16_t arlen, uint16_t arid)
             if (debug_stray_io) fprintf(stderr, "io_araddr araddr=%08x arlen=%d\n", araddr, arlen);
         for (int i = 0; i < arlen / 8; i++) {
             int last = i == ((arlen / 8) - 1);
-            // 0xbad0beef
             fpga->request->io_rdata(0, arid, 0, last);
         }
     }
@@ -245,32 +251,35 @@ void AWSP2_Response::io_wdata(uint64_t wdata, uint8_t wstrb) {
         uint64_t payload = wdata & 0x0000FFFFFFFFFFFFul;
         if (dev == 1 && cmd == 1) {
             // putchar
-            console_putchar(payload);
+            fprintf(stdout, "htif{%x}\n", payload); fflush(stdout);
+            //console_putchar(payload);
         } else if (dev == 0 && cmd == 0) {
-	  if (payload == 1) {
+          if (payload == 1) {
             fprintf(stderr, "PASS\n");
-	  } else {
+          } else {
             fprintf(stderr, "FAIL: error %lu\n", (payload >> 1));
-	  }
-	  //fpga->halt();
+          }
+          //fpga->halt();
         } else {
             fprintf(stderr, "\nHTIF: dev=%d cmd=%02x payload=%08lx\n", dev, cmd, payload);
         }
     } else if (awaddr == fpga->fromhost_addr) {
         //fprintf(stderr, "\nHTIF: awaddr %08x wdata=%08lx\n", awaddr, wdata);
     } else {
-        if (debug_stray_io) fprintf(stderr, "io_wdata wdata=%lx wstrb=%x\n", wdata, wstrb);
+        if (debug_stray_io) fprintf(stderr, "    io_wdata wdata=%lx wstrb=%x\n", wdata, wstrb);
     }
     io_write.wdata_count -= 1;
     if (io_write.wdata_count == 0) {
         fpga->request->io_bdone(io_write.wid, 0);
+        //if (debug_stray_io) fprintf(stderr, "    io_bdone awaddr=%08x\n", awaddr);
         fpga->io_write_queue.pop();
     }
 }
 
 
 void AWSP2_Response::uart_tohost(uint8_t ch) {
-  console_putchar(ch);
+    console_putchar(ch);
+    //fprintf(stdout, "uart{%x}\n", ch); fflush(stdout);
 }
 
 void AWSP2_Response::console_putchar(uint64_t wdata) {
@@ -281,13 +290,12 @@ void AWSP2_Response::console_putchar(uint64_t wdata) {
     fputc(wdata, stdout);
     fflush(stdout);
     if (wdata == '\n') {
-        fflush(stdout);
         fpga->start_of_line = 1;
     }
 }
 
-AWSP2::AWSP2(int id, const Rom &rom)
-  : response(0), rom(rom), last_addr(0), start_of_line(1), htif_enabled(0), uart_enabled(0), virtio_devices(FIRST_VIRTIO_IRQ)
+AWSP2::AWSP2(int id, const Rom &rom, uint32_t dram_base_addr)
+  : response(0), dram_base_addr(dram_base_addr), rom(rom), last_addr(0), start_of_line(1), htif_enabled(0), uart_enabled(0), virtio_devices(FIRST_VIRTIO_IRQ), pcis_dma_fd(-1), dram_mapping(0)
 {
     sem_init(&sem, 0, 0);
     response = new AWSP2_Response(id, this);
@@ -424,8 +432,37 @@ void AWSP2::sbcs_wait() {
     } while (sbcs & (SBCS_SBBUSY));
 }
 
+void AWSP2::map_pcis_dma()
+{
+    size_t pcis_buffer_size = 1024 * 1024 * 1024;
+    pcis_dma_fd = open("/dev/portal_dma_pcis", O_RDWR);
+    if (pcis_dma_fd < 0) {
+        fprintf(stderr, "error: opening /dev/portal_dma_pcis %s\n", strerror(errno));
+        return;
+    }
+    dram_mapping = (uint8_t *)mmap(0, pcis_buffer_size, PROT_READ|PROT_WRITE, MAP_SHARED, pcis_dma_fd, 0);
+}
+
+void AWSP2::unmap_pcis_dma()
+{
+    size_t pcis_buffer_size = 1024 * 1024 * 1024;
+    if (dram_mapping)
+        munmap(dram_mapping, pcis_buffer_size);
+    if (pcis_dma_fd >= 0)
+        close(pcis_dma_fd);
+    dram_mapping = 0;
+    pcis_dma_fd = -1;
+}
+
 uint32_t AWSP2::read32(uint32_t addr) {
     std::lock_guard<std::mutex> lock(client_mutex);
+
+    if (dram_mapping) {
+        uint32_t val = 0;
+        int offset = addr - dram_base_addr;
+        memcpy((uint8_t *)&val, dram_mapping + offset, sizeof(val));
+        return val;
+    }
 
     if (1 || last_addr != addr) {
         dmi_write(DM_SBCS_REG, SBCS_SBACCESS32 | SBCS_SBREADONADDR | SBCS_SBREADONDATA | SBCS_SBAUTOINCREMENT | SBCS_SBBUSYERROR);
@@ -442,6 +479,13 @@ uint32_t AWSP2::read32(uint32_t addr) {
 
 uint64_t AWSP2::read64(uint32_t addr) {
     std::lock_guard<std::mutex> lock(client_mutex);
+
+    if (dram_mapping) {
+        uint64_t val = 0;
+        int offset = addr - dram_base_addr;
+        memcpy((uint8_t *)&val, dram_mapping + offset, sizeof(val));
+        return val;
+    }
 
     if (1 || last_addr != addr) {
         dmi_write(DM_SBCS_REG, SBCS_SBACCESS32 | SBCS_SBREADONADDR | SBCS_SBREADONDATA | SBCS_SBAUTOINCREMENT | SBCS_SBBUSYERROR);
@@ -461,6 +505,12 @@ uint64_t AWSP2::read64(uint32_t addr) {
 void AWSP2::write32(uint32_t addr, uint32_t val) {
     std::lock_guard<std::mutex> lock(client_mutex);
 
+    if (dram_mapping) {
+        int offset = addr - dram_base_addr;
+        memcpy(dram_mapping + offset, (uint8_t *)&val, sizeof(val));
+        return;
+    }
+
     if (1 || last_addr != addr) {
         dmi_write(DM_SBCS_REG, SBCS_SBACCESS32);
         dmi_write(DM_SBADDRESS0_REG, addr);
@@ -472,6 +522,12 @@ void AWSP2::write32(uint32_t addr, uint32_t val) {
 
 void AWSP2::write64(uint32_t addr, uint64_t val) {
     std::lock_guard<std::mutex> lock(client_mutex);
+
+    if (dram_mapping) {
+        int offset = addr - dram_base_addr;
+        memcpy(dram_mapping + offset, (uint8_t *)&val, sizeof(val));
+        return;
+    }
 
     if (1 || last_addr != addr) {
         dmi_write(DM_SBCS_REG, SBCS_SBACCESS32 | SBCS_SBAUTOINCREMENT);
@@ -547,11 +603,11 @@ void AWSP2::enqueue_stdin(const char *buf, int num_chars)
 {
     std::lock_guard<std::mutex> lock(stdin_mutex);
     for (int i = 0; i < num_chars; i++) {
-	if (uart_enabled) {
-	    request->uart_fromhost(buf[i]);
-	} else {
-	    stdin_queue.push(buf[i]);
-	}
+        if (uart_enabled) {
+            request->uart_fromhost(buf[i]);
+        } else {
+            stdin_queue.push(buf[i]);
+        }
     }
 }
 

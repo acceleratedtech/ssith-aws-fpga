@@ -24,9 +24,9 @@ void awsp2_set_irq(void *opaque, int irq_num, int level)
 {
     if (debug) fprintf(stderr, "%s: irq_num=%d level=%d\n", __FUNCTION__, irq_num, level);
     if (level)
-        fpga->irq_set_levels(1 << irq_num);
+	fpga->irq_set_levels(1 << irq_num);
     else
-        fpga->irq_clear_levels(1 << irq_num);
+	fpga->irq_clear_levels(1 << irq_num);
 }
 
 static PhysMemoryRange *fpga_register_ram(PhysMemoryMap *s, uint64_t addr,
@@ -61,7 +61,7 @@ VirtioDevices::VirtioDevices(int first_irq_num) {
     virtio_bus->addr = 0x40000000;
 
     for (int i = 0; i < 32; i++)
-	irq_init(&irq[i], awsp2_set_irq, (void *)22, i);
+        irq_init(&irq[i], awsp2_set_irq, (void *)22, i);
 
     // set up a network device
     virtio_bus->irq = &irq[irq_num++];
@@ -69,11 +69,13 @@ VirtioDevices::VirtioDevices(int first_irq_num) {
     virtio_net = virtio_net_init(virtio_bus, ethernet_device);
     fprintf(stderr, "ethernet device %p virtio net device %p at addr %08lx\n", ethernet_device, virtio_net, virtio_bus->addr);
 
-    // set up an entropy device
-    //virtio_bus->addr += 0x1000;
-    //virtio_bus->irq = &irq[irq_num++];
-    //virtio_entropy = virtio_entropy_init(virtio_bus);
-    //fprintf(stderr, "virtio entropy device %p at addr %08lx\n", virtio_entropy, virtio_bus->addr);
+    if (0) {
+        // set up an entropy device
+        virtio_bus->addr += 0x1000;
+        virtio_bus->irq = &irq[irq_num++];
+        virtio_entropy = virtio_entropy_init(virtio_bus);
+        fprintf(stderr, "virtio entropy device %p at addr %08lx\n", virtio_entropy, virtio_bus->addr);
+    }
 }
 
 VirtioDevices::~VirtioDevices() {

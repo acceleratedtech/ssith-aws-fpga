@@ -24,9 +24,13 @@ using namespace std;
 #define DEFAULT_DMA_ENABLED 1
 #endif
 
+// we should read this from the dtb
 #define BOOTROM_BASE  (0x70000000)
 #define BOOTROM_LIMIT (0x70010000)
 #define DEVICETREE_OFFSET (0x20)
+
+// we should read this from the dtb
+#define DRAM_BASE_ADDR   0xC0000000
 
 const struct option long_options[] = {
     { "block", required_argument, 0, 'B' },
@@ -173,7 +177,7 @@ int main(int argc, char * const *argv)
     fprintf(stderr, "dramBuffer=%lx\n", (long)dramBuffer);
 
     Rom rom = { BOOTROM_BASE, BOOTROM_LIMIT, (uint64_t *)romBuffer };
-    fpga = new AWSP2(IfcNames_AWSP2_ResponseH2S, rom);
+    fpga = new AWSP2(IfcNames_AWSP2_ResponseH2S, rom, DRAM_BASE_ADDR);
     fpga->set_dram_buffer(dramBuffer);
     fpga->set_htif_enabled(htif_enabled);
     fpga->set_uart_enabled(uart_enabled);
@@ -224,8 +228,9 @@ int main(int argc, char * const *argv)
     }
     IMemory *memifc = usemem ? static_cast<IMemory *>(&mem) : static_cast<IMemory *>(&fpgamem);
 
+#define USE_PCIS_DMA_Memory
 #ifdef USE_PCIS_DMA_Memory
-    PCIS_DMA_Memory pcis_dma_memory(fpga, 0x80000000, 0xC0000000);
+    PCIS_DMA_Memory pcis_dma_memory(fpga, DRAM_BASE_ADDR);
     if (dma_enabled)
         memifc = static_cast<IMemory *>(&pcis_dma_memory);
 #endif
@@ -235,6 +240,8 @@ int main(int argc, char * const *argv)
 
     if (!entry)
         entry = elf_entry;
+
+    fpga->map_pcis_dma();
 
     // update the dpc
     fprintf(stderr, "setting pc val %08x\n", entry);
@@ -260,12 +267,12 @@ int main(int argc, char * const *argv)
             uint64_t dpc = fpga->read_csr(0x7b1);
             uint64_t ra = fpga->read_gpr(1);
             uint64_t stvec = fpga->read_csr(0x105);
-            fprintf(stderr, "pc %08lx ra %08lx stvec %08lx\n", dpc, ra, stvec);
+            fprintf(stderr, "pc %08lx ra %08lx stvec %08lx irq %08x\n", dpc, ra, stvec, fpga->read_irq_status());
             if (0 && !tv && dpc >= 0x8200210a) {
                 tv = 1;
                 fpga->capture_tv_info(tv);
             }
-            if (dpc == 0x1000 || dpc == 0x80003168 || dpc == 0xffffffe000000154ull) {
+            if (dpc == 0x1000 || dpc == 0x80003168) {
                 for (int i = 0; i < 32; i++) {
                     fprintf(stderr, "reg %d val %08lx\n", i, fpga->read_gpr(i));
                 }

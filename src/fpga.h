@@ -114,6 +114,7 @@ class AWSP2 {
     AWSP2_RequestProxy *request;
     Rom rom;
     VirtioDevices virtio_devices;
+    uint32_t dram_base_addr;
     uint32_t rsp_data;
     uint32_t last_addr;
     int start_of_line;
@@ -125,6 +126,8 @@ class AWSP2 {
     uint64_t fromhost_addr;
     uint64_t htif_enabled;
     uint64_t uart_enabled;
+    int pcis_dma_fd;
+    uint8_t *dram_mapping;
 
     std::mutex client_mutex;
     std::mutex stdin_mutex;
@@ -132,7 +135,7 @@ class AWSP2 {
 
     friend class AWSP2_Response;
 public:
-    AWSP2(int id, const Rom &rom);
+    AWSP2(int id, const Rom &rom, uint32_t dram_base_addr);
     virtual ~AWSP2();
 
     void capture_tv_info(int c, int display = 1);
@@ -140,6 +143,8 @@ public:
 
     uint32_t dmi_status();
 
+    void map_pcis_dma();
+    void unmap_pcis_dma();
     void ddr_read(uint32_t addr, bsvvector_Luint8_t_L64 data);
     void ddr_write(uint32_t addr, const bsvvector_Luint8_t_L64 data, uint64_t wstrb = 0xFFFFFFFFFFFFFFFFul);
     void ddr_write(uint32_t start_addr, const uint32_t *data, size_t num_bytes);
