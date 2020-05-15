@@ -170,8 +170,6 @@ void AWSP2_Response::io_awaddr(uint32_t awaddr, uint16_t awlen, uint16_t awid) {
     if (pr) {
         uint32_t offset = awaddr - pr->addr;
         if (debug_virtio) fprintf(stderr, "virtio awaddr %08x device addr %08lx offset %08x len %d\n", awaddr, pr->addr, offset, awlen);
-    } else if (awaddr == 0x60000000) {
-        // UART
     } else if (awaddr == fpga->tohost_addr) {
         // tohost
     } else if (awaddr == fpga->fromhost_addr) {
@@ -240,8 +238,6 @@ void AWSP2_Response::io_wdata(uint64_t wdata, uint8_t wstrb) {
         }
         if (debug_virtio) fprintf(stderr, "virtio awaddr %08x offset %x wdata %08lx wstrb %x\n", awaddr, offset, wdata, wstrb);
         pr->write_func(pr->opaque, offset, wdata, size_log2);
-    } else if (awaddr == 0x60000000) {
-        console_putchar(wdata);
     } else if (awaddr == fpga->tohost_addr) {
         // tohost
         uint8_t dev = (wdata >> 56) & 0xFF;
