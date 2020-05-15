@@ -459,8 +459,8 @@ void AWSP2::map_pcis_dma()
     dram_mapping = (uint8_t *)mmap(0, pcis_buffer_size, PROT_READ|PROT_WRITE, MAP_SHARED, pcis_dma_fd, 0);
     fprintf(stderr, "PCIS DMA DRAM mapping %08lx size 0x%lx fd %d\n", (long)dram_mapping, (long)pcis_buffer_size, pcis_dma_fd);
     if (dram_mapping == MAP_FAILED) {
-	fprintf(stderr, "mmap PCIS DMA failed %s\n", strerror(errno));
-	return;
+        fprintf(stderr, "mmap PCIS DMA failed %s\n", strerror(errno));
+        return;
     }
     set_dram_buffer(dram_mapping);
 }
