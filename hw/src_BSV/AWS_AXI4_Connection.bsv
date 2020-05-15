@@ -1,9 +1,11 @@
 import AWS_AXI4_Types :: *;
+import AWS_AXI4_Deburster :: *;
 import Connectable :: *;
 
-import AXI4_Types :: *;
-
 `ifdef HAVE_BLUESTUFF_AXI
+import AXI4_Types :: *;
+import AXI4Lite_Types :: *;
+
 instance Connectable #(AXI4_Types::AXI4_Master_Synth  #(m_wd_id, wd_addr, wd_data, wd_user, wd_user, wd_user, wd_user, wd_user),
 		       AWS_AXI4_Types::AXI4_Slave_IFC #(s_wd_id, wd_addr, wd_data, wd_user))
    provisos (Add #(a__, m_wd_id, s_wd_id));
@@ -95,7 +97,88 @@ instance Connectable #(AXI4_Types::AXI4_Master_Synth  #(m_wd_id, wd_addr, wd_dat
       endrule
    endmodule
 endinstance
+
+instance Connectable #(AWS_AXI4_Types::AXI4_Master_IFC #(0, wd_addr, wd_data, wd_user),
+		       AXI4Lite_Types::AXI4Lite_Slave_Synth #(wd_addr, wd_data, wd_user, wd_user, wd_user, wd_user, wd_user))
+   provisos (Add #(a__, 8, wd_addr))l
+
+   module mkConnection #(AWS_AXI4_Types::AXI4_Master_IFC #(0, wd_addr, wd_data, wd_user) axim,
+			 AXI4Lite_Types::AXI4Lite_Slave_Synth #(wd_addr, wd_data, wd_user, wd_user, wd_user, wd_user, wd_user) axis)
+		       (Empty);
+
+      AXI4_Deburster_IFC #(0, wd_addr, wd_data, wd_user) deburster <- mkAXI4_Deburster();
+      mkConnection(axim, deburster.from_master);
+
+      (* fire_when_enabled, no_implicit_conditions *)
+      rule rl_awflit if (deburster.to_slave.m_awvalid);
+	 axis.aw.awflit (deburster.to_slave.m_awaddr,
+			 deburster.to_slave.m_awprot,
+			 deburster.to_slave.m_awuser);
+      endrule
+
+      (* fire_when_enabled, no_implicit_conditions *)
+      rule rl_awready;
+	 deburster.to_slave.m_awready (axis.aw.awready);
+      endrule
+
+      (* fire_when_enabled, no_implicit_conditions *)
+      rule rl_wflit if (deburster.to_slave.m_wvalid);
+	 axis.w.wflit (deburster.to_slave.m_wdata,
+		       deburster.to_slave.m_wstrb,
+		       deburster.to_slave.m_wuser);
+      endrule
+
+      (* fire_when_enabled, no_implicit_conditions *)
+      rule rl_wready;
+	 deburster.to_slave.m_wready (axis.w.wready);
+      endrule
+
+      (* fire_when_enabled, no_implicit_conditions *)
+      rule rl_bflit;
+	 deburster.to_slave.m_bvalid (axis.b.bvalid,
+				      0'b0,
+				      unpack(pack(axis.b.bresp)),
+				      axis.b.buser);
+      endrule
+
+      (* fire_when_enabled, no_implicit_conditions *)
+      rule rl_bready;
+	 axis.b.bready (deburster.to_slave.m_bready);
+      endrule
+
+      (* fire_when_enabled, no_implicit_conditions *)
+      rule rl_arflit if (deburster.to_slave.m_arvalid);
+	 axis.ar.arflit (deburster.to_slave.m_araddr,
+			 deburster.to_slave.m_arprot,
+			 deburster.to_slave.m_aruser);
+      endrule
+
+      (* fire_when_enabled, no_implicit_conditions *)
+      rule rl_arready;
+	 deburster.to_slave.m_arready (axis.ar.arready);
+      endrule
+
+      (* fire_when_enabled, no_implicit_conditions *)
+      rule rl_rflit;
+	 deburster.to_slave.m_rvalid (axis.r.rvalid,
+				      0'b0,
+				      axis.r.rdata,
+				      unpack(pack(axis.r.rresp)),
+				      True,
+				      axis.r.ruser);
+      endrule
+
+      (* fire_when_enabled, no_implicit_conditions *)
+      rule rl_rready;
+	 axis.r.rready (deburster.to_slave.m_rready);
+      endrule
+   endmodule
+
+endinstance
 `else
+import AXI4_Types :: *;
+import AXI4_Lite_Types :: *;
+
 instance Connectable #(AXI4_Types::AXI4_Master_IFC    #(m_wd_id, wd_addr, wd_data, wd_user),
 		       AWS_AXI4_Types::AXI4_Slave_IFC #(s_wd_id, wd_addr, wd_data, wd_user))
    provisos (Add #(a__, m_wd_id, s_wd_id));
@@ -168,5 +251,65 @@ instance Connectable #(AXI4_Types::AXI4_Master_IFC    #(m_wd_id, wd_addr, wd_dat
 	 axis.m_rready (axim.m_rready);
       endrule
    endmodule
+endinstance
+
+instance Connectable #(AWS_AXI4_Types::AXI4_Master_IFC #(0, wd_addr, wd_data, wd_user),
+		       AXI4_Lite_Types::AXI4_Lite_Slave_IFC #(wd_addr, wd_data, wd_user))
+   provisos (Add #(a__, 8, wd_addr));
+
+   module mkConnection #(AWS_AXI4_Types::AXI4_Master_IFC #(0, wd_addr, wd_data, wd_user) axim,
+			 AXI4_Lite_Types::AXI4_Lite_Slave_IFC #(wd_addr, wd_data, wd_user) axis)
+		       (Empty);
+
+      AXI4_Deburster_IFC #(0, wd_addr, wd_data, wd_user) deburster <- mkAXI4_Deburster();
+      mkConnection(axim, deburster.from_master);
+
+      (* fire_when_enabled, no_implicit_conditions *)
+      rule rl_wr_addr_channel;
+	 axis.m_awvalid (deburster.to_slave.m_awvalid,
+			 deburster.to_slave.m_awaddr,
+			 deburster.to_slave.m_awprot,
+			 deburster.to_slave.m_awuser);
+	 deburster.to_slave.m_awready (axis.m_awready);
+      endrule
+
+      (* fire_when_enabled, no_implicit_conditions *)
+      rule rl_wr_data_channel;
+	 axis.m_wvalid (deburster.to_slave.m_wvalid,
+			deburster.to_slave.m_wdata,
+			deburster.to_slave.m_wstrb);
+	 deburster.to_slave.m_wready (axis.m_wready);
+      endrule
+
+      (* fire_when_enabled, no_implicit_conditions *)
+      rule rl_wr_response_channel;
+	 deburster.to_slave.m_bvalid (axis.m_bvalid,
+				      0'b0,
+				      axis.m_bresp,
+				      axis.m_buser);
+	 axis.m_bready (deburster.to_slave.m_bready);
+      endrule
+
+      (* fire_when_enabled, no_implicit_conditions *)
+      rule rl_rd_addr_channel;
+	 axis.m_arvalid (deburster.to_slave.m_arvalid,
+			 deburster.to_slave.m_araddr,
+			 deburster.to_slave.m_arprot,
+			 deburster.to_slave.m_aruser);
+	 deburster.to_slave.m_arready (axis.m_arready);
+      endrule
+
+      (* fire_when_enabled, no_implicit_conditions *)
+      rule rl_rd_data_channel;
+	 deburster.to_slave.m_rvalid (axis.m_rvalid,
+				      0'b0,
+				      axis.m_rdata,
+				      axis.m_rresp,
+				      True,
+				      axis.m_ruser);
+	 axis.m_rready (deburster.to_slave.m_rready);
+      endrule
+   endmodule
+
 endinstance
 `endif
