@@ -39,54 +39,54 @@
 //#define DEBUG_VIRTIO
 
 /* MMIO addresses - from the Linux kernel */
-#define VIRTIO_MMIO_MAGIC_VALUE		0x000
-#define VIRTIO_MMIO_VERSION		0x004
-#define VIRTIO_MMIO_DEVICE_ID		0x008
-#define VIRTIO_MMIO_VENDOR_ID		0x00c
-#define VIRTIO_MMIO_DEVICE_FEATURES	0x010
-#define VIRTIO_MMIO_DEVICE_FEATURES_SEL	0x014
-#define VIRTIO_MMIO_DRIVER_FEATURES	0x020
-#define VIRTIO_MMIO_DRIVER_FEATURES_SEL	0x024
-#define VIRTIO_MMIO_GUEST_PAGE_SIZE	0x028 /* version 1 only */
-#define VIRTIO_MMIO_QUEUE_SEL		0x030
-#define VIRTIO_MMIO_QUEUE_NUM_MAX	0x034
-#define VIRTIO_MMIO_QUEUE_NUM		0x038
-#define VIRTIO_MMIO_QUEUE_ALIGN		0x03c /* version 1 only */
-#define VIRTIO_MMIO_QUEUE_PFN		0x040 /* version 1 only */
-#define VIRTIO_MMIO_QUEUE_READY		0x044
-#define VIRTIO_MMIO_QUEUE_NOTIFY	0x050
-#define VIRTIO_MMIO_INTERRUPT_STATUS	0x060
-#define VIRTIO_MMIO_INTERRUPT_ACK	0x064
-#define VIRTIO_MMIO_STATUS		0x070
-#define VIRTIO_MMIO_QUEUE_DESC_LOW	0x080
-#define VIRTIO_MMIO_QUEUE_DESC_HIGH	0x084
-#define VIRTIO_MMIO_QUEUE_AVAIL_LOW	0x090
-#define VIRTIO_MMIO_QUEUE_AVAIL_HIGH	0x094
-#define VIRTIO_MMIO_QUEUE_USED_LOW	0x0a0
-#define VIRTIO_MMIO_QUEUE_USED_HIGH	0x0a4
-#define VIRTIO_MMIO_CONFIG_GENERATION	0x0fc
-#define VIRTIO_MMIO_CONFIG		0x100
+#define VIRTIO_MMIO_MAGIC_VALUE         0x000
+#define VIRTIO_MMIO_VERSION             0x004
+#define VIRTIO_MMIO_DEVICE_ID           0x008
+#define VIRTIO_MMIO_VENDOR_ID           0x00c
+#define VIRTIO_MMIO_DEVICE_FEATURES     0x010
+#define VIRTIO_MMIO_DEVICE_FEATURES_SEL 0x014
+#define VIRTIO_MMIO_DRIVER_FEATURES     0x020
+#define VIRTIO_MMIO_DRIVER_FEATURES_SEL 0x024
+#define VIRTIO_MMIO_GUEST_PAGE_SIZE     0x028 /* version 1 only */
+#define VIRTIO_MMIO_QUEUE_SEL           0x030
+#define VIRTIO_MMIO_QUEUE_NUM_MAX       0x034
+#define VIRTIO_MMIO_QUEUE_NUM           0x038
+#define VIRTIO_MMIO_QUEUE_ALIGN         0x03c /* version 1 only */
+#define VIRTIO_MMIO_QUEUE_PFN           0x040 /* version 1 only */
+#define VIRTIO_MMIO_QUEUE_READY         0x044
+#define VIRTIO_MMIO_QUEUE_NOTIFY        0x050
+#define VIRTIO_MMIO_INTERRUPT_STATUS    0x060
+#define VIRTIO_MMIO_INTERRUPT_ACK       0x064
+#define VIRTIO_MMIO_STATUS              0x070
+#define VIRTIO_MMIO_QUEUE_DESC_LOW      0x080
+#define VIRTIO_MMIO_QUEUE_DESC_HIGH     0x084
+#define VIRTIO_MMIO_QUEUE_AVAIL_LOW     0x090
+#define VIRTIO_MMIO_QUEUE_AVAIL_HIGH    0x094
+#define VIRTIO_MMIO_QUEUE_USED_LOW      0x0a0
+#define VIRTIO_MMIO_QUEUE_USED_HIGH     0x0a4
+#define VIRTIO_MMIO_CONFIG_GENERATION   0x0fc
+#define VIRTIO_MMIO_CONFIG              0x100
 
 /* PCI registers */
-#define VIRTIO_PCI_DEVICE_FEATURE_SEL	0x000
-#define VIRTIO_PCI_DEVICE_FEATURE	0x004
-#define VIRTIO_PCI_GUEST_FEATURE_SEL	0x008
-#define VIRTIO_PCI_GUEST_FEATURE	0x00c
+#define VIRTIO_PCI_DEVICE_FEATURE_SEL   0x000
+#define VIRTIO_PCI_DEVICE_FEATURE       0x004
+#define VIRTIO_PCI_GUEST_FEATURE_SEL    0x008
+#define VIRTIO_PCI_GUEST_FEATURE        0x00c
 #define VIRTIO_PCI_MSIX_CONFIG          0x010
 #define VIRTIO_PCI_NUM_QUEUES           0x012
 #define VIRTIO_PCI_DEVICE_STATUS        0x014
 #define VIRTIO_PCI_CONFIG_GENERATION    0x015
-#define VIRTIO_PCI_QUEUE_SEL		0x016
-#define VIRTIO_PCI_QUEUE_SIZE	        0x018
+#define VIRTIO_PCI_QUEUE_SEL            0x016
+#define VIRTIO_PCI_QUEUE_SIZE           0x018
 #define VIRTIO_PCI_QUEUE_MSIX_VECTOR    0x01a
 #define VIRTIO_PCI_QUEUE_ENABLE         0x01c
 #define VIRTIO_PCI_QUEUE_NOTIFY_OFF     0x01e
-#define VIRTIO_PCI_QUEUE_DESC_LOW	0x020
-#define VIRTIO_PCI_QUEUE_DESC_HIGH	0x024
-#define VIRTIO_PCI_QUEUE_AVAIL_LOW	0x028
-#define VIRTIO_PCI_QUEUE_AVAIL_HIGH	0x02c
-#define VIRTIO_PCI_QUEUE_USED_LOW	0x030
-#define VIRTIO_PCI_QUEUE_USED_HIGH	0x034
+#define VIRTIO_PCI_QUEUE_DESC_LOW       0x020
+#define VIRTIO_PCI_QUEUE_DESC_HIGH      0x024
+#define VIRTIO_PCI_QUEUE_AVAIL_LOW      0x028
+#define VIRTIO_PCI_QUEUE_AVAIL_HIGH     0x02c
+#define VIRTIO_PCI_QUEUE_USED_LOW       0x030
+#define VIRTIO_PCI_QUEUE_USED_HIGH      0x034
 
 #define VIRTIO_PCI_CFG_OFFSET          0x0000
 #define VIRTIO_PCI_ISR_OFFSET          0x1000
@@ -109,9 +109,9 @@ typedef struct {
     BOOL manual_recv; /* if TRUE, the device_recv() callback is not called */
 } QueueState;
 
-#define VRING_DESC_F_NEXT	1
-#define VRING_DESC_F_WRITE	2
-#define VRING_DESC_F_INDIRECT	4
+#define VRING_DESC_F_NEXT       1
+#define VRING_DESC_F_WRITE      2
+#define VRING_DESC_F_INDIRECT   4
 
 typedef struct {
     uint64_t addr;
@@ -299,8 +299,8 @@ static void virtio_init(VIRTIODevice *s, VIRTIOBusDef *bus,
         /* MMIO case */
         s->mem_map = bus->mem_map;
         s->irq = bus->irq;
-	fprintf(stderr, "virtio_init device_id %d addr %08lx config_space_size %x virtio_page_size %x\n",
-		device_id, bus->addr, config_space_size, VIRTIO_PAGE_SIZE);
+        fprintf(stderr, "virtio_init device_id %d addr %08lx config_space_size %x virtio_page_size %x\n",
+                device_id, bus->addr, config_space_size, VIRTIO_PAGE_SIZE);
         s->mem_range = cpu_register_device(s->mem_map, bus->addr, VIRTIO_PAGE_SIZE,
                                            s, virtio_mmio_read, virtio_mmio_write,
                                            DEVIO_SIZE8 | DEVIO_SIZE16 | DEVIO_SIZE32);
@@ -794,16 +794,8 @@ static void virtio_mmio_write(void *opaque, uint32_t offset,
             s->status = val;
             if (val == 0) {
                 /* reset */
-                if (1) {
-                    pthread_mutex_lock(&pending_actions_lock);
-                    pending_actions = 1;
-                    s->pending_irq_clear = 1;
-                    pthread_cond_signal(&pending_actions_cond);
-                    pthread_mutex_unlock(&pending_actions_lock);
-                } else {
-                    set_irq(s->irq, 0);
-                }
-		virtio_reset(s);
+                set_irq(s->irq, 0);
+                virtio_reset(s);
             }
             break;
         case VIRTIO_MMIO_QUEUE_READY:
@@ -811,29 +803,13 @@ static void virtio_mmio_write(void *opaque, uint32_t offset,
             break;
         case VIRTIO_MMIO_QUEUE_NOTIFY:
             if (val < MAX_QUEUE) {
-                if (1) {
-                    pthread_mutex_lock(&pending_actions_lock);
-                    pending_actions = 1;
-                    s->pending_queue_notify |= (1 << val);
-                    pthread_cond_signal(&pending_actions_cond);
-                    pthread_mutex_unlock(&pending_actions_lock);
-                } else {
-                    queue_notify(s, val);
-                }
+                queue_notify(s, val);
             }
             break;
         case VIRTIO_MMIO_INTERRUPT_ACK:
             s->int_status &= ~val;
-            if (1) {
-                pthread_mutex_lock(&pending_actions_lock);
-                pending_actions = 1;
-                s->pending_irq_clear = 1;
-                pthread_cond_signal(&pending_actions_cond);
-                pthread_mutex_unlock(&pending_actions_lock);
-            } else {
-                if (s->int_status == 0) {
-                    set_irq(s->irq, 0);
-                }
+            if (s->int_status == 0) {
+                set_irq(s->irq, 0);
             }
             break;
         }
@@ -1329,10 +1305,10 @@ static int virtio_console_recv_request(VIRTIODevice *s, int queue_idx,
     if (queue_idx == 1) {
         /* send to console */
         buf = malloc(read_size+1);
-	memset(buf, 0, read_size+1);
+        memset(buf, 0, read_size+1);
         memcpy_from_queue(s, buf, queue_idx, desc_idx, 0, read_size);
         cs->write_data(cs->opaque, buf, read_size);
-	fprintf(stderr, "%s: buf %s\n", __FUNCTION__, buf);
+        fprintf(stderr, "%s: buf %s\n", __FUNCTION__, buf);
         free(buf);
         virtio_consume_desc(s, queue_idx, desc_idx, 0);
     }
@@ -2760,13 +2736,13 @@ int virtio_has_pending_actions(VIRTIODevice *s)
 void virtio_perform_pending_actions(VIRTIODevice *s)
 {
     if (s->pending_irq_clear) {
-	set_irq(s->irq, 0);
-	s->pending_irq_clear = 0;
+        set_irq(s->irq, 0);
+        s->pending_irq_clear = 0;
     }
 
     if (s->pending_queue_notify) {
-	int notify = s->pending_queue_notify;
-	s->pending_queue_notify = 0;
+        int notify = s->pending_queue_notify;
+        s->pending_queue_notify = 0;
         for (int i = 0; i < 32; i++) {
             if (notify & (1 << i)) {
                 queue_notify(s, i);
