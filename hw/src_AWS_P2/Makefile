@@ -67,6 +67,7 @@ CONNECTALFLAGS += -DINCLUDE_GDB_CONTROL
 CONNECTALFLAGS += -DINCLUDE_TANDEM_VERIF
 CONNECTALFLAGS += -DBRVF_TRACE
 CONNECTALFLAGS += -DXILINX_BSCAN  -DXILINX_XCVU9P
+CONNECTALFLAGS += -DINCLUDE_DMEM_SLAVE
 CONNECTALFLAGS += -DVERILATOR_PROJECT_ARGS=--trace
 
 ## this design uses the DMI interface directly
@@ -84,6 +85,7 @@ CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Core/Near_Mem_VM
 CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Core/PLIC
 CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Core/RegFiles
 CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Testbench/Fabrics/AXI4
+CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Testbench/Fabrics/AXI4_Lite
 CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Testbench/SoC
 
 ## for TLM.defines
