@@ -138,9 +138,13 @@ module mkAXI4_Deburster (AXI4_Deburster_IFC #(wd_id, wd_addr, wd_data, wd_user))
                                              AXI4_Len       axlen,
 					     AXI4_Len       beat_count);
 
+      // Both INCR and WRAP bursts use an aligned address for all beats other
+      // than the first
+      Bit #(8) num_bytes = 1 << pack (axsize);
+      Bit #(wd_addr) aligned_addr = start_addr & (~ zeroExtend (num_bytes - 1));
+
       // For incrementing bursts this address is the next address
-      Bit #(wd_addr) addr = start_addr;
-      addr = start_addr + (1 << pack (axsize));
+      Bit #(wd_addr) addr = aligned_addr + zeroExtend (num_bytes);
 
       // The actual length of the burst is one more than indicated by axlen
       Bit #(wd_addr) burst_len = zeroExtend (axlen) + 1;
