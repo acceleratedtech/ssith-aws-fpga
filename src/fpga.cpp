@@ -1,10 +1,12 @@
 
-#include "fpga.h"
 #include <ctype.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+
+#include "fpga.h"
+#include "dmaManager.h"
 
 #define TOHOST_OFFSET 0
 #define FROMHOST_OFFSET 8
@@ -300,6 +302,7 @@ AWSP2::AWSP2(int id, const Rom &rom, uint32_t dram_base_addr)
     sem_init(&sem, 0, 0);
     response = new AWSP2_Response(id, this);
     request = new AWSP2_RequestProxy(IfcNames_AWSP2_RequestS2H);
+    dma = platformInit();
     stop_capture = 0;
     display_tandem = 1;
     set_htif_base_addr(0x10001000);
@@ -432,6 +435,21 @@ void AWSP2::sbcs_wait() {
     } while (sbcs & (SBCS_SBBUSY));
 }
 
+void AWSP2::map_simulated_dram()
+{
+    size_t dram_alloc_sz = 1024*1024*1024;
+    int dramObject = portalAlloc(dram_alloc_sz, 0);
+    uint8_t *dramBuffer = (uint8_t *)portalMmap(dramObject, dram_alloc_sz);
+    memset(dramBuffer, 0x0, dram_alloc_sz);
+    fprintf(stderr, "dramBuffer=%lx\n", (long)dramBuffer);
+    int objId = dma->reference(dramObject);
+    fprintf(stderr, "DRAM objId %d\n", objId);
+    register_region(8, objId);
+
+    dram_mapping = dramBuffer;
+    set_dram_buffer(dram_mapping);
+}
+
 void AWSP2::map_pcis_dma()
 {
     size_t pcis_buffer_size = 1024 * 1024 * 1024;
@@ -441,6 +459,8 @@ void AWSP2::map_pcis_dma()
         return;
     }
     dram_mapping = (uint8_t *)mmap(0, pcis_buffer_size, PROT_READ|PROT_WRITE, MAP_SHARED, pcis_dma_fd, 0);
+    fprintf(stderr, "PCIS DMA DRAM mapping %08lx\n", (long)dram_mapping);
+    set_dram_buffer(dram_mapping);
 }
 
 void AWSP2::unmap_pcis_dma()
@@ -540,6 +560,11 @@ void AWSP2::write64(uint32_t addr, uint64_t val) {
     last_addr = addr + 8;
     sbcs_wait();
     dmi_write(DM_SBCS_REG, 0);
+}
+
+void AWSP2::write(uint32_t addr, uint8_t *data, size_t size) {
+    fprintf(stderr, "AWSP2::write addr %08x dram_mapping %08lx\n", addr, (long)dram_mapping);
+    memcpy(dram_mapping + addr - dram_base_addr, data, size); 
 }
 
 void AWSP2::halt(int timeout) {

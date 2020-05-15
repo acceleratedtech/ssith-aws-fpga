@@ -10,7 +10,6 @@
 #include <vector>
 
 #include "GeneratedTypes.h"
-#include "dmaManager.h"
 #include <portal.h>
 #include "fpga.h"
 #include "loadelf.h"
@@ -162,23 +161,18 @@ int main(int argc, char * const *argv)
         return -1;
     }
 
-    DmaManager *dma = platformInit();
-
-    // allocate a shared memory object for Rom
+    // allocate a memory object for Rom
     size_t rom_alloc_sz = 1024*1024;
-    int romObject = portalAlloc(rom_alloc_sz, 0);
-    uint8_t *romBuffer = (uint8_t *)portalMmap(romObject, rom_alloc_sz);
+    uint8_t *romBuffer = (uint8_t *)malloc(rom_alloc_sz);
     fprintf(stderr, "romBuffer=%lx\n", (long)romBuffer);
-
-    size_t dram_alloc_sz = 1024*1024*1024;
-    int dramObject = portalAlloc(dram_alloc_sz, 0);
-    uint8_t *dramBuffer = (uint8_t *)portalMmap(dramObject, dram_alloc_sz);
-    memset(dramBuffer, 0x0, dram_alloc_sz);
-    fprintf(stderr, "dramBuffer=%lx\n", (long)dramBuffer);
 
     Rom rom = { BOOTROM_BASE, BOOTROM_LIMIT, (uint64_t *)romBuffer };
     fpga = new AWSP2(IfcNames_AWSP2_ResponseH2S, rom, DRAM_BASE_ADDR);
-    fpga->set_dram_buffer(dramBuffer);
+#ifdef SIMULATION
+    fpga->map_simulated_dram();
+#else
+    fpga->map_pcis_dma();
+#endif
     fpga->set_htif_enabled(htif_enabled);
     fpga->set_uart_enabled(uart_enabled);
 
@@ -199,14 +193,8 @@ int main(int argc, char * const *argv)
         fpga->get_virtio_devices().add_virtio_console_device();
     }
 
-    if (dtb_filename)
+    if (dtb_filename) {
         copyFile((char *)romBuffer + DEVICETREE_OFFSET, dtb_filename, rom_alloc_sz - 0x10);
-
-    if (1) {
-        // register the DRAM memory object with the SoC (and program the MMU)
-        int objId = dma->reference(dramObject);
-        fprintf(stderr, "DRAM objId %d\n", objId);
-        fpga->register_region(8, objId);
     }
 
     // Unblock memory accesses in the SoC.
@@ -220,28 +208,11 @@ int main(int argc, char * const *argv)
 
     fprintf(stderr, "dmi state machine status %d\n", fpga->dmi_status());
 
-    // load the app code into DRAM
-    P2Memory mem(dramBuffer);
-    AWSP2_Memory fpgamem(fpga);
-    if (usemem) {
-        fprintf(stderr, "Using shared memory loader\n");
-    }
-    IMemory *memifc = usemem ? static_cast<IMemory *>(&mem) : static_cast<IMemory *>(&fpgamem);
-
-#define USE_PCIS_DMA_Memory
-#ifdef USE_PCIS_DMA_Memory
-    PCIS_DMA_Memory pcis_dma_memory(fpga, DRAM_BASE_ADDR);
-    if (dma_enabled)
-        memifc = static_cast<IMemory *>(&pcis_dma_memory);
-#endif
-
-    uint64_t elf_entry = loadElf(memifc, elf_filename, dram_alloc_sz, fpga);
+    uint64_t elf_entry = loadElf(fpga, elf_filename, 0x40000000);
     fprintf(stderr, "elf_entry=%08lx\n", elf_entry);
 
     if (!entry)
         entry = elf_entry;
-
-    fpga->map_pcis_dma();
 
     // update the dpc
     fprintf(stderr, "setting pc val %08x\n", entry);

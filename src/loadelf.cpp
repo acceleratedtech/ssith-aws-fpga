@@ -8,159 +8,13 @@
 #include <sys/stat.h>
 #include <gelf.h>
 
+#include "fpga.h"
 #include "loadelf.h"
 #include "util.h"
 
 int debug_pcis_write = 0;
 
-void IMemory::read(uint32_t start_addr, uint32_t *data, size_t num_bytes)
-{
-    for (size_t i = 0; i < num_bytes; i += 4) {
-        data[i / 4] = read32(start_addr + i);
-    }
-}
-
-void IMemory::write(uint32_t start_addr, const uint32_t *data, size_t num_bytes)
-{
-    fprintf(stderr, "IMemory::write addr %x num_bytes %ld\n", start_addr, num_bytes);
-    for (size_t i = 0; i < num_bytes; i += 4) {
-        if (((i + 1) % 1024) == 0)
-            fprintf(stderr, ".");
-        write32(start_addr + i, data[i / 4]);
-    }
-    fprintf(stderr, "\n");
-}
-
-P2Memory::P2Memory(uint8_t *buffer)
-    : buffer(buffer) {
-}
-
-uint32_t P2Memory::read32(uint32_t addr)
-{
-    addr &= ~0xC0000000;
-    uint32_t *intbuffer = (uint32_t *)buffer;
-    return intbuffer[addr / 4];
-}
-
-void P2Memory::write32(uint32_t addr, uint32_t data)
-{
-    addr &= ~0xC0000000;
-    uint32_t *intbuffer = (uint32_t *)buffer;
-    intbuffer[addr / 4] = data;
-}
-
-uint64_t P2Memory::read64(uint32_t addr)
-{
-    addr &= ~0xC0000000;
-    uint64_t *longbuffer = (uint64_t *)buffer;
-    return longbuffer[addr / 8];
-}
-
-void P2Memory::write64(uint32_t addr, uint64_t data)
-{
-    addr &= ~0xC0000000;
-    uint64_t *longbuffer = (uint64_t *)buffer;
-    longbuffer[addr / 8] = data;
-}
-
-AWSP2_Memory::AWSP2_Memory(AWSP2 *fpga) : fpga(fpga) {
-}
-uint32_t AWSP2_Memory::read32(uint32_t addr)
-{
-    return fpga->read32(addr);
-}
-
-uint64_t AWSP2_Memory::read64(uint32_t addr)
-{
-    return fpga->read64(addr);
-}
-
-void AWSP2_Memory::write32(uint32_t addr, uint32_t data)
-{
-    fprintf(stderr, "write32 %08x %08x\n", addr, data);
-    fpga->write32(addr, data);
-}
-
-void AWSP2_Memory::write64(uint32_t addr, uint64_t data)
-{
-    fprintf(stderr, "write64 %08x %016lx\n", addr, data);
-    fpga->write64(addr, data);
-}
-
-void AWSP2_Memory::write(uint32_t start_addr, const uint32_t *data, size_t num_bytes)
-{
-  fprintf(stderr, "IMemory::write addr %x num_bytes %ld ... ", start_addr, num_bytes);
-  fpga->ddr_write(start_addr, data, num_bytes);
-  fprintf(stderr, "\n");
-}
-
-
-PCIS_DMA_Memory::PCIS_DMA_Memory(AWSP2 *fpga, uint32_t cached_base_addr)
-    : fpga(fpga), cached_base_addr(cached_base_addr), pcis_dma_mapped(0)
-{
-    pcis_fd = 0;
-    pcis_buffer = 0;
-}
-
-PCIS_DMA_Memory::~PCIS_DMA_Memory()
-{
-    if (pcis_buffer) {
-        munmap(pcis_buffer, pcis_buffer_size);
-        pcis_buffer = 0;
-    }
-    if (pcis_fd) {
-        close(pcis_fd);
-        pcis_fd = 0;
-    }
-}
-
-uint32_t PCIS_DMA_Memory::read32(uint32_t addr)
-{
-    return fpga->read32(addr);
-}
-
-uint64_t PCIS_DMA_Memory::read64(uint32_t addr)
-{
-    return fpga->read64(addr);
-}
-
-void PCIS_DMA_Memory::write32(uint32_t addr, uint32_t data)
-{
-    fprintf(stderr, "write32 %08x %08x\n", addr, data);
-    fpga->write32(addr, data);
-}
-
-void PCIS_DMA_Memory::write64(uint32_t addr, uint64_t data)
-{
-    fprintf(stderr, "write64 %08x %016lx\n", addr, data);
-    fpga->write64(addr, data);
-}
-
-void PCIS_DMA_Memory::write(uint32_t start_addr, const uint32_t *data32, size_t num_bytes)
-{
-    if (!pcis_dma_mapped)
-        map_pcis_dma();
-
-    if (debug_pcis_write) fprintf(stderr, "PCIS_DMA_Memory::write %08x num_bytes %ld\n", start_addr, num_bytes);
-    memcpy(pcis_buffer + (start_addr - cached_base_addr), data32, num_bytes);
-}
-
-void PCIS_DMA_Memory::map_pcis_dma()
-{
-    fprintf(stderr, "mapping PCIS DMA memory ... ");
-    pcis_fd = open("/dev/portal_dma_pcis", O_RDWR);
-    if (pcis_fd < 0) {
-        fprintf(stderr, "error: opening /dev/portal_dma_pcis %s\n", strerror(errno));
-        return;
-    }
-    pcis_buffer_size = 1024 * 1024 * 1024;
-    pcis_buffer = (uint8_t *)mmap(0, pcis_buffer_size, PROT_READ|PROT_WRITE, MAP_SHARED, pcis_fd, 0);
-    fprintf(stderr, "pcis_buffer = %08lx buffer size %08lx\n", (long)pcis_buffer, (long)pcis_buffer_size);
-
-    pcis_dma_mapped = 1;
-}
-
-uint64_t loadElf(IMemory *mem, const char *elf_filename, size_t max_mem_size, AWSP2 *fpga)
+uint64_t loadElf(AWSP2 *fpga, const char *elf_filename, size_t max_mem_size)
 {
     // Verify the elf library version
     if (elf_version(EV_CURRENT) == EV_NONE) {
@@ -276,7 +130,7 @@ uint64_t loadElf(IMemory *mem, const char *elf_filename, size_t max_mem_size, AW
                 }
 
                 if (shdr.sh_type != SHT_NOBITS) {
-                    mem->write(section_base_addr, (uint32_t *)data->d_buf, data->d_size);
+                    fpga->write(section_base_addr, (uint8_t *)data->d_buf, data->d_size);
                 }
             }
 
