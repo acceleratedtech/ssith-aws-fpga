@@ -252,9 +252,7 @@ void AWSP2_Response::io_wdata(uint64_t wdata, uint8_t wstrb) {
         uint8_t cmd = (wdata >> 48) & 0xFF;
         uint64_t payload = wdata & 0x0000FFFFFFFFFFFFul;
         if (dev == 1 && cmd == 1) {
-            // putchar
-            fprintf(stdout, "htif{%x}\n", payload); fflush(stdout);
-            //console_putchar(payload);
+            console_putchar(payload);
         } else if (dev == 0 && cmd == 0) {
           if (payload == 1) {
             fprintf(stderr, "PASS\n");
@@ -564,7 +562,8 @@ void AWSP2::write64(uint32_t addr, uint64_t val) {
 
 void AWSP2::write(uint32_t addr, uint8_t *data, size_t size) {
     fprintf(stderr, "AWSP2::write addr %08x dram_mapping %08lx\n", addr, (long)dram_mapping);
-    memcpy(dram_mapping + addr - dram_base_addr, data, size); 
+    uint8_t *ram_ptr = virtio_devices.phys_mem_get_ram_ptr(addr, 1);
+    memcpy(ram_ptr, data, size);
 }
 
 void AWSP2::halt(int timeout) {
