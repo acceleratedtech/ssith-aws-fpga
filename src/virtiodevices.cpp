@@ -67,13 +67,11 @@ VirtioDevices::VirtioDevices(int first_irq_num) {
     virtio_net = virtio_net_init(virtio_bus, ethernet_device);
     fprintf(stderr, "ethernet device %p virtio net device %p at addr %08lx\n", ethernet_device, virtio_net, virtio_bus->addr);
 
-    if (0) {
-        // set up an entropy device
-        virtio_bus->addr += 0x1000;
-        virtio_bus->irq = &irq[irq_num++];
-        virtio_entropy = virtio_entropy_init(virtio_bus);
-        fprintf(stderr, "virtio entropy device %p at addr %08lx\n", virtio_entropy, virtio_bus->addr);
-    }
+    // set up an entropy device
+    virtio_bus->addr += 0x1000;
+    virtio_bus->irq = &irq[irq_num++];
+    virtio_entropy = virtio_entropy_init(virtio_bus);
+    fprintf(stderr, "virtio entropy device %p at addr %08lx\n", virtio_entropy, virtio_bus->addr);
 }
 
 VirtioDevices::~VirtioDevices() {
