@@ -28,9 +28,9 @@
 #include <assert.h>
 #include <stdarg.h>
 #include <pthread.h>
+#include <stdatomic.h>
 
 #include <sys/random.h>
-#include <sys/time.h>
 
 #include "cutils.h"
 #include "list.h"
@@ -155,13 +155,8 @@ struct VIRTIODevice {
     uint32_t config_space_size; /* in bytes, must be multiple of 4 */
     uint8_t config_space[MAX_CONFIG_SPACE_SIZE];
 
-    uint32_t pending_queue_notify;
-    uint8_t  pending_irq_clear;
+    _Atomic uint32_t pending_queue_notify;
 };
-
-static pthread_mutex_t pending_actions_lock = PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t pending_actions_cond = PTHREAD_COND_INITIALIZER;
-static uint8_t pending_actions;
 
 static uint32_t virtio_mmio_read(void *opaque, uint32_t offset1, int size_log2);
 static void virtio_mmio_write(void *opaque, uint32_t offset,
@@ -169,6 +164,8 @@ static void virtio_mmio_write(void *opaque, uint32_t offset,
 static uint32_t virtio_pci_read(void *opaque, uint32_t offset, int size_log2);
 static void virtio_pci_write(void *opaque, uint32_t offset,
                              uint32_t val, int size_log2);
+
+static void async_queue_notify(VIRTIODevice *s, int queue_idx);
 
 static void virtio_reset(VIRTIODevice *s)
 {
@@ -315,13 +312,15 @@ static void virtio_init(VIRTIODevice *s, VIRTIOBusDef *bus,
 static uint16_t virtio_read16(VIRTIODevice *s, virtio_phys_addr_t addr)
 {
     uint8_t *ptr;
+    uint16_t val;
     if (addr & 1)
         return 0; /* unaligned access are not supported */
 
     ptr = s->get_ram_ptr(s, addr, FALSE);
     if (!ptr)
         return 0;
-    return *(uint16_t *)ptr;
+    val = *(uint16_t *)ptr;
+    return val;
 }
 
 static void virtio_write16(VIRTIODevice *s, virtio_phys_addr_t addr,
@@ -480,16 +479,18 @@ static void virtio_consume_desc(VIRTIODevice *s,
                                 int queue_idx, int desc_idx, int desc_len)
 {
     QueueState *qs = &s->queue[queue_idx];
-    virtio_phys_addr_t addr;
-    uint32_t index;
+    virtio_phys_addr_t used_idx_addr, used_elem_addr;
+    uint32_t used_idx;
 
-    addr = qs->used_addr + 2;
-    index = virtio_read16(s, addr);
-    virtio_write16(s, addr, index + 1);
+    used_idx_addr = qs->used_addr + 2;
+    used_idx = virtio_read16(s, used_idx_addr);
 
-    addr = qs->used_addr + 4 + (index & (qs->num - 1)) * 8;
-    virtio_write32(s, addr, desc_idx);
-    virtio_write32(s, addr + 4, desc_len);
+    used_elem_addr = qs->used_addr + 4 + (used_idx & (qs->num - 1)) * 8;
+    virtio_write32(s, used_elem_addr, desc_idx);
+    virtio_write32(s, used_elem_addr + 4, desc_len);
+
+    atomic_thread_fence(memory_order_release);
+    virtio_write16(s, used_idx_addr, used_idx + 1);
 
     s->int_status |= 1;
     set_irq(s->irq, 1);
@@ -543,6 +544,7 @@ static void queue_notify(VIRTIODevice *s, int queue_idx)
         return;
 
     avail_idx = virtio_read16(s, qs->avail_addr + 2);
+    atomic_thread_fence(memory_order_acquire);
     while (qs->last_avail_idx != avail_idx) {
         desc_idx = virtio_read16(s, qs->avail_addr + 4 +
                                  (qs->last_avail_idx & (qs->num - 1)) * 2);
@@ -799,7 +801,7 @@ static void virtio_mmio_write(void *opaque, uint32_t offset,
             break;
         case VIRTIO_MMIO_QUEUE_NOTIFY:
             if (val < MAX_QUEUE) {
-                queue_notify(s, val);
+                async_queue_notify(s, val);
             }
             break;
         case VIRTIO_MMIO_INTERRUPT_ACK:
@@ -980,7 +982,7 @@ static void virtio_pci_write(void *opaque, uint32_t offset1,
         break;
     case VIRTIO_PCI_NOTIFY_OFFSET >> 12:
         if (val < MAX_QUEUE)
-            queue_notify(s, val);
+            async_queue_notify(s, val);
         break;
     }
 }
@@ -2725,43 +2727,97 @@ VIRTIODevice *virtio_9p_init(VIRTIOBusDef *bus, FSDevice *fs,
     return (VIRTIODevice *)s;
 }
 
-int virtio_has_pending_actions(VIRTIODevice *s)
-{
-    return s->pending_queue_notify | s->pending_irq_clear;
-}
-void virtio_perform_pending_actions(VIRTIODevice *s)
-{
-    if (s->pending_irq_clear) {
-        set_irq(s->irq, 0);
-        s->pending_irq_clear = 0;
-    }
+static pthread_mutex_t pending_notify_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t pending_notify_cond = PTHREAD_COND_INITIALIZER;
+static uint8_t pending_notify, pending_notify_stop;
+static pthread_t pending_notify_thread;
 
-    if (s->pending_queue_notify) {
-        int notify = s->pending_queue_notify;
-        s->pending_queue_notify = 0;
-        for (int i = 0; i < 32; i++) {
-            if (notify & (1 << i)) {
-                queue_notify(s, i);
-                notify &= ~(1 << i);
-            }
-            if (!notify)
-                break;
+static void async_queue_notify(VIRTIODevice *s, int queue_idx)
+{
+    atomic_fetch_or_explicit(&s->pending_queue_notify, 1 << queue_idx, memory_order_release);
+    pthread_mutex_lock(&pending_notify_lock);
+    pending_notify = 1;
+    pthread_cond_signal(&pending_notify_cond);
+    pthread_mutex_unlock(&pending_notify_lock);
+}
+
+struct PendingNotifyWorkerData {
+    int n;
+    VIRTIODevice **ps;
+};
+
+/*
+ * XXX: Workaround for aggressive PCIS timeouts (8us, ie "only" 1000 cycles at
+ * 125 MHz), leading to writes not always committing and reads giving back
+ * bogus 0xF's that wreak havoc and cause us to perform actions that panic a
+ * FreeBSD guest.
+ *
+ * My assumption is that when FreeBSD is polling the status register those I/O
+ * transactions have a high RTT, and the lack of a true multi-port L1 means we
+ * get stuck waiting for those and that quickly kills our own transactions.
+ * Halting the core will ensure we have uncontended use of the L1 when we come
+ * to use it, and is a bigger hammer than we'd like (and drops the cache
+ * contents), but we should be out of the way quickly.
+ */
+void fpga_halt(void) __attribute__((weak));
+void fpga_resume(void) __attribute__((weak));
+
+static void *pending_notify_worker(void *opaque)
+{
+    struct PendingNotifyWorkerData *data = opaque;
+    int n = data->n;
+    VIRTIODevice **ps = data->ps;
+    for (;;) {
+        pthread_mutex_lock(&pending_notify_lock);
+        while (!pending_notify)
+            pthread_cond_wait(&pending_notify_cond, &pending_notify_lock);
+        if (pending_notify_stop) {
+            pending_notify_stop = 0;
+            pthread_mutex_unlock(&pending_notify_lock);
+            free(ps);
+            free(data);
+            return NULL;
         }
+        /* clear now; caller expected to perform them */
+        pending_notify = 0;
+        pthread_mutex_unlock(&pending_notify_lock);
+        if (&fpga_halt) fpga_halt();
+        for (int i = 0; i < n; i++) {
+            VIRTIODevice *s = ps[i];
+            /*
+             * We must clear the bits before we process them otherwise we would
+             * notify the queue, concurrently receive another notify for a new
+             * request we didn't look at, and then immediately clobber that bit
+             * being set.
+             */
+            uint32_t notify = atomic_exchange_explicit(&s->pending_queue_notify, 0, memory_order_acquire);
+            for (int j = 0; j < 32 && notify; j++) {
+                if (notify & (1u << j)) {
+                    queue_notify(s, j);
+                    notify &= ~(1u << j);
+                }
+            }
+        }
+        if (&fpga_resume) fpga_resume();
     }
 }
-void virtio_wait_for_pending_actions(int timeout)
-{
-    struct timeval tv;
-    struct timespec ts;
-    gettimeofday(&tv, NULL);
-    ts.tv_sec = tv.tv_sec + timeout;
-    ts.tv_nsec = tv.tv_usec * 1000;
 
-    pthread_mutex_lock(&pending_actions_lock);
-    /* we allow spurious wakeups for simplicity */
-    if (!pending_actions)
-        pthread_cond_timedwait(&pending_actions_cond, &pending_actions_lock, &ts);
-    /* clear now; caller expected to perform them */
-    pending_actions = 0;
-    pthread_mutex_unlock(&pending_actions_lock);
+void virtio_start_pending_notify_thread(int n, VIRTIODevice **ps)
+{
+    struct PendingNotifyWorkerData *data = malloc(sizeof(*data));
+    struct VIRTIODevice **ps_copy = malloc(n * sizeof(*ps_copy));
+    memcpy(ps_copy, ps, n * sizeof(*ps_copy));
+    data->n = n;
+    data->ps = ps_copy;
+    pthread_create(&pending_notify_thread, NULL, &pending_notify_worker, data);
+}
+
+void virtio_stop_pending_notify_thread(void)
+{
+    pthread_mutex_lock(&pending_notify_lock);
+    pending_notify = 1;
+    pending_notify_stop = 1;
+    pthread_cond_signal(&pending_notify_cond);
+    pthread_mutex_unlock(&pending_notify_lock);
+    pthread_join(pending_notify_thread, NULL);
 }

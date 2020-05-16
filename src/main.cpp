@@ -65,6 +65,8 @@ void usage(const char *name)
 }
 
 AWSP2 *fpga;
+extern "C" void fpga_halt(void) { fpga->halt(); }
+extern "C" void fpga_resume(void) { fpga->resume(); }
 
 int main(int argc, char * const *argv)
 {
@@ -225,6 +227,7 @@ int main(int argc, char * const *argv)
 
     fpga->capture_tv_info(tv);
     // and resume
+    fpga->get_virtio_devices().start();
     fpga->resume();
 
     while (1) {
@@ -257,7 +260,7 @@ int main(int argc, char * const *argv)
             fpga->resume();
         }
 
-        fpga->wait_for_io(sleep_seconds);
+        sleep(sleep_seconds);
     }
     return 0;
 }

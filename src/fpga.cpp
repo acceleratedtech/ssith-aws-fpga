@@ -182,7 +182,7 @@ void AWSP2_Response::io_awaddr(uint32_t awaddr, uint16_t awlen, uint16_t awid) {
     } else if (awaddr == fpga->fromhost_addr) {
         // fromhost
     } else {
-        fprintf(stderr, "io_awaddr awaddr=%08x awlen=%d\n", awaddr, awlen);
+        if (debug_stray_io) fprintf(stderr, "io_awaddr awaddr=%08x awlen=%d\n", awaddr, awlen);
         //fprintf(stderr, "htif_base_addr=%08x\n", fpga->htif_base_addr);
     }
 }
@@ -435,7 +435,7 @@ void AWSP2::sbcs_wait() {
 
 void AWSP2::map_simulated_dram()
 {
-    size_t dram_alloc_sz = 1024*1024*1024;
+    size_t dram_alloc_sz = 2 * 1024 * 1024 * 1024ul;
     int dramObject = portalAlloc(dram_alloc_sz, 0);
     uint8_t *dramBuffer = (uint8_t *)portalMmap(dramObject, dram_alloc_sz);
     memset(dramBuffer, 0x0, dram_alloc_sz);
@@ -445,124 +445,40 @@ void AWSP2::map_simulated_dram()
     register_region(8, objId);
 
     dram_mapping = dramBuffer;
+    dram_mapping_size = dram_alloc_sz;
     set_dram_buffer(dram_mapping);
 }
 
 void AWSP2::map_pcis_dma()
 {
-    size_t pcis_buffer_size = 1024 * 1024 * 1024;
+    size_t pcis_buffer_size = 2 * 1024 * 1024 * 1024ul;
+    off_t pcis_buffer_offset = 2 * 1024 * 1024 * 1024ul;
     pcis_dma_fd = open("/dev/portal_dma_pcis", O_RDWR);
     if (pcis_dma_fd < 0) {
         fprintf(stderr, "error: opening /dev/portal_dma_pcis %s\n", strerror(errno));
         return;
     }
-    dram_mapping = (uint8_t *)mmap(0, pcis_buffer_size, PROT_READ|PROT_WRITE, MAP_SHARED, pcis_dma_fd, 0);
+    // The portal_dma_pcis device driver does not respect the mmap offset, so
+    // we map starting from 0 and manuall offset the pointer when passing to
+    // set_dram_buffer.
+    dram_mapping = (uint8_t *)mmap(0, pcis_buffer_offset + pcis_buffer_size, PROT_READ|PROT_WRITE, MAP_SHARED, pcis_dma_fd, 0);
+    dram_mapping_size = pcis_buffer_size;
     fprintf(stderr, "PCIS DMA DRAM mapping %08lx\n", (long)dram_mapping);
-    set_dram_buffer(dram_mapping);
+    set_dram_buffer(dram_mapping + pcis_buffer_offset);
 }
 
 void AWSP2::unmap_pcis_dma()
 {
-    size_t pcis_buffer_size = 1024 * 1024 * 1024;
     if (dram_mapping)
-        munmap(dram_mapping, pcis_buffer_size);
+        munmap(dram_mapping, dram_mapping_size);
     if (pcis_dma_fd >= 0)
         close(pcis_dma_fd);
     dram_mapping = 0;
     pcis_dma_fd = -1;
 }
 
-uint32_t AWSP2::read32(uint32_t addr) {
-    std::lock_guard<std::mutex> lock(client_mutex);
-
-    if (dram_mapping) {
-        uint32_t val = 0;
-        int offset = addr - dram_base_addr;
-        memcpy((uint8_t *)&val, dram_mapping + offset, sizeof(val));
-        return val;
-    }
-
-    if (1 || last_addr != addr) {
-        dmi_write(DM_SBCS_REG, SBCS_SBACCESS32 | SBCS_SBREADONADDR | SBCS_SBREADONDATA | SBCS_SBAUTOINCREMENT | SBCS_SBBUSYERROR);
-        sbcs_wait();
-        dmi_write(DM_SBADDRESS0_REG, addr);
-    }
-    sbcs_wait();
-    dmi_write(DM_SBCS_REG, 0);
-    sbcs_wait();
-    uint64_t lo = dmi_read(DM_SBDATA0_REG);
-    last_addr = addr + 4;
-    return lo;
-}
-
-uint64_t AWSP2::read64(uint32_t addr) {
-    std::lock_guard<std::mutex> lock(client_mutex);
-
-    if (dram_mapping) {
-        uint64_t val = 0;
-        int offset = addr - dram_base_addr;
-        memcpy((uint8_t *)&val, dram_mapping + offset, sizeof(val));
-        return val;
-    }
-
-    if (1 || last_addr != addr) {
-        dmi_write(DM_SBCS_REG, SBCS_SBACCESS32 | SBCS_SBREADONADDR | SBCS_SBREADONDATA | SBCS_SBAUTOINCREMENT | SBCS_SBBUSYERROR);
-        sbcs_wait();
-        dmi_write(DM_SBADDRESS0_REG, addr);
-    }
-    sbcs_wait();
-    uint64_t lo = dmi_read(DM_SBDATA0_REG);
-    sbcs_wait();
-    dmi_write(DM_SBCS_REG, 0);
-    sbcs_wait();
-    uint64_t hi = dmi_read(DM_SBDATA0_REG);
-    last_addr = addr + 8;
-    return (hi << 32) | lo;
-}
-
-void AWSP2::write32(uint32_t addr, uint32_t val) {
-    std::lock_guard<std::mutex> lock(client_mutex);
-
-    if (dram_mapping) {
-        int offset = addr - dram_base_addr;
-        memcpy(dram_mapping + offset, (uint8_t *)&val, sizeof(val));
-        return;
-    }
-
-    if (1 || last_addr != addr) {
-        dmi_write(DM_SBCS_REG, SBCS_SBACCESS32);
-        dmi_write(DM_SBADDRESS0_REG, addr);
-    }
-    sbcs_wait();
-    dmi_write(DM_SBDATA0_REG, (val >>  0) & 0xFFFFFFFF);
-    last_addr = addr + 4;
-}
-
-void AWSP2::write64(uint32_t addr, uint64_t val) {
-    std::lock_guard<std::mutex> lock(client_mutex);
-
-    if (dram_mapping) {
-        int offset = addr - dram_base_addr;
-        memcpy(dram_mapping + offset, (uint8_t *)&val, sizeof(val));
-        return;
-    }
-
-    if (1 || last_addr != addr) {
-        dmi_write(DM_SBCS_REG, SBCS_SBACCESS32 | SBCS_SBAUTOINCREMENT);
-        dmi_write(DM_SBADDRESS0_REG, addr);
-    }
-    sbcs_wait();
-    dmi_write(DM_SBDATA0_REG, (val >>  0) & 0xFFFFFFFF);
-    sbcs_wait();
-    dmi_write(DM_SBDATA0_REG, (val >>  32) & 0xFFFFFFFF);
-    last_addr = addr + 8;
-    sbcs_wait();
-    dmi_write(DM_SBCS_REG, 0);
-}
-
 void AWSP2::write(uint32_t addr, uint8_t *data, size_t size) {
-    fprintf(stderr, "AWSP2::write addr %08x dram_mapping %08lx\n", addr, (long)dram_mapping);
-    uint8_t *ram_ptr = virtio_devices.phys_mem_get_ram_ptr(addr, 1);
+    uint8_t *ram_ptr = virtio_devices.phys_mem_get_ram_ptr(addr, TRUE);
     memcpy(ram_ptr, data, size);
 }
 
@@ -676,18 +592,6 @@ void AWSP2::process_io()
         }
     }
     virtio_devices.process_io();
-    if (virtio_devices.has_pending_actions()) {
-        halt();
-
-        virtio_devices.perform_pending_actions();
-
-        resume();
-    }
-}
-
-void AWSP2::wait_for_io(int timeout)
-{
-    virtio_devices.wait_for_pending_actions(timeout);
 }
 
 void AWSP2::set_htif_base_addr(uint64_t baseaddr)
