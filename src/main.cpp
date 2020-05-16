@@ -239,6 +239,7 @@ int main(int argc, char * const *argv)
 
     fpga->capture_tv_info(tv);
     // and resume
+    fpga->get_virtio_devices().start();
     fpga->resume();
 
     while (1) {
@@ -271,7 +272,7 @@ int main(int argc, char * const *argv)
             fpga->resume();
         }
 
-        fpga->wait_for_io(sleep_seconds);
+        sleep(sleep_seconds);
     }
     return 0;
 }

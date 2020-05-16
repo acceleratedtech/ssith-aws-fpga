@@ -131,6 +131,7 @@ class AWSP2 {
     uint64_t uart_enabled;
     int pcis_dma_fd;
     uint8_t *dram_mapping;
+    size_t dram_mapping_size;
 
     std::mutex client_mutex;
     std::mutex stdin_mutex;
@@ -159,10 +160,6 @@ public:
     void write_csr(int i, uint64_t val);
     uint64_t read_gpr(int i);
     void write_gpr(int i, uint64_t val);
-    uint32_t read32(uint32_t addr);
-    uint64_t read64(uint32_t addr);
-    void write32(uint32_t addr, uint32_t val);
-    void write64(uint32_t addr, uint64_t val);
 
     void write(uint32_t addr, uint8_t *data, size_t num_bytes);
 
@@ -181,7 +178,6 @@ public:
 
     VirtioDevices &get_virtio_devices() { return virtio_devices; }
     void process_io();
-    void wait_for_io(int timeout);
 
     void set_htif_base_addr(uint64_t baseaddr);
     void set_tohost_addr(uint64_t addr);

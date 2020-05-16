@@ -15,10 +15,10 @@ class VirtioDevices {
   EthernetDevice *ethernet_device;
   PhysMemoryMap *mem_map;
   VIRTIOBusDef *virtio_bus;
-  VIRTIODevice *virtio_console;
-  VIRTIODevice *virtio_block;
-  VIRTIODevice *virtio_net;
-  VIRTIODevice *virtio_entropy;
+  VIRTIODevice *virtio_console = 0;
+  VIRTIODevice *virtio_block = 0;
+  VIRTIODevice *virtio_net = 0;
+  VIRTIODevice *virtio_entropy = 0;
   IRQSignal *irq;
   int irq_num;
   const char *tun_ifname;
@@ -30,10 +30,8 @@ class VirtioDevices {
   uint8_t *phys_mem_get_ram_ptr(uint64_t paddr, BOOL is_rw);
   void set_dram_buffer(uint8_t *buf);
   void process_io();
-  int has_pending_actions();
-  int perform_pending_actions();
-  void wait_for_pending_actions(int timeout);
   void add_virtio_block_device(std::string filename);
   void add_virtio_console_device();
+  void start();
 };
 

@@ -16,7 +16,6 @@ extern "C" {
 
 static int debug = 0;
 
-static uint8_t *dramBuffer = 0;
 extern AWSP2 *fpga;
 
 
@@ -46,9 +45,8 @@ static PhysMemoryRange *fpga_register_ram(PhysMemoryMap *s, uint64_t addr,
 
 
 void VirtioDevices::set_dram_buffer(uint8_t *buf) {
-    dramBuffer = buf;
     fpga_register_ram(mem_map, 0x80000000, 0x40000000, 0, buf);
-    fpga_register_ram(mem_map, 0xC0000000, 0x40000000, 0, buf);
+    fpga_register_ram(mem_map, 0xC0000000, 0x40000000, 0, buf + 0x40000000);
 }
 
 
@@ -160,35 +158,15 @@ void VirtioDevices::process_io()
 
 }
 
-int VirtioDevices::has_pending_actions()
+void VirtioDevices::start()
 {
-    return (virtio_net != 0 && virtio_has_pending_actions(virtio_net))
-	|| (virtio_entropy != 0 && virtio_has_pending_actions(virtio_entropy))
-	|| (virtio_console != 0 && virtio_has_pending_actions(virtio_console))
-	|| (virtio_block != 0 && virtio_has_pending_actions(virtio_block));
+    VIRTIODevice *ps[4];
+    int n = 0;
+#define ADD_DEVICE(s) if (s) ps[n++] = s
+    ADD_DEVICE(virtio_net);
+    ADD_DEVICE(virtio_entropy);
+    ADD_DEVICE(virtio_block);
+    ADD_DEVICE(virtio_console);
+#undef ADD_DEVICE
+    virtio_start_pending_notify_thread(n, ps);
 }
-
-int VirtioDevices::perform_pending_actions()
-{
-    if (virtio_net != 0) {
-	if (virtio_has_pending_actions(virtio_net)) {
-	    if (debug) fprintf(stderr, "performing pending net actions\n");
-	    virtio_perform_pending_actions(virtio_net);
-	}
-    }
-    if (virtio_entropy != 0) {
-	virtio_perform_pending_actions(virtio_entropy);
-    }
-    if (virtio_console != 0) {
-	virtio_perform_pending_actions(virtio_console);
-    }
-    if (virtio_block != 0) {
-	virtio_perform_pending_actions(virtio_block);
-    }
-}
-
-void VirtioDevices::wait_for_pending_actions(int timeout)
-{
-    virtio_wait_for_pending_actions(timeout);
-}
-
