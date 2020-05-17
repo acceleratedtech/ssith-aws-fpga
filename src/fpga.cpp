@@ -451,20 +451,20 @@ void AWSP2::map_simulated_dram()
 
 void AWSP2::map_pcis_dma()
 {
-    size_t pcis_buffer_size = 2 * 1024 * 1024 * 1024ul;
-    off_t pcis_buffer_offset = 2 * 1024 * 1024 * 1024ul;
+    size_t dram_size = 2 * 1024 * 1024 * 1024ul;
+    off_t dram_offset = 2 * 1024 * 1024 * 1024ul;
     pcis_dma_fd = open("/dev/portal_dma_pcis", O_RDWR);
     if (pcis_dma_fd < 0) {
         fprintf(stderr, "error: opening /dev/portal_dma_pcis %s\n", strerror(errno));
         return;
     }
     // The portal_dma_pcis device driver does not respect the mmap offset, so
-    // we map starting from 0 and manuall offset the pointer when passing to
+    // we map starting from 0 and manually offset the pointer when passing to
     // set_dram_buffer.
-    dram_mapping = (uint8_t *)mmap(0, pcis_buffer_offset + pcis_buffer_size, PROT_READ|PROT_WRITE, MAP_SHARED, pcis_dma_fd, 0);
-    dram_mapping_size = pcis_buffer_size;
+    dram_mapping = (uint8_t *)mmap(0, dram_offset + dram_size, PROT_READ|PROT_WRITE, MAP_SHARED, pcis_dma_fd, 0);
+    dram_mapping_size = dram_offset + dram_size;
     fprintf(stderr, "PCIS DMA DRAM mapping %08lx\n", (long)dram_mapping);
-    set_dram_buffer(dram_mapping + pcis_buffer_offset);
+    set_dram_buffer(dram_mapping + dram_offset);
 }
 
 void AWSP2::unmap_pcis_dma()
