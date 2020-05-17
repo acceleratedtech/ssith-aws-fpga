@@ -456,7 +456,7 @@ void AWSP2::map_pcis_dma()
     pcis_dma_fd = open("/dev/portal_dma_pcis", O_RDWR);
     if (pcis_dma_fd < 0) {
         fprintf(stderr, "error: opening /dev/portal_dma_pcis %s\n", strerror(errno));
-        return;
+        abort();
     }
     // The portal_dma_pcis device driver does not respect the mmap offset, so
     // we map starting from 0 and manually offset the pointer when passing to
@@ -467,7 +467,7 @@ void AWSP2::map_pcis_dma()
     if (dram_mapping == MAP_FAILED) {
         fprintf(stderr, "mmap PCIS DMA failed %s\n", strerror(errno));
         dram_mapping = NULL;
-        return;
+        abort();
     }
     set_dram_buffer(dram_mapping + dram_offset);
 }
