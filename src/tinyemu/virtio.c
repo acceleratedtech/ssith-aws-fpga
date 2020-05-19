@@ -21,6 +21,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+#include <errno.h>
+#include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -28,9 +30,12 @@
 #include <assert.h>
 #include <stdarg.h>
 #include <pthread.h>
+#include <unistd.h>
 
 #include <sys/random.h>
+#include <sys/stat.h>
 #include <sys/time.h>
+#include <sys/types.h>
 
 #include "cutils.h"
 #include "list.h"
@@ -228,10 +233,34 @@ static void virtio_pci_bar_set(void *opaque, int bar_num,
     phys_mem_set_addr(s->mem_range, addr, enabled);
 }
 
+static int xdma_c2h_fd = 0;
+static int xdma_h2c_fd = 0;
+
+int virtio_use_xdma = 1;
+static int virtio_xdma_initialized;
+
+static void virtio_xdma_init()
+{
+    if (!virtio_xdma_initialized) {
+	if (virtio_use_xdma) {
+	    xdma_c2h_fd = open("/dev/xdma0_c2h_0", O_RDWR);
+	    if (xdma_c2h_fd < 0) {
+		fprintf(stderr, "ERROR: Failed to open /dev/xdma0_c2h_0: %s\n", strerror(errno));
+	    }
+	    xdma_h2c_fd = open("/dev/xdma0_h2c_0", O_RDWR);
+	    if (xdma_h2c_fd < 0) {
+		fprintf(stderr, "ERROR: Failed to open /dev/xdma0_h2c_0: %s\n", strerror(errno));
+	    }
+	}
+	virtio_xdma_initialized = 1;
+    }
+}
+
 static void virtio_init(VIRTIODevice *s, VIRTIOBusDef *bus,
                         uint32_t device_id, int config_space_size,
                         VIRTIODeviceRecvFunc *device_recv)
 {
+    virtio_xdma_init();
     memset(s, 0, sizeof(*s));
 
     if (bus->pci_bus) {
@@ -312,33 +341,47 @@ static void virtio_init(VIRTIODevice *s, VIRTIOBusDef *bus,
     virtio_reset(s);
 }
 
+static int virtio_memcpy_from_ram(VIRTIODevice *s, uint8_t *buf, virtio_phys_addr_t addr, int count);
+static int virtio_memcpy_to_ram(VIRTIODevice *s, virtio_phys_addr_t addr, const uint8_t *buf, int count);
+
 static uint16_t virtio_read16(VIRTIODevice *s, virtio_phys_addr_t addr)
 {
-    uint8_t *ptr;
-    if (addr & 1)
-        return 0; /* unaligned access are not supported */
+    if (!virtio_use_xdma) {
+        uint8_t *ptr;
+        if (addr & 1)
+            return 0; /* unaligned access are not supported */
 
-    ptr = s->get_ram_ptr(s, addr, FALSE);
-    if (!ptr)
-        return 0;
-    return *(uint16_t *)ptr;
+        ptr = s->get_ram_ptr(s, addr, FALSE);
+        if (!ptr)
+            return 0;
+        return *(uint16_t *)ptr;
+    } else {
+        uint16_t val;
+        virtio_memcpy_from_ram(s, (uint8_t *)&val, addr, sizeof(val));
+        return val;
+    }
 }
 
 static void virtio_write16(VIRTIODevice *s, virtio_phys_addr_t addr,
                            uint16_t val)
 {
-    uint8_t *ptr;
-    if (addr & 1)
-        return; /* unaligned access are not supported */
-    ptr = s->get_ram_ptr(s, addr, TRUE);
-    if (!ptr)
-        return;
-    *(uint16_t *)ptr = val;
+    if (!virtio_use_xdma) {
+        uint8_t *ptr;
+        if (addr & 1)
+            return; /* unaligned access are not supported */
+        ptr = s->get_ram_ptr(s, addr, TRUE);
+        if (!ptr)
+            return;
+        *(uint16_t *)ptr = val;
+    } else {
+        virtio_memcpy_to_ram(s, addr, (uint8_t *)&val, sizeof(val));
+    }
 }
 
 static void virtio_write32(VIRTIODevice *s, virtio_phys_addr_t addr,
                            uint32_t val)
 {
+    if (!virtio_use_xdma) {
     uint8_t *ptr;
     if (addr & 3)
         return; /* unaligned access are not supported */
@@ -346,44 +389,62 @@ static void virtio_write32(VIRTIODevice *s, virtio_phys_addr_t addr,
     if (!ptr)
         return;
     *(uint32_t *)ptr = val;
+    } else {
+        virtio_memcpy_to_ram(s, addr, (uint8_t *)&val, sizeof(val));
+    }
 }
 
 static int virtio_memcpy_from_ram(VIRTIODevice *s, uint8_t *buf,
                                   virtio_phys_addr_t addr, int count)
 {
-    uint8_t *ptr;
-    int l;
+    if (!virtio_use_xdma) {
+        uint8_t *ptr;
+        int l;
 
-    while (count > 0) {
-        l = min_int(count, VIRTIO_PAGE_SIZE - (addr & (VIRTIO_PAGE_SIZE - 1)));
-        ptr = s->get_ram_ptr(s, addr, FALSE);
-        if (!ptr)
-            return -1;
-        memcpy(buf, ptr, l);
-        addr += l;
-        buf += l;
-        count -= l;
+        while (count > 0) {
+            l = min_int(count, VIRTIO_PAGE_SIZE - (addr & (VIRTIO_PAGE_SIZE - 1)));
+            ptr = s->get_ram_ptr(s, addr, FALSE);
+            if (!ptr)
+                return -1;
+            memcpy(buf, ptr, l);
+            addr += l;
+            buf += l;
+            count -= l;
+        }
+        return 0;
+    } else {
+        PhysMemoryRange *pr = get_phys_mem_range(s->mem_map, addr);
+        off_t offset = addr - pr->addr;
+	//fprintf(stderr, "pread %d offset %08lx len %d\n", xdma_c2h_fd, offset, count);
+        return pread(xdma_c2h_fd, buf, count, offset);
     }
-    return 0;
+
 }
 
 static int virtio_memcpy_to_ram(VIRTIODevice *s, virtio_phys_addr_t addr,
                                 const uint8_t *buf, int count)
 {
-    uint8_t *ptr;
-    int l;
+    if (!virtio_use_xdma) {
+	uint8_t *ptr;
+	int l;
 
-    while (count > 0) {
-        l = min_int(count, VIRTIO_PAGE_SIZE - (addr & (VIRTIO_PAGE_SIZE - 1)));
-        ptr = s->get_ram_ptr(s, addr, TRUE);
-        if (!ptr)
-            return -1;
-        memcpy(ptr, buf, l);
-        addr += l;
-        buf += l;
-        count -= l;
+	while (count > 0) {
+	    l = min_int(count, VIRTIO_PAGE_SIZE - (addr & (VIRTIO_PAGE_SIZE - 1)));
+	    ptr = s->get_ram_ptr(s, addr, TRUE);
+	    if (!ptr)
+		return -1;
+	    memcpy(ptr, buf, l);
+	    addr += l;
+	    buf += l;
+	    count -= l;
+	}
+	return 0;
+    } else {
+        PhysMemoryRange *pr = get_phys_mem_range(s->mem_map, addr);
+        off_t offset = addr - pr->addr;
+	//fprintf(stderr, "pwrite %d offset %08lx len %d\n", xdma_c2h_fd, offset, count);
+        return pwrite(xdma_h2c_fd, buf, count, offset);
     }
-    return 0;
 }
 
 static int get_desc(VIRTIODevice *s, VIRTIODesc *desc,
