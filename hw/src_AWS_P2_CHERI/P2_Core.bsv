@@ -44,6 +44,10 @@ import Bus           :: *;
 import GetPut_Aux :: *;
 import Semi_FIFOF :: *;
 
+`ifdef INCLUDE_DMEM_SLAVE
+import AXI4Lite_Types :: *;
+`endif
+
 // ================================================================
 // Project imports
 
@@ -92,6 +96,13 @@ interface P2_Core_IFC;
    // External interrupt sources
    (* always_ready, always_enabled, prefix="" *)
    method  Action interrupt_reqs ((* port="cpu_external_interrupt_req" *) Bit #(N_External_Interrupt_Sources)  reqs);
+
+`ifdef INCLUDE_DMEM_SLAVE
+   // ----------------------------------------------------------------
+   // Optional AXI4-Lite D-cache slave interface
+
+   interface AXI4Lite_Slave_Synth #(Wd_Addr, Wd_Data, 0, 0, 0, 0, 0) slave0;
+`endif
 
 `ifdef INCLUDE_TANDEM_VERIF
    // ----------------------------------------------------------------
@@ -258,6 +269,13 @@ module mkP2_Core (P2_Core_IFC);
 	 core.core_external_interrupt_sources [j].m_interrupt_req (req_j);
       end
    endmethod
+
+`ifdef INCLUDE_DMEM_SLAVE
+   // ----------------------------------------------------------------
+   // Optional AXI4-Lite D-cache slave interface
+
+   interface AXI4Lite_Slave_Synth slave0 = core.cpu_dmem_slave;
+`endif
 
 `ifdef INCLUDE_TANDEM_VERIF
    // ----------------------------------------------------------------
