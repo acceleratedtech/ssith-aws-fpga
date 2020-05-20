@@ -47,6 +47,7 @@ const struct option long_options[] = {
     { "uart-console",  optional_argument, 0, 'U' },
     { "usemem",  no_argument,       0, 'M' },
     { "virtio-console", optional_argument, 0, 'C' },
+    { "xdma",     optional_argument, 0, 'X' },
     { 0,         0,                 0, 0 }
 };
 
@@ -149,6 +150,14 @@ int main(int argc, char * const *argv)
                 uart_enabled = 1;
             }
 	    fprintf(stderr, "UART %d\n", dma_enabled);
+            break;
+        case 'X':
+            if (optarg) {
+                virtio_use_xdma = strtoul(optarg, 0, 0);
+            } else {
+                virtio_use_xdma = 1;
+            }
+	    fprintf(stderr, "XDMA %d\n", virtio_use_xdma);
             break;
         }
     }

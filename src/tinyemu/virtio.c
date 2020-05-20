@@ -236,23 +236,23 @@ static void virtio_pci_bar_set(void *opaque, int bar_num,
 static int xdma_c2h_fd = 0;
 static int xdma_h2c_fd = 0;
 
-int virtio_use_xdma = 1;
+int virtio_use_xdma = 0;
 static int virtio_xdma_initialized;
 
 static void virtio_xdma_init()
 {
     if (!virtio_xdma_initialized) {
-	if (virtio_use_xdma) {
-	    xdma_c2h_fd = open("/dev/xdma0_c2h_0", O_RDWR);
-	    if (xdma_c2h_fd < 0) {
-		fprintf(stderr, "ERROR: Failed to open /dev/xdma0_c2h_0: %s\n", strerror(errno));
-	    }
-	    xdma_h2c_fd = open("/dev/xdma0_h2c_0", O_RDWR);
-	    if (xdma_h2c_fd < 0) {
-		fprintf(stderr, "ERROR: Failed to open /dev/xdma0_h2c_0: %s\n", strerror(errno));
-	    }
-	}
-	virtio_xdma_initialized = 1;
+        if (virtio_use_xdma) {
+            xdma_c2h_fd = open("/dev/xdma0_c2h_0", O_RDWR);
+            if (xdma_c2h_fd < 0) {
+                fprintf(stderr, "ERROR: Failed to open /dev/xdma0_c2h_0: %s\n", strerror(errno));
+            }
+            xdma_h2c_fd = open("/dev/xdma0_h2c_0", O_RDWR);
+            if (xdma_h2c_fd < 0) {
+                fprintf(stderr, "ERROR: Failed to open /dev/xdma0_h2c_0: %s\n", strerror(errno));
+            }
+        }
+        virtio_xdma_initialized = 1;
     }
 }
 
@@ -415,7 +415,7 @@ static int virtio_memcpy_from_ram(VIRTIODevice *s, uint8_t *buf,
     } else {
         PhysMemoryRange *pr = get_phys_mem_range(s->mem_map, addr);
         off_t offset = addr - pr->addr;
-	//fprintf(stderr, "pread %d offset %08lx len %d\n", xdma_c2h_fd, offset, count);
+        //fprintf(stderr, "pread %d offset %08lx len %d\n", xdma_c2h_fd, offset, count);
         return pread(xdma_c2h_fd, buf, count, offset);
     }
 
@@ -425,24 +425,24 @@ static int virtio_memcpy_to_ram(VIRTIODevice *s, virtio_phys_addr_t addr,
                                 const uint8_t *buf, int count)
 {
     if (!virtio_use_xdma) {
-	uint8_t *ptr;
-	int l;
+        uint8_t *ptr;
+        int l;
 
-	while (count > 0) {
-	    l = min_int(count, VIRTIO_PAGE_SIZE - (addr & (VIRTIO_PAGE_SIZE - 1)));
-	    ptr = s->get_ram_ptr(s, addr, TRUE);
-	    if (!ptr)
-		return -1;
-	    memcpy(ptr, buf, l);
-	    addr += l;
-	    buf += l;
-	    count -= l;
-	}
-	return 0;
+        while (count > 0) {
+            l = min_int(count, VIRTIO_PAGE_SIZE - (addr & (VIRTIO_PAGE_SIZE - 1)));
+            ptr = s->get_ram_ptr(s, addr, TRUE);
+            if (!ptr)
+                return -1;
+            memcpy(ptr, buf, l);
+            addr += l;
+            buf += l;
+            count -= l;
+        }
+        return 0;
     } else {
         PhysMemoryRange *pr = get_phys_mem_range(s->mem_map, addr);
         off_t offset = addr - pr->addr;
-	//fprintf(stderr, "pwrite %d offset %08lx len %d\n", xdma_c2h_fd, offset, count);
+        //fprintf(stderr, "pwrite %d offset %08lx len %d\n", xdma_c2h_fd, offset, count);
         return pwrite(xdma_h2c_fd, buf, count, offset);
     }
 }
@@ -1473,6 +1473,7 @@ static int virtio_entropy_recv_request(VIRTIODevice *s, int queue_idx,
                 block_size = write_size - offset;
             }
             ret = getrandom(&s1->buf, block_size, 0);
+	    fprintf(stderr, "entry getrandom write_size %d block_size %d ret %d\n", write_size, block_size, ret);
             /* reads up to 256 bytes should always succeed */
             if (ret > 0) {
                 memcpy_to_queue(s, queue_idx, desc_idx, offset, &s1->buf, ret);

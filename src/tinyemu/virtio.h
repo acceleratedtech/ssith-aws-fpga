@@ -150,5 +150,6 @@ VIRTIODevice *virtio_input_init(VIRTIOBusDef *bus, VirtioInputTypeEnum type);
 
 VIRTIODevice *virtio_9p_init(VIRTIOBusDef *bus, FSDevice *fs,
                              const char *mount_tag);
+extern int virtio_use_xdma;
 
 #endif /* VIRTIO_H */
