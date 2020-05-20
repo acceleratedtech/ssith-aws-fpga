@@ -52,7 +52,8 @@ void VirtioDevices::set_dram_buffer(uint8_t *buf) {
 }
 
 
-VirtioDevices::VirtioDevices(int first_irq_num) {
+VirtioDevices::VirtioDevices(int first_irq_num, const char *tun_ifname)
+  : tun_ifname(tun_ifname) {
     mem_map = phys_mem_map_init();
     irq = (IRQSignal *)mallocz(32 * sizeof(IRQSignal));
     irq_num = first_irq_num;
@@ -65,7 +66,7 @@ VirtioDevices::VirtioDevices(int first_irq_num) {
 
     // set up a network device
     virtio_bus->irq = &irq[irq_num++];
-    ethernet_device = slirp_open();
+    ethernet_device = tun_ifname ? tun_open(tun_ifname) : slirp_open();
     virtio_net = virtio_net_init(virtio_bus, ethernet_device);
     fprintf(stderr, "ethernet device %p virtio net device %p at addr %08lx\n", ethernet_device, virtio_net, virtio_bus->addr);
 

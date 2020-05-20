@@ -432,7 +432,7 @@ static void tun_select_poll(EthernetDevice *net,
    ifconfig eth0 192.168.3.2
    route add -net 0.0.0.0 netmask 0.0.0.0 gw 192.168.3.1
 */
-static EthernetDevice *tun_open(const char *ifname)
+EthernetDevice *tun_open(const char *ifname)
 {
     struct ifreq ifr;
     int fd, ret;

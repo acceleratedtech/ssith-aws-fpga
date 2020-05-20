@@ -21,9 +21,10 @@ class VirtioDevices {
   VIRTIODevice *virtio_entropy;
   IRQSignal *irq;
   int irq_num;
+  const char *tun_ifname;
 
  public:
-  VirtioDevices(int first_irq_num = 0);
+  VirtioDevices(int first_irq_num = 0, const char *tun_ifname = 0);
   ~VirtioDevices();
   PhysMemoryRange *get_phys_mem_range(uint64_t paddr);
   uint8_t *phys_mem_get_ram_ptr(uint64_t paddr, BOOL is_rw);

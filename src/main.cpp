@@ -43,6 +43,7 @@ const struct option long_options[] = {
     { "htif-console",  optional_argument, 0, 'H' },
     { "sleep-seconds", required_argument, 0, 's' },
     { "tv",      no_argument,       0, 'T' },
+    { "tun",      required_argument,       0, 't' },
     { "uart",          optional_argument, 0, 'U' },
     { "uart-console",  optional_argument, 0, 'U' },
     { "usemem",  no_argument,       0, 'M' },
@@ -76,6 +77,7 @@ int main(int argc, char * const *argv)
     uint32_t entry = 0;
     int sleep_seconds = 1;
     int usemem = 0;
+    const char *tun_iface = 0;
     int tv = 0;
     int enable_virtio_console = 0;
     uint64_t htif_enabled = 0;
@@ -140,6 +142,9 @@ int main(int argc, char * const *argv)
         case 'T':
             tv = 1;
             break;
+        case 't':
+            tun_iface = optarg;
+            break;
         case 'v':
             cpuverbosity = strtoul(optarg, 0, 0);
             break;
@@ -176,7 +181,7 @@ int main(int argc, char * const *argv)
     fprintf(stderr, "romBuffer=%lx\n", (long)romBuffer);
 
     Rom rom = { BOOTROM_BASE, BOOTROM_LIMIT, (uint64_t *)romBuffer };
-    fpga = new AWSP2(IfcNames_AWSP2_ResponseH2S, rom, DRAM_BASE_ADDR);
+    fpga = new AWSP2(IfcNames_AWSP2_ResponseH2S, rom, DRAM_BASE_ADDR, tun_iface);
 #ifdef SIMULATION
     fpga->map_simulated_dram();
 #else

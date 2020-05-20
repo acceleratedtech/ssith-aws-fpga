@@ -34,3 +34,4 @@ typedef enum {
 BlockDevice *block_device_init(const char *filename, BlockDeviceModeEnum mode);
 
 EthernetDevice *slirp_open(void);
+EthernetDevice *tun_open(const char *tun_iface);
