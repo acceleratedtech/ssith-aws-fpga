@@ -295,7 +295,9 @@ void AWSP2_Response::console_putchar(uint64_t wdata) {
 }
 
 AWSP2::AWSP2(int id, const Rom &rom, uint32_t dram_base_addr, const char *tun_iface)
-  : response(0), dram_base_addr(dram_base_addr), rom(rom), last_addr(0), start_of_line(1), htif_enabled(0), uart_enabled(0), virtio_devices(FIRST_VIRTIO_IRQ, tun_iface), pcis_dma_fd(-1), dram_mapping(0)
+    : response(0), dram_base_addr(dram_base_addr), rom(rom), last_addr(0), start_of_line(1),
+      htif_enabled(0), uart_enabled(0), virtio_devices(FIRST_VIRTIO_IRQ, tun_iface),
+      pcis_dma_fd(-1), dram_mapping(0), xdma_c2h_fd(-1), xdma_h2c_fd(-1)
 {
     sem_init(&sem, 0, 0);
     response = new AWSP2_Response(id, this);
@@ -507,7 +509,12 @@ void AWSP2::close_xdma()
 
 void AWSP2::write(uint32_t addr, uint8_t *data, size_t size) {
     if (xdma_h2c_fd >= 0) {
-        pwrite(xdma_h2c_fd, data, size, addr);
+        int bytes_written = pwrite(xdma_h2c_fd, data, size, addr);
+        if (bytes_written < 0) {
+            fprintf(stderr, "pwrite %d addr %08x size %ld failed: %s\n",
+                    xdma_h2c_fd, addr, size, strerror(errno));
+            abort();
+        }
     } else {
         uint8_t *ram_ptr = virtio_devices.phys_mem_get_ram_ptr(addr, TRUE);
         memcpy(ram_ptr, data, size);
