@@ -487,10 +487,12 @@ void AWSP2::open_xdma()
     xdma_c2h_fd = open("/dev/xdma0_c2h_0", O_RDONLY);
     if (xdma_c2h_fd < 0) {
         fprintf(stderr, "ERROR: Failed to open /dev/xdma0_c2h_0: %s\n", strerror(errno));
+        abort();
     }
     xdma_h2c_fd = open("/dev/xdma0_h2c_0", O_WRONLY);
     if (xdma_h2c_fd < 0) {
         fprintf(stderr, "ERROR: Failed to open /dev/xdma0_h2c_0: %s\n", strerror(errno));
+        abort();
     }
     virtio_devices.xdma_init(xdma_c2h_fd, xdma_h2c_fd);
 }
