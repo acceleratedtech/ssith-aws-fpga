@@ -482,9 +482,34 @@ void AWSP2::unmap_pcis_dma()
     pcis_dma_fd = -1;
 }
 
+void AWSP2::open_xdma()
+{
+    xdma_c2h_fd = open("/dev/xdma0_c2h_0", O_RDONLY);
+    if (xdma_c2h_fd < 0) {
+        fprintf(stderr, "ERROR: Failed to open /dev/xdma0_c2h_0: %s\n", strerror(errno));
+    }
+    xdma_h2c_fd = open("/dev/xdma0_h2c_0", O_WRONLY);
+    if (xdma_h2c_fd < 0) {
+        fprintf(stderr, "ERROR: Failed to open /dev/xdma0_h2c_0: %s\n", strerror(errno));
+    }
+    virtio_devices.xdma_init(xdma_c2h_fd, xdma_h2c_fd);
+}
+
+void AWSP2::close_xdma()
+{
+    if (xdma_c2h_fd >= 0)
+        close(xdma_c2h_fd);
+    if (xdma_h2c_fd >= 0)
+        close(xdma_h2c_fd);
+}
+
 void AWSP2::write(uint32_t addr, uint8_t *data, size_t size) {
-    uint8_t *ram_ptr = virtio_devices.phys_mem_get_ram_ptr(addr, TRUE);
-    memcpy(ram_ptr, data, size);
+    if (xdma_h2c_fd >= 0) {
+        pwrite(xdma_h2c_fd, data, size, addr);
+    } else {
+        uint8_t *ram_ptr = virtio_devices.phys_mem_get_ram_ptr(addr, TRUE);
+        memcpy(ram_ptr, data, size);
+    }
 }
 
 void AWSP2::halt(int timeout) {

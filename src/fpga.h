@@ -132,6 +132,8 @@ class AWSP2 {
     int pcis_dma_fd;
     uint8_t *dram_mapping;
     size_t dram_mapping_size;
+    int xdma_c2h_fd;
+    int xdma_h2c_fd;
 
     std::mutex client_mutex;
     std::mutex stdin_mutex;
@@ -150,6 +152,8 @@ public:
     void map_simulated_dram();
     void map_pcis_dma();
     void unmap_pcis_dma();
+    void open_xdma();
+    void close_xdma();
     void ddr_read(uint32_t addr, bsvvector_Luint8_t_L64 data);
     void ddr_write(uint32_t addr, const bsvvector_Luint8_t_L64 data, uint64_t wstrb = 0xFFFFFFFFFFFFFFFFul);
     void ddr_write(uint32_t start_addr, const uint32_t *data, size_t num_bytes);

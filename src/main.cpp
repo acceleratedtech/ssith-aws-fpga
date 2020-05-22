@@ -17,10 +17,11 @@
 
 using namespace std;
 
-#ifdef SIMULATION
 #define DEFAULT_DMA_ENABLED 0
+#ifdef SIMULATION
+#define DEFAULT_XDMA_ENABLED 0
 #else
-#define DEFAULT_DMA_ENABLED 1
+#define DEFAULT_XDMA_ENABLED 1
 #endif
 
 // we should read this from the dtb
@@ -83,11 +84,12 @@ int main(int argc, char * const *argv)
     uint64_t htif_enabled = 0;
     uint64_t uart_enabled = 0;
     int dma_enabled = DEFAULT_DMA_ENABLED;
+    int xdma_enabled = DEFAULT_XDMA_ENABLED;
     std::vector<string> block_files;
 
     while (1) {
         int option_index = optind ? optind : 1;
-        char c = getopt_long(argc, argv, "b:B:Cd:D:e:hH:Mp:s:TvU:",
+        char c = getopt_long(argc, argv, "b:B:Cd:D:e:hH:Mp:s:TvU:X:",
                              long_options, &option_index);
         if (c == -1)
             break;
@@ -158,11 +160,11 @@ int main(int argc, char * const *argv)
             break;
         case 'X':
             if (optarg) {
-                virtio_use_xdma = strtoul(optarg, 0, 0);
+                xdma_enabled = strtoul(optarg, 0, 0);
             } else {
-                virtio_use_xdma = 1;
+                xdma_enabled = 1;
             }
-	    fprintf(stderr, "XDMA %d\n", virtio_use_xdma);
+	    fprintf(stderr, "XDMA %d\n", xdma_enabled);
             break;
         }
     }
@@ -185,7 +187,10 @@ int main(int argc, char * const *argv)
 #ifdef SIMULATION
     fpga->map_simulated_dram();
 #else
-    fpga->map_pcis_dma();
+    if (dma_enabled)
+        fpga->map_pcis_dma();
+    if (xdma_enabled)
+        fpga->open_xdma();
 #endif
     fpga->set_htif_enabled(htif_enabled);
     fpga->set_uart_enabled(uart_enabled);

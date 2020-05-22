@@ -231,34 +231,19 @@ static void virtio_pci_bar_set(void *opaque, int bar_num,
     phys_mem_set_addr(s->mem_range, addr, enabled);
 }
 
-static int xdma_c2h_fd = 0;
-static int xdma_h2c_fd = 0;
+static int xdma_c2h_fd = -1;
+static int xdma_h2c_fd = -1;
 
-int virtio_use_xdma = 0;
-static int virtio_xdma_initialized;
-
-static void virtio_xdma_init()
+void virtio_xdma_init(int c2h_fd, int h2c_fd)
 {
-    if (!virtio_xdma_initialized) {
-        if (virtio_use_xdma) {
-            xdma_c2h_fd = open("/dev/xdma0_c2h_0", O_RDWR);
-            if (xdma_c2h_fd < 0) {
-                fprintf(stderr, "ERROR: Failed to open /dev/xdma0_c2h_0: %s\n", strerror(errno));
-            }
-            xdma_h2c_fd = open("/dev/xdma0_h2c_0", O_RDWR);
-            if (xdma_h2c_fd < 0) {
-                fprintf(stderr, "ERROR: Failed to open /dev/xdma0_h2c_0: %s\n", strerror(errno));
-            }
-        }
-        virtio_xdma_initialized = 1;
-    }
+    xdma_c2h_fd = c2h_fd;
+    xdma_h2c_fd = h2c_fd;
 }
 
 static void virtio_init(VIRTIODevice *s, VIRTIOBusDef *bus,
                         uint32_t device_id, int config_space_size,
                         VIRTIODeviceRecvFunc *device_recv)
 {
-    virtio_xdma_init();
     memset(s, 0, sizeof(*s));
 
     if (bus->pci_bus) {
@@ -344,7 +329,7 @@ static int virtio_memcpy_to_ram(VIRTIODevice *s, virtio_phys_addr_t addr, const 
 
 static uint16_t virtio_read16(VIRTIODevice *s, virtio_phys_addr_t addr)
 {
-    if (!virtio_use_xdma) {
+    if (xdma_c2h_fd == -1) {
         uint8_t *ptr;
         if (addr & 1)
             return 0; /* unaligned access are not supported */
@@ -363,7 +348,7 @@ static uint16_t virtio_read16(VIRTIODevice *s, virtio_phys_addr_t addr)
 static void virtio_write16(VIRTIODevice *s, virtio_phys_addr_t addr,
                            uint16_t val)
 {
-    if (!virtio_use_xdma) {
+    if (xdma_h2c_fd == -1) {
         uint8_t *ptr;
         if (addr & 1)
             return; /* unaligned access are not supported */
@@ -379,7 +364,7 @@ static void virtio_write16(VIRTIODevice *s, virtio_phys_addr_t addr,
 static void virtio_write32(VIRTIODevice *s, virtio_phys_addr_t addr,
                            uint32_t val)
 {
-    if (!virtio_use_xdma) {
+    if (xdma_h2c_fd == -1) {
         uint8_t *ptr;
         if (addr & 3)
             return; /* unaligned access are not supported */
@@ -395,7 +380,7 @@ static void virtio_write32(VIRTIODevice *s, virtio_phys_addr_t addr,
 static int virtio_memcpy_from_ram(VIRTIODevice *s, uint8_t *buf,
                                   virtio_phys_addr_t addr, int count)
 {
-    if (!virtio_use_xdma) {
+    if (xdma_c2h_fd == -1) {
         uint8_t *ptr;
         int l;
 
@@ -419,7 +404,7 @@ static int virtio_memcpy_from_ram(VIRTIODevice *s, uint8_t *buf,
 static int virtio_memcpy_to_ram(VIRTIODevice *s, virtio_phys_addr_t addr,
                                 const uint8_t *buf, int count)
 {
-    if (!virtio_use_xdma) {
+    if (xdma_h2c_fd == -1) {
         uint8_t *ptr;
         int l;
 
