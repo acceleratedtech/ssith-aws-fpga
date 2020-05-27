@@ -5,6 +5,8 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <pthread.h>
 
 extern "C" {
 #include "virtio.h"
@@ -113,52 +115,68 @@ uint8_t *VirtioDevices::phys_mem_get_ram_ptr(uint64_t paddr, BOOL is_rw)
 
 void VirtioDevices::process_io()
 {
-    int stdin_fd = 0;
+    int stdin_fd;
     int fd_max = -1;
-    fd_set rfds,  wfds, efds;
-    int delay = 0; // ms
+    fd_set rfds, wfds, efds;
+    int delay = 10; // ms
     struct timeval tv;
+    int stop_fd = stop_pipe[0];
 
-    FD_ZERO(&rfds);
-    FD_ZERO(&wfds);
-    FD_ZERO(&efds);
+    for (;;) {
+        FD_ZERO(&rfds);
+        FD_ZERO(&wfds);
+        FD_ZERO(&efds);
 
-    if (virtio_console && virtio_console_can_write_data(virtio_console)) {
-        //STDIODevice *s = console->opaque;
-        stdin_fd = 0; //s->stdin_fd;
-        FD_SET(stdin_fd, &rfds);
-        fd_max = stdin_fd;
+        FD_SET(stop_fd, &rfds);
+        fd_max = stop_fd;
+
+        if (virtio_console && virtio_console_can_write_data(virtio_console)) {
+            //STDIODevice *s = console->opaque;
+            stdin_fd = STDIN_FILENO; //s->stdin_fd;
+            FD_SET(stdin_fd, &rfds);
+            fd_max = std::max(stdin_fd, fd_max);
 
 #if 0
-        if (s->resize_pending) {
-            int width, height;
-            console_get_size(s, &width, &height);
-            virtio_console_resize_event(virtio_console, width, height);
-            s->resize_pending = FALSE;
-        }
+            if (s->resize_pending) {
+                int width, height;
+                console_get_size(s, &width, &height);
+                virtio_console_resize_event(virtio_console, width, height);
+                s->resize_pending = FALSE;
+            }
 #endif
-    }
-    if (ethernet_device) {
-        ethernet_device->select_fill(ethernet_device, &fd_max, &rfds, &wfds, &efds, &delay);
-    }
-    tv.tv_sec = delay / 1000;
-    tv.tv_usec = (delay % 1000) * 1000;
-    int ret = select(fd_max + 1, &rfds, &wfds, &efds, &tv);
-    if (ethernet_device) {
-        ethernet_device->select_poll(ethernet_device, &rfds, &wfds, &efds, ret);
-    }
+        }
+        if (ethernet_device) {
+            ethernet_device->select_fill(ethernet_device, &fd_max, &rfds, &wfds, &efds, &delay);
+        }
+        tv.tv_sec = delay / 1000;
+        tv.tv_usec = (delay % 1000) * 1000;
+        int ret = select(fd_max + 1, &rfds, &wfds, &efds, &tv);
+        if (FD_ISSET(stop_fd, &rfds)) {
+            close(stop_fd);
+            return;
+        }
 
-    if (virtio_console && FD_ISSET(stdin_fd, &rfds)) {
-        uint8_t buf[128];
-        int ret, len;
-        len = virtio_console_get_write_len(virtio_console);
-        len = min_int(len, sizeof(buf));
-        ret = console->read_data(console->opaque, buf, len);
-        if (ret > 0) {
-            virtio_console_write_data(virtio_console, buf, ret);
+        if (ethernet_device) {
+            ethernet_device->select_poll(ethernet_device, &rfds, &wfds, &efds, ret);
+        }
+
+        if (virtio_console && FD_ISSET(stdin_fd, &rfds)) {
+            uint8_t buf[128];
+            int ret, len;
+            len = virtio_console_get_write_len(virtio_console);
+            len = min_int(len, sizeof(buf));
+            ret = console->read_data(console->opaque, buf, len);
+            if (ret > 0) {
+                virtio_console_write_data(virtio_console, buf, ret);
+            }
         }
     }
+}
 
+void *VirtioDevices::process_io_thread(void *opaque)
+{
+    ((VirtioDevices *)opaque)->process_io();
+    return NULL;
 }
 
 void VirtioDevices::start()
@@ -172,4 +190,18 @@ void VirtioDevices::start()
     ADD_DEVICE(virtio_console);
 #undef ADD_DEVICE
     virtio_start_pending_notify_thread(n, ps);
+
+    pipe(stop_pipe);
+    fcntl(stop_pipe[1], F_SETFL, O_NONBLOCK);
+    pthread_t thread;
+    pthread_create(&thread, NULL, &process_io_thread, this);
+    pthread_detach(thread);
+}
+
+void VirtioDevices::stop()
+{
+    virtio_stop_pending_notify_thread();
+    char dummy = 'X';
+    write(stop_pipe[1], &dummy, sizeof(dummy));
+    close(stop_pipe[1]);
 }

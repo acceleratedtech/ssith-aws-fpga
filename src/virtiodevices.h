@@ -22,6 +22,10 @@ class VirtioDevices {
   IRQSignal *irq;
   int irq_num;
   const char *tun_ifname;
+  int stop_pipe[2];
+
+  void process_io();
+  static void *process_io_thread(void *opaque);
 
  public:
   VirtioDevices(int first_irq_num = 0, const char *tun_ifname = 0);
@@ -30,9 +34,9 @@ class VirtioDevices {
   uint8_t *phys_mem_get_ram_ptr(uint64_t paddr, BOOL is_rw);
   void set_dram_buffer(uint8_t *buf);
   void xdma_init(int c2h_fd, int h2c_fd);
-  void process_io();
   void add_virtio_block_device(std::string filename);
   void add_virtio_console_device();
   void start();
+  void stop();
 };
 
