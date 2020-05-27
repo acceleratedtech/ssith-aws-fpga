@@ -630,7 +630,6 @@ void AWSP2::process_io()
             }
         }
     }
-    virtio_devices.process_io();
 }
 
 void AWSP2::set_htif_base_addr(uint64_t baseaddr)
