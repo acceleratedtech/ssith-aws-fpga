@@ -1452,10 +1452,10 @@ static int virtio_entropy_recv_request(VIRTIODevice *s, int queue_idx,
             if (write_size - offset < block_size) {
                 block_size = write_size - offset;
             }
-            ret = getrandom(&s1->buf, block_size, 0);
+            ret = getrandom(s1->buf, block_size, 0);
             /* reads up to 256 bytes should always succeed */
             if (ret > 0) {
-                memcpy_to_queue(s, queue_idx, desc_idx, offset, &s1->buf, ret);
+                memcpy_to_queue(s, queue_idx, desc_idx, offset, s1->buf, ret);
                 offset += ret;
             } else {
                 abort();
