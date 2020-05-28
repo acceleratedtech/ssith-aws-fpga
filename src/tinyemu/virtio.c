@@ -396,7 +396,18 @@ static int virtio_memcpy_from_ram(VIRTIODevice *s, uint8_t *buf,
         }
         return 0;
     } else {
-        return pread(xdma_c2h_fd, buf, count, addr);
+        int ret;
+
+retry:
+        ret = pread(xdma_c2h_fd, buf, count, addr);
+        if (ret < 0) {
+            // ERESTARTSYS (512) is currently leaked to userspace
+            if (errno == EINTR || errno == 512)
+                goto retry;
+            else
+                abort();
+        }
+        return 0;
     }
 
 }
@@ -420,7 +431,18 @@ static int virtio_memcpy_to_ram(VIRTIODevice *s, virtio_phys_addr_t addr,
         }
         return 0;
     } else {
-        return pwrite(xdma_h2c_fd, buf, count, addr);
+        int ret;
+
+retry:
+        ret = pwrite(xdma_h2c_fd, buf, count, addr);
+        if (ret < 0) {
+            // ERESTARTSYS (512) is currently leaked to userspace
+            if (errno == EINTR || errno == 512)
+                goto retry;
+            else
+                abort();
+        }
+        return 0;
     }
 }
 
