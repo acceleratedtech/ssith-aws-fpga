@@ -108,6 +108,7 @@
 typedef struct {
     uint32_t ready; /* 0 or 1 */
     uint32_t num;
+    uint16_t avail_idx; /* cached copy of *(avail_addr + 2) */
     uint16_t last_avail_idx;
     virtio_phys_addr_t desc_addr;
     virtio_phys_addr_t avail_addr;
@@ -601,10 +602,11 @@ static void queue_notify(VIRTIODevice *s, int queue_idx)
     uint16_t avail_idx;
     int desc_idx, read_size, write_size;
 
+    avail_idx = virtio_read16(s, qs->avail_addr + 2);
+    qs->avail_idx = avail_idx;
     if (qs->manual_recv)
         return;
 
-    avail_idx = virtio_read16(s, qs->avail_addr + 2);
     atomic_thread_fence(memory_order_acquire);
     while (qs->last_avail_idx != avail_idx) {
         desc_idx = virtio_read16(s, qs->avail_addr + 4 +
@@ -1264,12 +1266,10 @@ static BOOL virtio_net_can_write_packet(EthernetDevice *es)
 {
     VIRTIODevice *s = es->device_opaque;
     QueueState *qs = &s->queue[0];
-    uint16_t avail_idx;
 
     if (!qs->ready)
         return FALSE;
-    avail_idx = virtio_read16(s, qs->avail_addr + 2);
-    return qs->last_avail_idx != avail_idx;
+    return qs->last_avail_idx != qs->avail_idx;
 }
 
 static void virtio_net_write_packet(EthernetDevice *es, const uint8_t *buf, int buf_len)
@@ -1281,12 +1281,10 @@ static void virtio_net_write_packet(EthernetDevice *es, const uint8_t *buf, int 
     int desc_idx;
     VIRTIONetHeader h;
     int len, read_size, write_size;
-    uint16_t avail_idx;
 
     if (!qs->ready)
         return;
-    avail_idx = virtio_read16(s, qs->avail_addr + 2);
-    if (qs->last_avail_idx == avail_idx)
+    if (qs->last_avail_idx == qs->avail_idx)
         return;
     desc_idx = virtio_read16(s, qs->avail_addr + 4 +
                              (qs->last_avail_idx & (qs->num - 1)) * 2);
@@ -1377,14 +1375,12 @@ static int virtio_console_recv_request(VIRTIODevice *s, int queue_idx,
 BOOL virtio_console_can_write_data(VIRTIODevice *s)
 {
     QueueState *qs = &s->queue[0];
-    uint16_t avail_idx;
 
     if (!qs->ready) {
       //fprintf(stderr, "%s: !qs->ready\n", __FUNCTION__);
         return FALSE;
     }
-    avail_idx = virtio_read16(s, qs->avail_addr + 2);
-    return qs->last_avail_idx != avail_idx;
+    return qs->last_avail_idx != qs->avail_idx;
 }
 
 int virtio_console_get_write_len(VIRTIODevice *s)
@@ -1393,12 +1389,10 @@ int virtio_console_get_write_len(VIRTIODevice *s)
     QueueState *qs = &s->queue[queue_idx];
     int desc_idx;
     int read_size, write_size;
-    uint16_t avail_idx;
 
     if (!qs->ready)
         return 0;
-    avail_idx = virtio_read16(s, qs->avail_addr + 2);
-    if (qs->last_avail_idx == avail_idx)
+    if (qs->last_avail_idx == qs->avail_idx)
         return 0;
     desc_idx = virtio_read16(s, qs->avail_addr + 4 +
                              (qs->last_avail_idx & (qs->num - 1)) * 2);
@@ -1412,16 +1406,13 @@ int virtio_console_write_data(VIRTIODevice *s, const uint8_t *buf, int buf_len)
     int queue_idx = 0;
     QueueState *qs = &s->queue[queue_idx];
     int desc_idx;
-    uint16_t avail_idx;
 
     if (!qs->ready)
         return 0;
-    avail_idx = virtio_read16(s, qs->avail_addr + 2);
-    if (qs->last_avail_idx == avail_idx)
+    if (qs->last_avail_idx == qs->avail_idx)
         return 0;
     desc_idx = virtio_read16(s, qs->avail_addr + 4 +
                              (qs->last_avail_idx & (qs->num - 1)) * 2);
-    fprintf(stderr, "%s: desc_idx=%d avail_idx=%d\n", __FUNCTION__, desc_idx, avail_idx);
     memcpy_to_queue(s, queue_idx, desc_idx, 0, buf, buf_len);
     virtio_consume_desc(s, queue_idx, desc_idx, buf_len);
     qs->last_avail_idx++;
@@ -1563,7 +1554,6 @@ static int virtio_input_queue_event(VIRTIODevice *s,
     int queue_idx = 0;
     QueueState *qs = &s->queue[queue_idx];
     int desc_idx, buf_len;
-    uint16_t avail_idx;
     uint8_t buf[8];
 
     if (!qs->ready)
@@ -1574,8 +1564,7 @@ static int virtio_input_queue_event(VIRTIODevice *s,
     put_le32(buf + 4, value);
     buf_len = 8;
 
-    avail_idx = virtio_read16(s, qs->avail_addr + 2);
-    if (qs->last_avail_idx == avail_idx)
+    if (qs->last_avail_idx == qs->avail_idx)
         return -1;
     desc_idx = virtio_read16(s, qs->avail_addr + 4 +
                              (qs->last_avail_idx & (qs->num - 1)) * 2);
