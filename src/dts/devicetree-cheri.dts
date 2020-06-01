@@ -12,7 +12,7 @@
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		timebase-frequency = <125000000>;
+		timebase-frequency = <100000000>;
 		CPU0: cpu@0 {
 			device_type = "cpu";
 			reg = <0>;
@@ -20,7 +20,7 @@
 			compatible = "riscv";
 			riscv,isa = "rv64imafdc";
 			mmu-type = "riscv,sv39";
-			clock-frequency = <125000000>;
+			clock-frequency = <100000000>;
 			CPU0_intc: interrupt-controller {
 				#interrupt-cells = <1>;
 				interrupt-controller;
@@ -69,7 +69,7 @@
 			compatible = "ns16550a";
 			interrupts-extended = <&plic 1>;
 			reg = <0x62300000 0x1000>;
-			clock-frequency = <125000000>;
+			clock-frequency = <250000000>;
 			reg-shift = <2>;
 		};
 	};

@@ -50,6 +50,16 @@ CONNECTALFLAGS += -D AWSF1_CL_DEBUG_BRIDGE
 CONNECTALFLAGS += -D AWSF1_DDR_A
 CONNECTALFLAGS += -D AWSF1_DMA_PCIS
 
+CONNECTALFLAGS += --awsflags="-strategy TIMING"
+
+CONNECTALFLAGS += --awsflags="-clock_recipe_a A1"
+CONNECTALFLAGS += --mainclockperiod=4
+CONNECTALFLAGS += --pcieclockperiod=4
+CONNECTALFLAGS += --awsflags="-clock_recipe_b B5"
+CONNECTALFLAGS += --derivedclockperiod=10
+CONNECTALFLAGS += -D AWSF1_DERIVED_CLOCK=clk_extra_b1
+CONNECTALFLAGS += -D IMPORT_HOST_CLOCKS
+
 ############################################################
 ## copied from src_SSITH_P2 Makefile
 ############################################################
