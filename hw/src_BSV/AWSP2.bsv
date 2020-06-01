@@ -7,6 +7,7 @@ import FIFO         :: *;
 import FIFOF        :: *;
 import GetPut       :: *;
 import Vector       :: *;
+import Clocks       :: *;
 
 import AxiBits           :: *;
 import ConnectalConfig   :: *;
@@ -36,6 +37,7 @@ import AWS_AXI4_Deburster :: *;
 import AWS_AXI4_Connection :: *;
 import AWS_AXI4_Id_Reflector :: *;
 import AWS_AXI4_Downsizer :: *;
+import AWS_AXI4_Crossing :: *;
 import AXI_Mem_Controller :: *;
 import AXI_RAM        :: *;
 
@@ -138,10 +140,12 @@ module mkDeburster(AXI4_Deburster_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User));
     return deburster;
 endmodule
 
-module mkAWSP2#(AWSP2_Response response)(AWSP2);
+module mkAWSP2#(Clock derivedClock, Reset derivedReset, AWSP2_Response response)(AWSP2);
+   let defaultClock <- exposeCurrentClock;
+   let defaultReset <- exposeCurrentReset;
 
    let soc_map <- mkSoC_Map();
-   P2_Core_IFC p2_core <- mkP2_Core();
+   P2_Core_IFC p2_core <- mkP2_Core(clocked_by derivedClock, reset_by derivedReset);
 
    Reg#(Bit#(4)) rg_verbosity <- mkReg(0);
    Reg#(Bool) rg_ready <- mkReg(False);
@@ -150,10 +154,14 @@ module mkAWSP2#(AWSP2_Response response)(AWSP2);
 
    Vector#(16, Reg#(Bit#(8)))    objIds <- replicateM(mkReg(0));
 
+   AXI4_Crossing_IFC #(6, 64, 64, 0) master0Crossing <- mkAXI4_CrossingToCC(derivedClock, derivedReset);
+   AXI4_Crossing_IFC #(6, 64, 64, 0) master1Crossing <- mkAXI4_CrossingToCC(derivedClock, derivedReset);
+   mkConnection(p2_core.master0, master0Crossing.from_master, clocked_by derivedClock, reset_by derivedReset);
+   mkConnection(p2_core.master1, master1Crossing.from_master, clocked_by derivedClock, reset_by derivedReset);
 
    AXI4_Fabric_IFC#(2, 3, 6, 64, 64, 0) axiFabric <- mkIOFabric();
-   mkConnection(p2_core.master0, axiFabric.v_from_masters[0]);
-   mkConnection(p2_core.master1, axiFabric.v_from_masters[1]);
+   mkConnection(master0Crossing.to_slave, axiFabric.v_from_masters[0]);
+   mkConnection(master1Crossing.to_slave, axiFabric.v_from_masters[1]);
    let to_slave0 = axiFabric.v_to_slaves[0];
    let to_slave1 = axiFabric.v_to_slaves[1];
    let to_slave2 = axiFabric.v_to_slaves[2];
@@ -171,8 +179,11 @@ module mkAWSP2#(AWSP2_Response response)(AWSP2);
    let axiBRAM <- mkAXI_BRAM();
    mkConnection(memFabric.v_to_slaves[1], axiBRAM.portA);
 
+   AXI4_Crossing_IFC #(0, 64, 64, 0) slave0Crossing <- mkAXI4_CrossingFromCC(derivedClock, derivedReset);
+   mkConnection(slave0Crossing.to_slave, p2_core.slave0, clocked_by derivedClock, reset_by derivedReset);
+
    AXI4_Downsizer_IFC #(0, 64, 512, 64, 0) downsizer <- mkAXI4_Downsizer();
-   mkConnection(downsizer.to_slave, p2_core.slave0);
+   mkConnection(downsizer.to_slave, slave0Crossing.from_master);
    AXI4_Id_Reflector_IFC #(6, 64, 512, 0) id_reflector <- mkAXI4_Id_Reflector();
    mkConnection(id_reflector.to_slave, downsizer.from_master);
    let from_dma_pcis = id_reflector.from_master;
@@ -311,9 +322,22 @@ module mkAWSP2#(AWSP2_Response response)(AWSP2);
    endrule
 
 `ifdef INCLUDE_GDB_CONTROL
-   let dmiReadFifo <- mkFIFOF();
-   let dmiWriteFifo <- mkFIFOF();
-   let dmiDataFifo <- mkFIFOF();
+   SyncFIFOIfc#(Bit#(7)) dmiReadFifo <- mkSyncFIFOFromCC(4, derivedClock);
+   SyncFIFOIfc#(Tuple2#(Bit#(7), Bit#(32))) dmiWriteFifo <- mkSyncFIFOFromCC(4, derivedClock);
+   SyncFIFOIfc#(Bit#(32)) dmiDataFifo <- mkSyncFIFOToCC(4, derivedClock, derivedReset);
+
+   // We do our own pessimistic notEmpty for the outgoing FIFOs needed by
+   // dmi_status, as notEmpty is in the destination clock domain, and crossing
+   // that signal back would give us a delay in seeing our own enqueues.
+   // We rely on the SoC's clock being faster than the core's in order to use
+   // the vastly simpler mkSyncPulse for communicating the deq's back.
+   Reg#(Bit#(2)) rg_dmi_reads_queued[2] <- mkCReg(2, 0);
+   Reg#(Bit#(2)) rg_dmi_writes_queued[2] <- mkCReg(2, 0);
+   SyncPulseIfc sp_dmi_read_dequeued <- mkSyncPulseToCC(derivedClock, derivedReset);
+   SyncPulseIfc sp_dmi_write_dequeued <- mkSyncPulseToCC(derivedClock, derivedReset);
+   PulseWire pw_dmi_read_enqueued <- mkPulseWire();
+   PulseWire pw_dmi_write_enqueued <- mkPulseWire();
+
    rule dmi_read_data_rl;
       let rdata <- p2_core.dmi.read_data();
       //$display("dmi_read_data %h", rdata);
@@ -325,29 +349,44 @@ module mkAWSP2#(AWSP2_Response response)(AWSP2);
    endrule
    rule dmi_read_rl;
       let addr <- toGet(dmiReadFifo).get();
+      sp_dmi_read_dequeued.send();
       //$display("dmi_read addr %h", addr);
       p2_core.dmi.read_addr(addr);
    endrule
    rule dmi_write_rl;
       let req <- toGet(dmiWriteFifo).get();
+      sp_dmi_write_dequeued.send();
       //$display("dmi_write addr %h data %h", tpl_1(req), tpl_2(req));
       p2_core.dmi.write(tpl_1(req), tpl_2(req));
       dmiDataFifo.enq(tpl_2(req));
    endrule
+
+   (* no_implicit_conditions, fire_when_enabled *)
+   rule rl_dmi_read_dequeued (sp_dmi_read_dequeued.pulse());
+      rg_dmi_reads_queued[0] <= rg_dmi_reads_queued[0] - 1;
+   endrule
+
+   (* no_implicit_conditions, fire_when_enabled *)
+   rule rl_dmi_write_dequeued (sp_dmi_write_dequeued.pulse());
+      rg_dmi_writes_queued[0] <= rg_dmi_writes_queued[0] - 1;
+   endrule
 `endif
 
 `ifdef INCLUDE_TANDEM_VERIF
-   Reg#(Bool) rg_capture_tv_info <- mkReg(False);
-   let tvFifo <- mkFIFOF();
-   rule tv_out;
-      if (p2_core.tv_verifier_info_tx.m_tvalid() && rg_capture_tv_info) begin
-          let tv_bits = p2_core.tv_verifier_info_tx.m_tdata();
-          let tv_strb = p2_core.tv_verifier_info_tx.m_tstrb();
-          tvFifo.enq(tv_bits);
+   Reg#(Bool) rg_capture_tv_info <- mkSyncRegFromCC(False, derivedClock);
+   AXI4_Stream_Slave_Xactor_IFC#(Wd_SId, Wd_SDest, Wd_SData, Wd_SUser) tv_xactor <- mkAXI4_Stream_Slave_Xactor(clocked_by derivedClock, reset_by derivedReset);
+   mkConnection(p2_core.tv_verifier_info_tx, tv_xactor.axi_side, clocked_by derivedClock, reset_by derivedReset);
+
+   let tvFifo <- mkSyncFIFOToCC(4, derivedClock, derivedReset);
+
+   rule rl_tv_data_channel;
+      let packet <- pop_o(tv_xactor.o_stream);
+      if (rg_capture_tv_info) begin
+          tvFifo.enq(packet.tdata);
       end
-      p2_core.tv_verifier_info_tx.m_tready(tvFifo.notFull());
    endrule
-   rule tv_ready;
+
+   rule rl_tv_out;
       let tv_bits <- toGet(tvFifo).get();
       Info_CPU_to_Verifier info = unpack(tv_bits);
       response.tandem_packet(info.num_bytes, info.vec_bytes);
@@ -375,8 +414,26 @@ module mkAWSP2#(AWSP2_Response response)(AWSP2);
       rg_addr_map_set <= True;
    endrule
 
-   rule rl_irq_levels;
-      p2_core.interrupt_reqs(truncate({rg_irq_levels[0][30:1], pack(uart.intr)}));
+   // Interrupt lines are independent (no inter-bit consistency issues), so we
+   // can get away with a per-bit synchronizer. The Verilog is parameterised on
+   // the reset value, though this is not exposed, but the default of 0 is what
+   // we want.
+   Vector#(32, SyncBitIfc#(Bit#(1))) v_sync_irq_levels <- replicateM(mkSyncBitFromCC(derivedClock));
+
+   (* no_implicit_conditions, fire_when_enabled *)
+   rule rl_sync_irq_levels;
+      function Action sb_send(SyncBitIfc#(a) sb, a data) = sb.send(data);
+      joinActions(zipWith(sb_send, tail(v_sync_irq_levels), unpack(rg_irq_levels[2][31:1])));
+   endrule
+
+   (* no_implicit_conditions, fire_when_enabled *)
+   rule rl_sync_uart_intr;
+      v_sync_irq_levels[0].send(pack(uart.intr));
+   endrule
+
+   rule rl_core_interrupt_reqs;
+      function a sb_read(SyncBitIfc#(a) sb) = sb.read();
+      p2_core.interrupt_reqs(truncate(pack(map(sb_read, v_sync_irq_levels))));
    endrule
 
    rule rl_uart_tohost;
@@ -385,23 +442,28 @@ module mkAWSP2#(AWSP2_Response response)(AWSP2);
    endrule
 
    interface AWSP2_Request request;
-      method Action dmi_read(Bit#(7) addr);
+      // The additional condition guards against overflow in our counter in
+      // case the pulse to decrement is delayed compared to the notFull signal
+      // going high.
+      method Action dmi_read(Bit#(7) addr) if (rg_dmi_reads_queued[1] != '1);
         //$display("dmi_read req addr %h", addr);
 `ifdef INCLUDE_GDB_CONTROL
          dmiReadFifo.enq(addr);
+         rg_dmi_reads_queued[1] <= rg_dmi_reads_queued[1] + 1;
 `endif
       endmethod
-      method Action dmi_write(Bit#(7) addr, Bit#(32) data);
+      method Action dmi_write(Bit#(7) addr, Bit#(32) data) if (rg_dmi_writes_queued[1] != '1);
         //$display("dmi_write req addr %h data %h", addr, data);
 `ifdef INCLUDE_GDB_CONTROL
         dmiWriteFifo.enq(tuple2(addr, data));
+        rg_dmi_writes_queued[1] <= rg_dmi_writes_queued[1] + 1;
 `endif
       endmethod
       method Action dmi_status();
          Bit#(16) status = 0;
 `ifdef INCLUDE_GDB_CONTROL
-         status[0] = pack(dmiReadFifo.notEmpty());
-         status[1] = pack(dmiWriteFifo.notEmpty());
+         status[0] = pack(rg_dmi_reads_queued[1] != 0);
+         status[1] = pack(rg_dmi_writes_queued[1] != 0);
          status[2] = pack(dmiDataFifo.notEmpty());
 `endif
          status[15:8] = memController.status();
@@ -438,10 +500,10 @@ module mkAWSP2#(AWSP2_Response response)(AWSP2);
       endmethod
 
       method Action irq_set_levels(Bit#(32) w1s);
-         rg_irq_levels[2] <= w1s | rg_irq_levels[2];
+         rg_irq_levels[1] <= w1s | rg_irq_levels[1];
       endmethod
       method Action irq_clear_levels(Bit#(32) w1c);
-         rg_irq_levels[2] <= ~w1c & rg_irq_levels[2];
+         rg_irq_levels[1] <= ~w1c & rg_irq_levels[1];
       endmethod
       method Action read_irq_status();
          response.irq_status(rg_irq_levels[0]);
