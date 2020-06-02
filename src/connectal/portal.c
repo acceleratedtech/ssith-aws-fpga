@@ -206,7 +206,7 @@ static void initPortalHardwareOnce(void)
 #ifndef SIMULATION
         int status;
         waitpid(pid, &status, 0);
-	fprintf(stderr, "subprocess pid %d completed status=%x %d\n", pid, status, WEXITSTATUS(status));
+	//fprintf(stderr, "subprocess pid %d completed status=%x %d\n", pid, status, WEXITSTATUS(status));
 #ifndef BOARD_de5
 	if (WEXITSTATUS(status) != 0)
 	    exit(-1);

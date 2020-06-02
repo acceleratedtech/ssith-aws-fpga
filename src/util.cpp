@@ -8,6 +8,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <stdarg.h>
 
 #include "util.h"
 
@@ -34,9 +35,28 @@ int copyFile(char *buffer, const char *filename, size_t buffer_size)
             break;
         memcpy(buffer + bytes_copied, readbuf, bytes_read);
         bytes_copied += bytes_read;
-        fprintf(stderr, "Copied %d bytes %ld bytes total readsize %ld\n", bytes_read, bytes_copied, readsize);
+        debugLog("Copied %d bytes %ld bytes total readsize %ld\n", bytes_read, bytes_copied, readsize);
     } while (bytes_copied < buffer_size);
     close(fd);
-    fprintf(stderr, "Read %ld bytes from %s\n", bytes_copied, filename);
+    debugLog("Read %ld bytes from %s\n", bytes_copied, filename);
     return bytes_copied;
+}
+
+static int debug = 0;
+
+void setEnableDebugLog(int enable)
+{
+    debug = enable;
+}
+
+int debugLog(const char * __restrict format, ...)
+{
+    if (!debug)
+        return 0;
+
+    va_list ap;
+    va_start(ap, format);
+    int ret = vfprintf(stderr, format, ap);
+    va_end(ap);
+    return ret;
 }

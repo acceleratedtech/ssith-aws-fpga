@@ -50,6 +50,7 @@ const struct option long_options[] = {
     { "usemem",  no_argument,       0, 'M' },
     { "virtio-console", optional_argument, 0, 'C' },
     { "xdma",     optional_argument, 0, 'X' },
+    { "debug-log", no_argument,     0, 'L' },
     { 0,         0,                 0, 0 }
 };
 
@@ -86,10 +87,11 @@ int main(int argc, char * const *argv)
     int dma_enabled = DEFAULT_DMA_ENABLED;
     int xdma_enabled = DEFAULT_XDMA_ENABLED;
     std::vector<string> block_files;
+    int debug_log = 0;
 
     while (1) {
         int option_index = optind ? optind : 1;
-        char c = getopt_long(argc, argv, "b:B:Cd:D:e:hH:Mp:s:TvU:X:",
+        char c = getopt_long(argc, argv, "b:B:Cd:D:e:hH:LMp:s:TvU:X:",
                              long_options, &option_index);
         if (c == -1)
             break;
@@ -117,7 +119,7 @@ int main(int argc, char * const *argv)
             } else {
                 dma_enabled = 1;
             }
-	    fprintf(stderr, "DMA %d\n", dma_enabled);
+	    //fprintf(stderr, "DMA %d\n", dma_enabled);
             break;
         case 'e':
             elf_filename = optarg;
@@ -156,7 +158,7 @@ int main(int argc, char * const *argv)
             } else {
                 uart_enabled = 1;
             }
-	    fprintf(stderr, "UART %d\n", uart_enabled);
+	    //fprintf(stderr, "UART %d\n", uart_enabled);
             break;
         case 'X':
             if (optarg) {
@@ -164,8 +166,11 @@ int main(int argc, char * const *argv)
             } else {
                 xdma_enabled = 1;
             }
-	    fprintf(stderr, "XDMA %d\n", xdma_enabled);
+	    //fprintf(stderr, "XDMA %d\n", xdma_enabled);
             break;
+	case 'L':
+	    debug_log = 1;
+	    break;
         }
     }
 
@@ -173,6 +178,8 @@ int main(int argc, char * const *argv)
     if (enable_virtio_console == 0 && htif_enabled == 0 && uart_enabled == 0) {
         uart_enabled = 1;
     }
+
+    setEnableDebugLog(debug_log);
 
     if (optind < argc) {
         elf_filename = argv[optind];
@@ -185,7 +192,7 @@ int main(int argc, char * const *argv)
     // allocate a memory object for Rom
     size_t rom_alloc_sz = 1024*1024;
     uint8_t *romBuffer = (uint8_t *)malloc(rom_alloc_sz);
-    fprintf(stderr, "romBuffer=%lx\n", (long)romBuffer);
+    debugLog("romBuffer=%lx\n", (long)romBuffer);
 
     Rom rom = { BOOTROM_BASE, BOOTROM_LIMIT, (uint64_t *)romBuffer };
     fpga = new AWSP2(IfcNames_AWSP2_ResponseH2S, rom, DRAM_BASE_ADDR, tun_iface);
@@ -213,7 +220,7 @@ int main(int argc, char * const *argv)
         copyFile((char *)romBuffer, bootrom_filename, rom_alloc_sz);
 
     if (enable_virtio_console) {
-        fprintf(stderr, "Enabling virtio console\n");
+        debugLog("Enabling virtio console\n");
         fpga->get_virtio_devices().add_virtio_console_device();
     }
 
@@ -226,22 +233,22 @@ int main(int argc, char * const *argv)
     // or deadlock will ensue.
     fpga->memory_ready();
 
-    fprintf(stderr, "asserting haltreq\n");
+    debugLog("asserting haltreq\n");
     fpga->halt();
     fpga->capture_tv_info(0);
 
-    fprintf(stderr, "dmi state machine status %d\n", fpga->dmi_status());
+    debugLog("dmi state machine status %d\n", fpga->dmi_status());
 
     uint64_t elf_entry = loadElf(fpga, elf_filename, 0x40000000);
-    fprintf(stderr, "elf_entry=%08lx\n", elf_entry);
+    debugLog("elf_entry=%08lx\n", elf_entry);
 
     if (!entry)
         entry = elf_entry;
 
     // update the dpc
-    fprintf(stderr, "setting pc val %08x\n", entry);
+    debugLog("setting pc val %08x\n", entry);
     fpga->write_csr(0x7b1, entry);
-    fprintf(stderr, "reading pc val %08lx\n", fpga->read_csr(0x7b1));
+    debugLog("reading pc val %08lx\n", fpga->read_csr(0x7b1));
 
     // for loading linux, set pointer to devicetree
     fpga->write_gpr(10, 0);
