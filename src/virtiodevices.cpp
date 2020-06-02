@@ -15,6 +15,7 @@ extern "C" {
 
 #include "fpga.h"
 #include "virtiodevices.h"
+#include "util.h"
 
 static int debug = 0;
 
@@ -71,13 +72,13 @@ VirtioDevices::VirtioDevices(int first_irq_num, const char *tun_ifname)
     virtio_bus->irq = &irq[irq_num++];
     ethernet_device = tun_ifname ? tun_open(tun_ifname) : slirp_open();
     virtio_net = virtio_net_init(virtio_bus, ethernet_device);
-    fprintf(stderr, "ethernet device %p virtio net device %p at addr %08lx\n", ethernet_device, virtio_net, virtio_bus->addr);
+    debugLog("ethernet device %p virtio net device %p at addr %08lx\n", ethernet_device, virtio_net, virtio_bus->addr);
 
     // set up an entropy device
     virtio_bus->addr += 0x1000;
     virtio_bus->irq = &irq[irq_num++];
     virtio_entropy = virtio_entropy_init(virtio_bus);
-    fprintf(stderr, "virtio entropy device %p at addr %08lx\n", virtio_entropy, virtio_bus->addr);
+    debugLog("virtio entropy device %p at addr %08lx\n", virtio_entropy, virtio_bus->addr);
 }
 
 VirtioDevices::~VirtioDevices() {
@@ -89,9 +90,9 @@ void VirtioDevices::add_virtio_block_device(std::string filename)
     virtio_bus->addr += 0x1000;
     virtio_bus->irq = &irq[irq_num++];
     block_device = block_device_init(filename.c_str(), BF_MODE_RW);
-    fprintf(stderr, "block device %s (%p)\n", filename.c_str(), block_device);
+    debugLog("block device %s (%p)\n", filename.c_str(), block_device);
     virtio_block = virtio_block_init(virtio_bus, block_device);
-    fprintf(stderr, "virtio block device %p at addr %08lx\n", virtio_block, virtio_bus->addr);
+    debugLog("virtio block device %p at addr %08lx\n", virtio_block, virtio_bus->addr);
 
 }
 

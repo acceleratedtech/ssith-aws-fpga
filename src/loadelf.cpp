@@ -43,14 +43,14 @@ uint64_t loadElf(AWSP2 *fpga, const char *elf_filename, size_t max_mem_size)
 
     // Is this a 32b or 64 ELF?
     if (gelf_getclass(e) == ELFCLASS32) {
-        fprintf(stdout, "loadElf: %s is a 32-bit ELF file\n", elf_filename);
+        debugLog("loadElf: %s is a 32-bit ELF file\n", elf_filename);
         //bitwidth = 32;
     }
     else if (gelf_getclass(e) == ELFCLASS64) {
-        fprintf(stdout, "loadElf: %s is a 64-bit ELF file\n", elf_filename);
+        debugLog("loadElf: %s is a 64-bit ELF file\n", elf_filename);
         //bitwidth = 64;
         Elf64_Ehdr *ehdr64 = elf64_getehdr(e);
-        fprintf(stderr, "loadElf: entry point %08lx\n", ehdr64->e_entry);
+        debugLog("loadElf: entry point %08lx\n", ehdr64->e_entry);
         entry = ehdr64->e_entry;
     }
 
@@ -74,7 +74,7 @@ uint64_t loadElf(AWSP2 *fpga, const char *elf_filename, size_t max_mem_size)
     uint64_t base_pa = 0x80000000;
     for (int cnt = 0; cnt < ehdr.e_phnum; ++cnt) {
         gelf_getphdr(e, cnt, &phdr);
-        fprintf(stderr, "phdr %d type %x flags %x va %08lx pa %08lx\n", cnt, phdr.p_type, phdr.p_flags, phdr.p_vaddr, phdr.p_paddr);
+        debugLog("phdr %d type %x flags %x va %08lx pa %08lx\n", cnt, phdr.p_type, phdr.p_flags, phdr.p_vaddr, phdr.p_paddr);
         // phdr 0 type 1 flags 7 va ffffffc000000000 pa c0200000
         // phdr 1 type 2 flags 6 va ffffffc001b2c038 pa c1d2c038
         // phdr 2 type 6474e551 flags 6 va 00000000 pa 00000000
@@ -95,7 +95,7 @@ uint64_t loadElf(AWSP2 *fpga, const char *elf_filename, size_t max_mem_size)
         gelf_getshdr(scn, & shdr);
 
         char *sec_name = elf_strptr(e, shstrndx, shdr.sh_name);
-        fprintf(stdout, "Section %-16s: ", sec_name);
+        debugLog("Section %-16s: ", sec_name);
 
         // If we find a code/data section, load it into the model
         if (   ((shdr.sh_type == SHT_PROGBITS)
@@ -112,7 +112,6 @@ uint64_t loadElf(AWSP2 *fpga, const char *elf_filename, size_t max_mem_size)
             // n_initialized += data->d_size;
             uint32_t section_base_addr = shdr.sh_addr - base_va + base_pa;
             size_t max_addr = (section_base_addr + data->d_size - 1);    // shdr.sh_size + 4;
-            fprintf(stderr, "section_base_addr %08x max_addr %08lx\n", section_base_addr, max_addr);
 
             if (strcmp(sec_name, ".htif") == 0) {
                 fpga->set_htif_base_addr(section_base_addr);
@@ -134,7 +133,7 @@ uint64_t loadElf(AWSP2 *fpga, const char *elf_filename, size_t max_mem_size)
                 }
             }
 
-            fprintf (stdout, "addr %16x to addr %16lx; size 0x%8lx (= %0ld) bytes\n",
+            debugLog("addr %16x to addr %16lx; size 0x%8lx (= %0ld) bytes\n",
                      section_base_addr, section_base_addr + data->d_size, data->d_size, data->d_size);
 
         }
@@ -159,10 +158,10 @@ uint64_t loadElf(AWSP2 *fpga, const char *elf_filename, size_t max_mem_size)
 
             }
 
-            fprintf(stdout, "Parsed\n");
+            debugLog("Parsed\n");
         }
         else {
-            fprintf(stdout, "Ignored\n");
+            debugLog("Ignored\n");
         }
     }
 

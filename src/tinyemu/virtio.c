@@ -310,8 +310,6 @@ static void virtio_init(VIRTIODevice *s, VIRTIOBusDef *bus,
         /* MMIO case */
         s->mem_map = bus->mem_map;
         s->irq = bus->irq;
-        fprintf(stderr, "virtio_init device_id %d addr %08lx config_space_size %x virtio_page_size %x\n",
-                device_id, bus->addr, config_space_size, VIRTIO_PAGE_SIZE);
         s->mem_range = cpu_register_device(s->mem_map, bus->addr, VIRTIO_PAGE_SIZE,
                                            s, virtio_mmio_read, virtio_mmio_write,
                                            DEVIO_SIZE8 | DEVIO_SIZE16 | DEVIO_SIZE32);
@@ -1302,19 +1300,15 @@ static void virtio_net_write_packet(EthernetDevice *es, const uint8_t *buf, int 
 
 static void virtio_net_set_carrier(EthernetDevice *es, BOOL carrier_state)
 {
-    fprintf(stderr, "%s: carrier_state %d\n", __FUNCTION__, carrier_state);
-#if 0
     VIRTIODevice *s1 = es->device_opaque;
     VIRTIONetDevice *s = (VIRTIONetDevice *)s1;
     int cur_carrier_state;
 
-    //    printf("virtio_net_set_carrier: %d\n", carrier_state);
     cur_carrier_state = s->common.config_space[6] & 1;
     if (cur_carrier_state != carrier_state) {
         s->common.config_space[6] = (carrier_state << 0);
         virtio_config_change_notify(s1);
     }
-#endif
 }
 
 VIRTIODevice *virtio_net_init(VIRTIOBusDef *bus, EthernetDevice *es)
@@ -1358,14 +1352,12 @@ static int virtio_console_recv_request(VIRTIODevice *s, int queue_idx,
     CharacterDevice *cs = s1->cs;
     uint8_t *buf;
 
-    fprintf(stderr, "%s: queue_idx %d\n", __FUNCTION__, queue_idx);
     if (queue_idx == 1) {
         /* send to console */
         buf = malloc(read_size+1);
         memset(buf, 0, read_size+1);
         memcpy_from_queue(s, buf, queue_idx, desc_idx, 0, read_size);
         cs->write_data(cs->opaque, buf, read_size);
-        fprintf(stderr, "%s: buf %s\n", __FUNCTION__, buf);
         free(buf);
         virtio_consume_desc(s, queue_idx, desc_idx, 0);
     }
@@ -1377,7 +1369,6 @@ BOOL virtio_console_can_write_data(VIRTIODevice *s)
     QueueState *qs = &s->queue[0];
 
     if (!qs->ready) {
-      //fprintf(stderr, "%s: !qs->ready\n", __FUNCTION__);
         return FALSE;
     }
     return qs->last_avail_idx != qs->avail_idx;

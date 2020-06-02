@@ -41,7 +41,7 @@ static pthread_mutex_t dma_mutex;
 pthread_once_t mutex_once = PTHREAD_ONCE_INIT;
 static void dmaManagerOnce(void)
 {
-  fprintf(stderr, "[%s:%d]\n", __FUNCTION__, __LINE__);
+  //fprintf(stderr, "[%s:%d]\n", __FUNCTION__, __LINE__);
   pthread_mutex_init(&dma_mutex, 0);
 }
 #endif
