@@ -5,6 +5,7 @@ import ClientServer :: *;
 import Connectable  :: *;
 import FIFO         :: *;
 import FIFOF        :: *;
+import FIFOLevel    :: *;
 import GetPut       :: *;
 import Vector       :: *;
 import Clocks       :: *;
@@ -322,21 +323,9 @@ module mkAWSP2#(Clock derivedClock, Reset derivedReset, AWSP2_Response response)
    endrule
 
 `ifdef INCLUDE_GDB_CONTROL
-   SyncFIFOIfc#(Bit#(7)) dmiReadFifo <- mkSyncFIFOFromCC(4, derivedClock);
-   SyncFIFOIfc#(Tuple2#(Bit#(7), Bit#(32))) dmiWriteFifo <- mkSyncFIFOFromCC(4, derivedClock);
-   SyncFIFOIfc#(Bit#(32)) dmiDataFifo <- mkSyncFIFOToCC(4, derivedClock, derivedReset);
-
-   // We do our own pessimistic notEmpty for the outgoing FIFOs needed by
-   // dmi_status, as notEmpty is in the destination clock domain, and crossing
-   // that signal back would give us a delay in seeing our own enqueues.
-   // We rely on the SoC's clock being faster than the core's in order to use
-   // the vastly simpler mkSyncPulse for communicating the deq's back.
-   Reg#(Bit#(2)) rg_dmi_reads_queued[2] <- mkCReg(2, 0);
-   Reg#(Bit#(2)) rg_dmi_writes_queued[2] <- mkCReg(2, 0);
-   SyncPulseIfc sp_dmi_read_dequeued <- mkSyncPulseToCC(derivedClock, derivedReset);
-   SyncPulseIfc sp_dmi_write_dequeued <- mkSyncPulseToCC(derivedClock, derivedReset);
-   PulseWire pw_dmi_read_enqueued <- mkPulseWire();
-   PulseWire pw_dmi_write_enqueued <- mkPulseWire();
+   SyncFIFOLevelIfc#(Bit#(7), 4) dmiReadFifo <- mkSyncFIFOLevel(defaultClock, defaultReset, derivedClock);
+   SyncFIFOLevelIfc#(Tuple2#(Bit#(7), Bit#(32)), 4) dmiWriteFifo <- mkSyncFIFOLevel(defaultClock, defaultReset, derivedClock);
+   SyncFIFOLevelIfc#(Bit#(32), 4) dmiDataFifo <- mkSyncFIFOLevel(derivedClock, derivedReset, defaultClock);
 
    rule dmi_read_data_rl;
       let rdata <- p2_core.dmi.read_data();
@@ -349,26 +338,14 @@ module mkAWSP2#(Clock derivedClock, Reset derivedReset, AWSP2_Response response)
    endrule
    rule dmi_read_rl;
       let addr <- toGet(dmiReadFifo).get();
-      sp_dmi_read_dequeued.send();
       //$display("dmi_read addr %h", addr);
       p2_core.dmi.read_addr(addr);
    endrule
    rule dmi_write_rl;
       let req <- toGet(dmiWriteFifo).get();
-      sp_dmi_write_dequeued.send();
       //$display("dmi_write addr %h data %h", tpl_1(req), tpl_2(req));
       p2_core.dmi.write(tpl_1(req), tpl_2(req));
       dmiDataFifo.enq(tpl_2(req));
-   endrule
-
-   (* no_implicit_conditions, fire_when_enabled *)
-   rule rl_dmi_read_dequeued (sp_dmi_read_dequeued.pulse());
-      rg_dmi_reads_queued[0] <= rg_dmi_reads_queued[0] - 1;
-   endrule
-
-   (* no_implicit_conditions, fire_when_enabled *)
-   rule rl_dmi_write_dequeued (sp_dmi_write_dequeued.pulse());
-      rg_dmi_writes_queued[0] <= rg_dmi_writes_queued[0] - 1;
    endrule
 `endif
 
@@ -442,29 +419,24 @@ module mkAWSP2#(Clock derivedClock, Reset derivedReset, AWSP2_Response response)
    endrule
 
    interface AWSP2_Request request;
-      // The additional condition guards against overflow in our counter in
-      // case the pulse to decrement is delayed compared to the notFull signal
-      // going high.
-      method Action dmi_read(Bit#(7) addr) if (rg_dmi_reads_queued[1] != '1);
+      method Action dmi_read(Bit#(7) addr);
         //$display("dmi_read req addr %h", addr);
 `ifdef INCLUDE_GDB_CONTROL
          dmiReadFifo.enq(addr);
-         rg_dmi_reads_queued[1] <= rg_dmi_reads_queued[1] + 1;
 `endif
       endmethod
-      method Action dmi_write(Bit#(7) addr, Bit#(32) data) if (rg_dmi_writes_queued[1] != '1);
+      method Action dmi_write(Bit#(7) addr, Bit#(32) data);
         //$display("dmi_write req addr %h data %h", addr, data);
 `ifdef INCLUDE_GDB_CONTROL
         dmiWriteFifo.enq(tuple2(addr, data));
-        rg_dmi_writes_queued[1] <= rg_dmi_writes_queued[1] + 1;
 `endif
       endmethod
       method Action dmi_status();
          Bit#(16) status = 0;
 `ifdef INCLUDE_GDB_CONTROL
-         status[0] = pack(rg_dmi_reads_queued[1] != 0);
-         status[1] = pack(rg_dmi_writes_queued[1] != 0);
-         status[2] = pack(dmiDataFifo.notEmpty());
+         status[0] = pack(dmiReadFifo.sNotEmpty());
+         status[1] = pack(dmiWriteFifo.sNotEmpty());
+         status[2] = pack(dmiDataFifo.dNotEmpty());
 `endif
          status[15:8] = memController.status();
          response.dmi_status_data(status);
