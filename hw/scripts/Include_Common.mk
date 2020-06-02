@@ -1,3 +1,5 @@
+SCRIPTSDIR := $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+
 CONNECTALDIR ?= ../connectal
 
 ############################################################
@@ -54,6 +56,11 @@ prebuild:: $(CONNECTALDIR)/out/awsf1/ila_connectal_1/ila_connectal_1.xci
 
 $(CONNECTALDIR)/out/awsf1/ila_connectal_1/ila_connectal_1.xci:
 	cd awsf1; vivado -mode batch -source $(CONNECTALDIR)/scripts/connectal-synth-ila.tcl
+
+prebuild:: awsf1/strategy_OVERRIDES.tcl
+
+awsf1/strategy_OVERRIDES.tcl: $(SCRIPTSDIR)/strategy_OVERRIDES.tcl
+	cp $^ $@
 endif
 
 include $(CONNECTALDIR)/Makefile.connectal
