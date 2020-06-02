@@ -156,7 +156,7 @@ int main(int argc, char * const *argv)
             } else {
                 uart_enabled = 1;
             }
-	    fprintf(stderr, "UART %d\n", dma_enabled);
+	    fprintf(stderr, "UART %d\n", uart_enabled);
             break;
         case 'X':
             if (optarg) {
@@ -167,6 +167,11 @@ int main(int argc, char * const *argv)
 	    fprintf(stderr, "XDMA %d\n", xdma_enabled);
             break;
         }
+    }
+
+    // Enable a UART by default if no other terminal I/O requested
+    if (enable_virtio_console == 0 && htif_enabled == 0 && uart_enabled == 0) {
+        uart_enabled = 1;
     }
 
     if (optind < argc) {
