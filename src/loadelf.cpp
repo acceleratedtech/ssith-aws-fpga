@@ -17,7 +17,7 @@ int debug_pcis_write = 0;
 __attribute__((aligned(4096)))
 static uint8_t zeroes[4096];
 
-uint64_t loadElf(AWSP2 *fpga, const char *elf_filename, size_t max_mem_size)
+uint64_t loadElf(AWSP2 *fpga, const char *elf_filename, size_t max_mem_size, bool set_htif)
 {
     // Verify the elf library version
     if (elf_version(EV_CURRENT) == EV_NONE) {
@@ -162,14 +162,16 @@ uint64_t loadElf(AWSP2 *fpga, const char *elf_filename, size_t max_mem_size)
 
     elf_end(e);
 
-    if (htif_paddr) {
-        fpga->set_htif_base_addr(htif_paddr);
-    }
-    if (tohost_paddr) {
-        fpga->set_tohost_addr(tohost_paddr);
-    }
-    if (fromhost_paddr) {
-        fpga->set_fromhost_addr(fromhost_paddr);
+    if (set_htif) {
+        if (htif_paddr) {
+            fpga->set_htif_base_addr(htif_paddr);
+        }
+        if (tohost_paddr) {
+            fpga->set_tohost_addr(tohost_paddr);
+        }
+        if (fromhost_paddr) {
+            fpga->set_fromhost_addr(fromhost_paddr);
+        }
     }
 
     return entry_paddr;
