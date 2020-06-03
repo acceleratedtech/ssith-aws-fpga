@@ -15,8 +15,6 @@
 #include "loadelf.h"
 #include "util.h"
 
-using namespace std;
-
 #define DEFAULT_DMA_ENABLED 0
 #ifdef SIMULATION
 #define DEFAULT_XDMA_ENABLED 0
@@ -56,7 +54,7 @@ const struct option long_options[] = {
 
 void usage(const char *name)
 {
-    fprintf(stderr, "Usage: %s [options] [elf]\n", name);
+    fprintf(stderr, "Usage: %s [options] [elf ...]\n", name);
     for (const struct option *option = long_options; option->name != 0; option++) {
 	if (option->has_arg == required_argument) {
 	    fprintf(stderr, "        --%s arg\n", option->name);
@@ -74,7 +72,7 @@ int main(int argc, char * const *argv)
 {
     const char *bootrom_filename = 0;
     const char *dtb_filename = 0;
-    const char *elf_filename = 0;
+    std::vector<std::string> elf_files;
     int cpuverbosity = 0;
     uint32_t entry = 0;
     int sleep_seconds = 1;
@@ -86,7 +84,7 @@ int main(int argc, char * const *argv)
     uint64_t uart_enabled = 0;
     int dma_enabled = DEFAULT_DMA_ENABLED;
     int xdma_enabled = DEFAULT_XDMA_ENABLED;
-    std::vector<string> block_files;
+    std::vector<std::string> block_files;
     int debug_log = 0;
 
     while (1) {
@@ -101,7 +99,7 @@ int main(int argc, char * const *argv)
             bootrom_filename = optarg;
             break;
         case 'B':
-            block_files.push_back(string(optarg));
+            block_files.push_back(std::string(optarg));
             break;
         case 'C':
             if (optarg) {
@@ -122,7 +120,7 @@ int main(int argc, char * const *argv)
 	    //fprintf(stderr, "DMA %d\n", dma_enabled);
             break;
         case 'e':
-            elf_filename = optarg;
+            elf_files.push_back(std::string(optarg));
             break;
         case 'E':
             entry = strtoul(optarg, 0, 0);
@@ -181,10 +179,10 @@ int main(int argc, char * const *argv)
 
     setEnableDebugLog(debug_log);
 
-    if (optind < argc) {
-        elf_filename = argv[optind];
+    while (optind < argc) {
+        elf_files.push_back(argv[optind++]);
     }
-    if (!bootrom_filename && !elf_filename) {
+    if (!bootrom_filename && !elf_files.size()) {
         usage(argv[0]);
         return -1;
     }
@@ -207,7 +205,7 @@ int main(int argc, char * const *argv)
     fpga->set_htif_enabled(htif_enabled);
     fpga->set_uart_enabled(uart_enabled);
 
-    for (string block_file: block_files) {
+    for (std::string block_file: block_files) {
         fpga->get_virtio_devices().add_virtio_block_device(block_file);
     }
 
@@ -239,11 +237,17 @@ int main(int argc, char * const *argv)
 
     debugLog("dmi state machine status %d\n", fpga->dmi_status());
 
-    uint64_t elf_entry = loadElf(fpga, elf_filename, 0x40000000);
-    debugLog("elf_entry=%08lx\n", elf_entry);
+    bool first_elf = true;
+    for (std::string elf_file: elf_files) {
+        uint64_t elf_entry = loadElf(fpga, elf_file.c_str(), 0x40000000, first_elf);
+        if (first_elf) {
+            first_elf = false;
+            debugLog("elf_entry=%08lx\n", elf_entry);
 
-    if (!entry)
-        entry = elf_entry;
+            if (!entry)
+                entry = elf_entry;
+        }
+    }
 
     // update the dpc
     debugLog("setting pc val %08x\n", entry);
