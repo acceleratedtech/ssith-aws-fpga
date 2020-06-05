@@ -294,8 +294,8 @@ void AWSP2_Response::console_putchar(uint64_t wdata) {
     }
 }
 
-AWSP2::AWSP2(int id, const Rom &rom, uint32_t dram_base_addr, const char *tun_iface)
-    : response(0), dram_base_addr(dram_base_addr), rom(rom), last_addr(0), start_of_line(1),
+AWSP2::AWSP2(int id, const Rom &rom, const char *tun_iface)
+    : response(0), rom(rom), last_addr(0), start_of_line(1),
       htif_enabled(0), uart_enabled(0), virtio_devices(FIRST_VIRTIO_IRQ, tun_iface),
       pcis_dma_fd(-1), dram_mapping(0), xdma_c2h_fd(-1), xdma_h2c_fd(-1)
 {

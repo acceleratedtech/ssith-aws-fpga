@@ -27,9 +27,6 @@
 #define BOOTROM_LIMIT (0x70010000)
 #define DEVICETREE_OFFSET (0x20)
 
-// we should read this from the dtb
-#define DRAM_BASE_ADDR   0xC0000000
-
 const struct option long_options[] = {
     { "block", required_argument, 0, 'B' },
     { "bootrom", required_argument, 0, 'b' },
@@ -193,7 +190,7 @@ int main(int argc, char * const *argv)
     debugLog("romBuffer=%lx\n", (long)romBuffer);
 
     Rom rom = { BOOTROM_BASE, BOOTROM_LIMIT, (uint64_t *)romBuffer };
-    fpga = new AWSP2(IfcNames_AWSP2_ResponseH2S, rom, DRAM_BASE_ADDR, tun_iface);
+    fpga = new AWSP2(IfcNames_AWSP2_ResponseH2S, rom, tun_iface);
 #ifdef SIMULATION
     fpga->map_simulated_dram();
 #else

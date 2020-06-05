@@ -117,7 +117,6 @@ class AWSP2 {
     DmaManager *dma;
     Rom rom;
     VirtioDevices virtio_devices;
-    uint32_t dram_base_addr;
     uint32_t rsp_data;
     uint32_t last_addr;
     int start_of_line;
@@ -141,7 +140,7 @@ class AWSP2 {
 
     friend class AWSP2_Response;
 public:
-    AWSP2(int id, const Rom &rom, uint32_t dram_base_addr, const char *tun_iface);
+    AWSP2(int id, const Rom &rom, const char *tun_iface);
     virtual ~AWSP2();
 
     void capture_tv_info(int c, int display = 1);
