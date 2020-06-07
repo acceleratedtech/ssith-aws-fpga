@@ -709,6 +709,7 @@ void AWSP2::start_io()
     pipe(stop_stdin_pipe);
     fcntl(stop_stdin_pipe[1], F_SETFL, O_NONBLOCK);
     pthread_create(&stdin_thread, NULL, &process_stdin_thread, this);
+    pthread_setname_np(stdin_thread, "Console input");
 
     if (virtio_devices.has_virtio_console_device()) {
         pipe(virtio_stdio_pipe);
