@@ -46,6 +46,20 @@ static PhysMemoryRange *fpga_register_ram(PhysMemoryMap *s, uint64_t addr,
     return pr;
 }
 
+static void console_write_data(void *opaque, const uint8_t *buf, int buf_len)
+{
+    fwrite(buf, 1, buf_len, stdout);
+    fflush(stdout);
+}
+
+static int console_read_data(void *opaque, uint8_t *buf, int len)
+{
+    int ret = read((int)(intptr_t)opaque, buf, len);
+    if (ret < 0)
+        return 0;
+
+    return ret;
+}
 
 void VirtioDevices::set_dram_buffer(uint8_t *buf) {
     fpga_register_ram(mem_map, 0x80000000, 0x40000000, 0, buf);
@@ -82,6 +96,9 @@ VirtioDevices::VirtioDevices(int first_irq_num, const char *tun_ifname)
 }
 
 VirtioDevices::~VirtioDevices() {
+    if (console) {
+        close((int)(intptr_t)console->opaque);
+    }
 }
 
 void VirtioDevices::add_virtio_block_device(std::string filename)
@@ -98,10 +115,23 @@ void VirtioDevices::add_virtio_block_device(std::string filename)
 
 void VirtioDevices::add_virtio_console_device()
 {
-    console = console_init(1);
+    console = (CharacterDevice *)malloc(sizeof(*console));
+    console->opaque = (void *)(intptr_t)-1;
+    console->read_data = console_read_data;
+    console->write_data = console_write_data;
     virtio_bus->addr += 0x1000;
     virtio_bus->irq = &irq[irq_num++];
     virtio_console = virtio_console_init(virtio_bus, console);
+}
+
+void VirtioDevices::set_virtio_stdin_fd(int fd)
+{
+    console->opaque = (void *)(intptr_t)fd;
+}
+
+bool VirtioDevices::has_virtio_console_device()
+{
+    return virtio_console != nullptr;
 }
 
 PhysMemoryRange *VirtioDevices::get_phys_mem_range(uint64_t paddr)
@@ -132,8 +162,7 @@ void VirtioDevices::process_io()
         fd_max = stop_fd;
 
         if (virtio_console && virtio_console_can_write_data(virtio_console)) {
-            //STDIODevice *s = console->opaque;
-            stdin_fd = STDIN_FILENO; //s->stdin_fd;
+            stdin_fd = (int)(intptr_t)console->opaque;
             FD_SET(stdin_fd, &rfds);
             fd_max = std::max(stdin_fd, fd_max);
 

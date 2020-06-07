@@ -38,6 +38,8 @@ class VirtioDevices {
   void xdma_init(int c2h_fd, int h2c_fd);
   void add_virtio_block_device(std::string filename);
   void add_virtio_console_device();
+  void set_virtio_stdin_fd(int fd);
+  bool has_virtio_console_device();
   void start();
   void stop();
   void join();
