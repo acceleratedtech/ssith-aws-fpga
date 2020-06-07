@@ -224,6 +224,7 @@ void VirtioDevices::start()
     pipe(stop_pipe);
     fcntl(stop_pipe[1], F_SETFL, O_NONBLOCK);
     pthread_create(&io_thread, NULL, &process_io_thread, this);
+    pthread_setname_np(io_thread, "VirtIO I/O");
 }
 
 void VirtioDevices::stop()

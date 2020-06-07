@@ -2833,6 +2833,7 @@ void virtio_start_pending_notify_thread(int n, VIRTIODevice **ps)
     data->n = n;
     data->ps = ps_copy;
     pthread_create(&pending_notify_thread, NULL, &pending_notify_worker, data);
+    pthread_setname_np(pending_notify_thread, "VirtIO queues");
 }
 
 void virtio_stop_pending_notify_thread(void)
