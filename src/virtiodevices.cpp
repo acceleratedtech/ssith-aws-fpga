@@ -24,7 +24,7 @@ extern AWSP2 *fpga;
 
 void awsp2_set_irq(void *opaque, int irq_num, int level)
 {
-    if (debug) fprintf(stderr, "%s: irq_num=%d level=%d\n", __FUNCTION__, irq_num, level);
+    if (debug) fprintf(stderr, "%s: irq_num=%d level=%d\r\n", __FUNCTION__, irq_num, level);
     if (level)
 	fpga->irq_set_levels(1 << irq_num);
     else
@@ -40,7 +40,7 @@ static PhysMemoryRange *fpga_register_ram(PhysMemoryMap *s, uint64_t addr,
 
     pr->phys_mem = phys_mem;
     if (!pr->phys_mem) {
-        fprintf(stderr, "Could not allocate VM memory\n");
+        fprintf(stderr, "Could not allocate VM memory\r\n");
         exit(1);
     }
     return pr;
@@ -86,13 +86,13 @@ VirtioDevices::VirtioDevices(int first_irq_num, const char *tun_ifname)
     virtio_bus->irq = &irq[irq_num++];
     ethernet_device = tun_ifname ? tun_open(tun_ifname) : slirp_open();
     virtio_net = virtio_net_init(virtio_bus, ethernet_device);
-    debugLog("ethernet device %p virtio net device %p at addr %08lx\n", ethernet_device, virtio_net, virtio_bus->addr);
+    debugLog("ethernet device %p virtio net device %p at addr %08lx\r\n", ethernet_device, virtio_net, virtio_bus->addr);
 
     // set up an entropy device
     virtio_bus->addr += 0x1000;
     virtio_bus->irq = &irq[irq_num++];
     virtio_entropy = virtio_entropy_init(virtio_bus);
-    debugLog("virtio entropy device %p at addr %08lx\n", virtio_entropy, virtio_bus->addr);
+    debugLog("virtio entropy device %p at addr %08lx\r\n", virtio_entropy, virtio_bus->addr);
 }
 
 VirtioDevices::~VirtioDevices() {
@@ -107,9 +107,9 @@ void VirtioDevices::add_virtio_block_device(std::string filename)
     virtio_bus->addr += 0x1000;
     virtio_bus->irq = &irq[irq_num++];
     block_device = block_device_init(filename.c_str(), BF_MODE_RW);
-    debugLog("block device %s (%p)\n", filename.c_str(), block_device);
+    debugLog("block device %s (%p)\r\n", filename.c_str(), block_device);
     virtio_block = virtio_block_init(virtio_bus, block_device);
-    debugLog("virtio block device %p at addr %08lx\n", virtio_block, virtio_bus->addr);
+    debugLog("virtio block device %p at addr %08lx\r\n", virtio_block, virtio_bus->addr);
 
 }
 

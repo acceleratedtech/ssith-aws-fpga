@@ -21,7 +21,7 @@ uint64_t loadElf(AWSP2 *fpga, const char *elf_filename, size_t max_mem_size, boo
 {
     // Verify the elf library version
     if (elf_version(EV_CURRENT) == EV_NONE) {
-        fprintf(stderr, "ERROR: loadElf: Failed to initialize the libelfg library!\n");
+        fprintf(stderr, "ERROR: loadElf: Failed to initialize the libelfg library!\r\n");
         exit(1);
     }
 
@@ -32,7 +32,7 @@ uint64_t loadElf(AWSP2 *fpga, const char *elf_filename, size_t max_mem_size, boo
     // Verify that the file is an ELF file
     if (elf_kind(e) != ELF_K_ELF) {
         elf_end(e);
-        fprintf(stderr, "ERROR: loadElf: specified file '%s' is not an ELF file!\n", elf_filename);
+        fprintf(stderr, "ERROR: loadElf: specified file '%s' is not an ELF file!\r\n", elf_filename);
         exit(1);
     }
 
@@ -40,34 +40,34 @@ uint64_t loadElf(AWSP2 *fpga, const char *elf_filename, size_t max_mem_size, boo
     GElf_Ehdr ehdr;
     if (gelf_getehdr(e, & ehdr) == NULL) {
         elf_end(e);
-        fprintf(stderr, "ERROR: loadElf: get_getehdr() failed: %s\n", elf_errmsg(-1));
+        fprintf(stderr, "ERROR: loadElf: get_getehdr() failed: %s\r\n", elf_errmsg(-1));
         exit(1);
     }
 
     // Is this a 32b or 64 ELF?
     if (gelf_getclass(e) == ELFCLASS32) {
-        debugLog("loadElf: %s is a 32-bit ELF file\n", elf_filename);
+        debugLog("loadElf: %s is a 32-bit ELF file\r\n", elf_filename);
         //bitwidth = 32;
     }
     else if (gelf_getclass(e) == ELFCLASS64) {
-        debugLog("loadElf: %s is a 64-bit ELF file\n", elf_filename);
+        debugLog("loadElf: %s is a 64-bit ELF file\r\n", elf_filename);
         //bitwidth = 64;
         Elf64_Ehdr *ehdr64 = elf64_getehdr(e);
-        debugLog("loadElf: entry point %08lx\n", ehdr64->e_entry);
+        debugLog("loadElf: entry point %08lx\r\n", ehdr64->e_entry);
         entry_vaddr = ehdr64->e_entry;
     }
 
     // Verify we are dealing with a RISC-V ELF
     if (ehdr.e_machine != 243) { // EM_RISCV is not defined, but this returns 243 when used with a valid elf file.
         elf_end(e);
-        fprintf(stderr, "ERROR: loadElf: %s is not a RISC-V ELF file\n", elf_filename);
+        fprintf(stderr, "ERROR: loadElf: %s is not a RISC-V ELF file\r\n", elf_filename);
         exit(1);
     }
     // Verify we are dealing with a little endian ELF
     if (ehdr.e_ident[EI_DATA] != ELFDATA2LSB) {
         elf_end(e);
         fprintf(stderr,
-                 "ERROR: loadElf: %s is a big-endian 64-bit RISC-V executable which is not supported\n",
+                 "ERROR: loadElf: %s is a big-endian 64-bit RISC-V executable which is not supported\r\n",
                  elf_filename);
         exit(1);
     }
@@ -86,7 +86,7 @@ uint64_t loadElf(AWSP2 *fpga, const char *elf_filename, size_t max_mem_size, boo
 
         char *sec_name = elf_strptr(e, shstrndx, shdr.sh_name);
         debugLog("Section %-16s: ", sec_name);
-        debugLog("addr %16lx to addr %16lx; size 0x%8lx (= %0ld) bytes\n",
+        debugLog("addr %16lx to addr %16lx; size 0x%8lx (= %0ld) bytes\r\n",
                  shdr.sh_addr, shdr.sh_addr + shdr.sh_size, shdr.sh_size, shdr.sh_size);
 
         // If we find the symbol table, search for symbols of interest
@@ -132,7 +132,7 @@ uint64_t loadElf(AWSP2 *fpga, const char *elf_filename, size_t max_mem_size, boo
     uint64_t fromhost_paddr = fromhost_vaddr;
     for (int cnt = 0; cnt < ehdr.e_phnum; ++cnt) {
         gelf_getphdr(e, cnt, &phdr);
-        debugLog("phdr %d type %x flags %x va %08lx pa %08lx\n", cnt, phdr.p_type, phdr.p_flags, phdr.p_vaddr, phdr.p_paddr);
+        debugLog("phdr %d type %x flags %x va %08lx pa %08lx\r\n", cnt, phdr.p_type, phdr.p_flags, phdr.p_vaddr, phdr.p_paddr);
 
         if (phdr.p_type != PT_LOAD) continue;
 
