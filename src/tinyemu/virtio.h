@@ -62,6 +62,7 @@ void virtio_set_debug(VIRTIODevice *s, int debug_flags);
 void virtio_xdma_init(int c2h_fd, int h2c_fd);
 void virtio_start_pending_notify_thread(int n, VIRTIODevice **ps);
 void virtio_stop_pending_notify_thread(void);
+void virtio_join_pending_notify_thread(void);
 
 /* block device */
 

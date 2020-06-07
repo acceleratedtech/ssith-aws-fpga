@@ -194,9 +194,7 @@ void VirtioDevices::start()
 
     pipe(stop_pipe);
     fcntl(stop_pipe[1], F_SETFL, O_NONBLOCK);
-    pthread_t thread;
-    pthread_create(&thread, NULL, &process_io_thread, this);
-    pthread_detach(thread);
+    pthread_create(&io_thread, NULL, &process_io_thread, this);
 }
 
 void VirtioDevices::stop()
@@ -205,4 +203,10 @@ void VirtioDevices::stop()
     char dummy = 'X';
     write(stop_pipe[1], &dummy, sizeof(dummy));
     close(stop_pipe[1]);
+}
+
+void VirtioDevices::join()
+{
+    virtio_join_pending_notify_thread();
+    pthread_join(io_thread, NULL);
 }
