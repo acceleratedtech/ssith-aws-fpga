@@ -55,14 +55,14 @@ const struct option long_options[] = {
 
 void usage(const char *name)
 {
-    fprintf(stderr, "Usage: %s [options] [elf ...]\n", name);
+    fprintf(stderr, "Usage: %s [options] [elf ...]\r\n", name);
     for (const struct option *option = long_options; option->name != 0; option++) {
 	if (option->has_arg == required_argument) {
-	    fprintf(stderr, "        --%s arg\n", option->name);
+	    fprintf(stderr, "        --%s arg\r\n", option->name);
 	} else if (option->has_arg == optional_argument) {
-	    fprintf(stderr, "        --%s [arg]\n", option->name);
+	    fprintf(stderr, "        --%s [arg]\r\n", option->name);
 	} else {
-	    fprintf(stderr, "        --%s\n", option->name);
+	    fprintf(stderr, "        --%s\r\n", option->name);
 	}
     }
 }
@@ -120,7 +120,7 @@ int main(int argc, char * const *argv)
             } else {
                 dma_enabled = 1;
             }
-	    //fprintf(stderr, "DMA %d\n", dma_enabled);
+	    //fprintf(stderr, "DMA %d\r\n", dma_enabled);
             break;
         case 'e':
             elf_files.push_back(std::string(optarg));
@@ -161,7 +161,7 @@ int main(int argc, char * const *argv)
             } else {
                 uart_enabled = 1;
             }
-	    //fprintf(stderr, "UART %d\n", uart_enabled);
+	    //fprintf(stderr, "UART %d\r\n", uart_enabled);
             break;
         case 'X':
             if (optarg) {
@@ -169,7 +169,7 @@ int main(int argc, char * const *argv)
             } else {
                 xdma_enabled = 1;
             }
-	    //fprintf(stderr, "XDMA %d\n", xdma_enabled);
+	    //fprintf(stderr, "XDMA %d\r\n", xdma_enabled);
             break;
 	case 'L':
 	    debug_log = 1;
@@ -195,7 +195,7 @@ int main(int argc, char * const *argv)
     // allocate a memory object for Rom
     size_t rom_alloc_sz = 1024*1024;
     uint8_t *romBuffer = (uint8_t *)malloc(rom_alloc_sz);
-    debugLog("romBuffer=%lx\n", (long)romBuffer);
+    debugLog("romBuffer=%lx\r\n", (long)romBuffer);
 
     Rom rom = { BOOTROM_BASE, BOOTROM_LIMIT, (uint64_t *)romBuffer };
     fpga = new AWSP2(IfcNames_AWSP2_ResponseH2S, rom, tun_iface);
@@ -223,7 +223,7 @@ int main(int argc, char * const *argv)
         copyFile((char *)romBuffer, bootrom_filename, rom_alloc_sz);
 
     if (enable_virtio_console) {
-        debugLog("Enabling virtio console\n");
+        debugLog("Enabling virtio console\r\n");
         fpga->get_virtio_devices().add_virtio_console_device();
     }
 
@@ -236,18 +236,18 @@ int main(int argc, char * const *argv)
     // or deadlock will ensue.
     fpga->memory_ready();
 
-    debugLog("asserting haltreq\n");
+    debugLog("asserting haltreq\r\n");
     fpga->halt();
     fpga->capture_tv_info(0);
 
-    debugLog("dmi state machine status %d\n", fpga->dmi_status());
+    debugLog("dmi state machine status %d\r\n", fpga->dmi_status());
 
     bool first_elf = true;
     for (std::string elf_file: elf_files) {
         uint64_t elf_entry = loadElf(fpga, elf_file.c_str(), 0x40000000, first_elf);
         if (first_elf) {
             first_elf = false;
-            debugLog("elf_entry=%08lx\n", elf_entry);
+            debugLog("elf_entry=%08lx\r\n", elf_entry);
 
             if (!entry)
                 entry = elf_entry;
@@ -255,9 +255,9 @@ int main(int argc, char * const *argv)
     }
 
     // update the dpc
-    debugLog("setting pc val %08x\n", entry);
+    debugLog("setting pc val %08x\r\n", entry);
     fpga->write_csr(0x7b1, entry);
-    debugLog("reading pc val %08lx\n", fpga->read_csr(0x7b1));
+    debugLog("reading pc val %08lx\r\n", fpga->read_csr(0x7b1));
 
     // for loading linux, set pointer to devicetree
     fpga->write_gpr(10, 0);
@@ -274,19 +274,19 @@ int main(int argc, char * const *argv)
         uint64_t dpc = fpga->read_csr(0x7b1);
         uint64_t ra = fpga->read_gpr(1);
         uint64_t stvec = fpga->read_csr(0x105);
-        fprintf(stderr, "pc %08lx ra %08lx stvec %08lx irq %08x\n", dpc, ra, stvec, fpga->read_irq_status());
+        fprintf(stderr, "pc %08lx ra %08lx stvec %08lx irq %08x\r\n", dpc, ra, stvec, fpga->read_irq_status());
         if (0 && !tv && dpc >= 0x8200210a) {
             tv = 1;
             fpga->capture_tv_info(tv);
         }
         if (dpc == 0x1000 || dpc == 0x80003168) {
             for (int i = 0; i < 32; i++) {
-                fprintf(stderr, "reg %d val %08lx\n", i, fpga->read_gpr(i));
+                fprintf(stderr, "reg %d val %08lx\r\n", i, fpga->read_gpr(i));
             }
 
-            fprintf(stderr, "mepc   %08lx\n", fpga->read_csr(0x341));
-            fprintf(stderr, "mcause %08lx\n", fpga->read_csr(0x342));
-            fprintf(stderr, "mtval  %08lx\n", fpga->read_csr(0x343));
+            fprintf(stderr, "mepc   %08lx\r\n", fpga->read_csr(0x341));
+            fprintf(stderr, "mcause %08lx\r\n", fpga->read_csr(0x342));
+            fprintf(stderr, "mtval  %08lx\r\n", fpga->read_csr(0x343));
 
             break;
         }

@@ -4,6 +4,7 @@
 #include <queue>
 #include <mutex>
 #include <pthread.h>
+#include <termios.h>
 
 #include "virtiodevices.h"
 #include "AWSP2_Request.h"
@@ -121,6 +122,7 @@ class AWSP2 {
     uint32_t rsp_data;
     uint32_t last_addr;
     int start_of_line;
+    int ctrla_seen;
     std::queue<AXI_Write_State> io_write_queue;
     int stop_capture;
     int display_tandem;
@@ -141,6 +143,8 @@ class AWSP2 {
     int stop_stdin_pipe[2];
     pthread_t stdin_thread;
     int virtio_stdio_pipe[2];
+    static struct termios orig_stdin_termios;
+    static struct termios orig_stdout_termios;
 
     friend class AWSP2_Response;
 public:
@@ -180,7 +184,7 @@ public:
     void set_fabric_verbosity(uint8_t verbosity);
     void set_dram_buffer(uint8_t *buf);
 
-    void enqueue_stdin(const char *buf, size_t num_chars);
+    void enqueue_stdin(char *buf, size_t num_chars);
     int dequeue_stdin(uint8_t *chp);
 
     VirtioDevices &get_virtio_devices() { return virtio_devices; }
@@ -197,6 +201,7 @@ public:
  private:
     void process_stdin();
     static void *process_stdin_thread(void *opaque);
+    static void reset_termios();
     uint32_t dmi_read(uint32_t addr);
     void dmi_write(uint32_t addr, uint32_t data);
     void sbcs_wait();

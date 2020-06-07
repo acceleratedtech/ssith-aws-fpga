@@ -22,7 +22,7 @@ public:
     AWSP2_Response(int id, AWSP2 *fpga) : AWSP2_ResponseWrapper(id), fpga(fpga) {
     }
     virtual void dmi_read_data(uint32_t rsp_data) {
-        //fprintf(stderr, "dmi_read_data data=%08x\n", rsp_data);
+        //fprintf(stderr, "dmi_read_data data=%08x\r\n", rsp_data);
         fpga->rsp_data = rsp_data;
         sem_post(&fpga->sem);
     }
@@ -64,7 +64,7 @@ void AWSP2_Response::tandem_packet(const uint32_t num_bytes, const bsvvector_Lui
         uint32_t val = 0;
         memcpy(&addr, &packet[3], sizeof(addr));
         memcpy(&val, &packet[12], sizeof(val));
-        if (fpga->display_tandem) fprintf(stderr, "[TV] write mem [%08lx] <- %08x\n", addr, val);
+        if (fpga->display_tandem) fprintf(stderr, "[TV] write mem [%08lx] <- %08x\r\n", addr, val);
     } else if (packet[0] == te_op_begin_group) {
         int offset = 1;
         if (fpga->display_tandem) fprintf(stderr, "[TV]");
@@ -148,14 +148,14 @@ void AWSP2_Response::tandem_packet(const uint32_t num_bytes, const bsvvector_Lui
                 break;
             }
         }
-        if (fpga->display_tandem) fprintf(stderr, "\n");
+        if (fpga->display_tandem) fprintf(stderr, "\r\n");
 
         if (offset < num_bytes) {
-            if (fpga->display_tandem) fprintf(stderr, " len %d offset %d op %x\n", num_bytes, offset, packet[offset]);
+            if (fpga->display_tandem) fprintf(stderr, " len %d offset %d op %x\r\n", num_bytes, offset, packet[offset]);
             for (uint32_t i = 0; i < num_bytes; i++) {
                 if (fpga->display_tandem) fprintf(stderr, " %02x", packet[i] & 0xFF);
             }
-            if (fpga->display_tandem) fprintf(stderr, "\n");
+            if (fpga->display_tandem) fprintf(stderr, "\r\n");
         }
     } else {
 
@@ -165,7 +165,7 @@ void AWSP2_Response::tandem_packet(const uint32_t num_bytes, const bsvvector_Lui
                 if (fpga->display_tandem) fprintf(stderr, " %02x", packet[i] & 0xFF);
             }
         }
-        if (fpga->display_tandem) fprintf(stderr, "\n");
+        if (fpga->display_tandem) fprintf(stderr, "\r\n");
     }
     if (matched_pc)
         fpga->display_tandem = 1;
@@ -176,14 +176,14 @@ void AWSP2_Response::io_awaddr(uint32_t awaddr, uint16_t awlen, uint16_t awid) {
     PhysMemoryRange *pr = fpga->virtio_devices.get_phys_mem_range(awaddr);
     if (pr) {
         uint32_t offset = awaddr - pr->addr;
-        if (debug_virtio) fprintf(stderr, "virtio awaddr %08x device addr %08lx offset %08x len %d\n", awaddr, pr->addr, offset, awlen);
+        if (debug_virtio) fprintf(stderr, "virtio awaddr %08x device addr %08lx offset %08x len %d\r\n", awaddr, pr->addr, offset, awlen);
     } else if (awaddr == fpga->tohost_addr) {
         // tohost
     } else if (awaddr == fpga->fromhost_addr) {
         // fromhost
     } else {
-        if (debug_stray_io) fprintf(stderr, "io_awaddr awaddr=%08x awlen=%d\n", awaddr, awlen);
-        //fprintf(stderr, "htif_base_addr=%08x\n", fpga->htif_base_addr);
+        if (debug_stray_io) fprintf(stderr, "io_awaddr awaddr=%08x awlen=%d\r\n", awaddr, awlen);
+        //fprintf(stderr, "htif_base_addr=%08x\r\n", fpga->htif_base_addr);
     }
 }
 
@@ -193,7 +193,7 @@ void AWSP2_Response::io_araddr(uint32_t araddr, uint16_t arlen, uint16_t arid)
     if (pr) {
         uint32_t offset = araddr - pr->addr;
         int size_log2 = 2;
-        if (debug_virtio) fprintf(stderr, "virtio araddr %08x device addr %08lx offset %08x len %d\n", araddr, pr->addr, offset, arlen);
+        if (debug_virtio) fprintf(stderr, "virtio araddr %08x device addr %08lx offset %08x len %d\r\n", araddr, pr->addr, offset, arlen);
         for (int i = 0; i < arlen / 8; i++) {
             int last = i == ((arlen / 8) - 1);
             uint64_t val = pr->read_func(pr->opaque, offset, size_log2);
@@ -201,22 +201,22 @@ void AWSP2_Response::io_araddr(uint32_t araddr, uint16_t arlen, uint16_t arid)
               val = (val << 32);
             fpga->request->io_rdata(val, arid, 0, last);
             if (debug_virtio)
-                fprintf(stderr, "virtio araddr %0x device addr %08lx offset %08x len %d val %08lx last %d\n",
+                fprintf(stderr, "virtio araddr %0x device addr %08lx offset %08x len %d val %08lx last %d\r\n",
                         araddr + i * 4, pr->addr, offset, arlen, val, last);
             offset += 4;
         }
     } else if (fpga->rom.base <= araddr && araddr < fpga->rom.limit) {
         int offset = (araddr - fpga->rom.base) / 8;
-        //fprintf(stderr, "rom offset %x data %08lx\n", (int)(araddr - fpga->rom.base), fpga->rom.data[offset]);
+        //fprintf(stderr, "rom offset %x data %08lx\r\n", (int)(araddr - fpga->rom.base), fpga->rom.data[offset]);
         for (int i = 0; i < arlen / 8; i++) {
             int last = i == ((arlen / 8) - 1);
-            //fprintf(stderr, "io_rdata %08lx\n", fpga->rom.data[offset + i]);
+            //fprintf(stderr, "io_rdata %08lx\r\n", fpga->rom.data[offset + i]);
             fpga->request->io_rdata(fpga->rom.data[offset + i], arid, 0, last);
         }
     } else if (araddr == fpga->fromhost_addr) {
         uint8_t ch = 0;
         if (arlen != 0)
-          fprintf(stderr, "ERROR: fromhost araddr %08x arlen %d\n", araddr, arlen);
+          fprintf(stderr, "ERROR: fromhost araddr %08x arlen %d\r\n", araddr, arlen);
         if (fpga->htif_enabled && fpga->dequeue_stdin(&ch)) {
             uint64_t cmd = (1ul << 56) | (0ul << 48) | ch;
             fpga->request->io_rdata(cmd, arid, 0, 1);
@@ -225,7 +225,7 @@ void AWSP2_Response::io_araddr(uint32_t araddr, uint16_t arlen, uint16_t arid)
         }
     } else {
         if (araddr != 0x10001000 && araddr != 0x10001008 && araddr != 0x50001000 && araddr != 0x50001008)
-            if (debug_stray_io) fprintf(stderr, "io_araddr araddr=%08x arlen=%d\n", araddr, arlen);
+            if (debug_stray_io) fprintf(stderr, "io_araddr araddr=%08x arlen=%d\r\n", araddr, arlen);
         for (int i = 0; i < arlen / 8; i++) {
             int last = i == ((arlen / 8) - 1);
             fpga->request->io_rdata(0, arid, 0, last);
@@ -244,7 +244,7 @@ void AWSP2_Response::io_wdata(uint64_t wdata, uint8_t wstrb) {
         if (awaddr & 4) {
             wdata = (wdata >> 32) & 0xFFFFFFFF;;
         }
-        if (debug_virtio) fprintf(stderr, "virtio awaddr %08x offset %x wdata %08lx wstrb %x\n", awaddr, offset, wdata, wstrb);
+        if (debug_virtio) fprintf(stderr, "virtio awaddr %08x offset %x wdata %08lx wstrb %x\r\n", awaddr, offset, wdata, wstrb);
         pr->write_func(pr->opaque, offset, wdata, size_log2);
     } else if (awaddr == fpga->tohost_addr) {
         // tohost
@@ -255,23 +255,23 @@ void AWSP2_Response::io_wdata(uint64_t wdata, uint8_t wstrb) {
             console_putchar(payload);
         } else if (dev == 0 && cmd == 0) {
           if (payload == 1) {
-            fprintf(stderr, "PASS\n");
+            fprintf(stderr, "PASS\r\n");
           } else {
-            fprintf(stderr, "FAIL: error %lu\n", (payload >> 1));
+            fprintf(stderr, "FAIL: error %lu\r\n", (payload >> 1));
           }
           //fpga->halt();
         } else {
-            fprintf(stderr, "\nHTIF: dev=%d cmd=%02x payload=%08lx\n", dev, cmd, payload);
+            fprintf(stderr, "\r\nHTIF: dev=%d cmd=%02x payload=%08lx\r\n", dev, cmd, payload);
         }
     } else if (awaddr == fpga->fromhost_addr) {
-        //fprintf(stderr, "\nHTIF: awaddr %08x wdata=%08lx\n", awaddr, wdata);
+        //fprintf(stderr, "\r\nHTIF: awaddr %08x wdata=%08lx\r\n", awaddr, wdata);
     } else {
-        if (debug_stray_io) fprintf(stderr, "    io_wdata wdata=%lx wstrb=%x\n", wdata, wstrb);
+        if (debug_stray_io) fprintf(stderr, "    io_wdata wdata=%lx wstrb=%x\r\n", wdata, wstrb);
     }
     io_write.wdata_count -= 1;
     if (io_write.wdata_count == 0) {
         fpga->request->io_bdone(io_write.wid, 0);
-        //if (debug_stray_io) fprintf(stderr, "    io_bdone awaddr=%08x\n", awaddr);
+        //if (debug_stray_io) fprintf(stderr, "    io_bdone awaddr=%08x\r\n", awaddr);
         fpga->io_write_queue.pop();
     }
 }
@@ -279,7 +279,7 @@ void AWSP2_Response::io_wdata(uint64_t wdata, uint8_t wstrb) {
 
 void AWSP2_Response::uart_tohost(uint8_t ch) {
     console_putchar(ch);
-    //fprintf(stdout, "uart{%x}\n", ch); fflush(stdout);
+    //fprintf(stdout, "uart{%x}\r\n", ch); fflush(stdout);
 }
 
 void AWSP2_Response::console_putchar(uint64_t wdata) {
@@ -295,7 +295,7 @@ void AWSP2_Response::console_putchar(uint64_t wdata) {
 }
 
 AWSP2::AWSP2(int id, const Rom &rom, const char *tun_iface)
-    : response(0), rom(rom), last_addr(0), start_of_line(1),
+    : response(0), rom(rom), last_addr(0), start_of_line(1), ctrla_seen(0),
       htif_enabled(0), uart_enabled(0), virtio_devices(FIRST_VIRTIO_IRQ, tun_iface),
       pcis_dma_fd(-1), dram_mapping(0), xdma_c2h_fd(-1), xdma_h2c_fd(-1)
 {
@@ -317,7 +317,7 @@ void AWSP2::capture_tv_info(int c, int display) {
 }
 
 void AWSP2::wait() {
-    //fprintf(stderr, "fpga::wait\n");
+    //fprintf(stderr, "fpga::wait\r\n");
     sem_wait(&sem);
 }
 
@@ -330,7 +330,7 @@ uint32_t AWSP2::dmi_status() {
 
 // private API, should only be called with the lock held
 uint32_t AWSP2::dmi_read(uint32_t addr) {
-    //fprintf(stderr, "sw dmi_read %x\n", addr);
+    //fprintf(stderr, "sw dmi_read %x\r\n", addr);
     request->dmi_read(addr);
     wait();
     return rsp_data;
@@ -427,10 +427,10 @@ void AWSP2::sbcs_wait() {
         sbcs = dmi_read(DM_SBCS_REG);
         count++;
         if (sbcs & (SBCS_SBBUSYERROR)) {
-            fprintf(stderr, "ERROR: sbcs=%x\n", sbcs);
+            fprintf(stderr, "ERROR: sbcs=%x\r\n", sbcs);
         }
         if (sbcs & (SBCS_SBBUSY)) {
-            fprintf(stderr, "BUSY sbcs=%x %d\n", sbcs, count);
+            fprintf(stderr, "BUSY sbcs=%x %d\r\n", sbcs, count);
         }
     } while (sbcs & (SBCS_SBBUSY));
 }
@@ -441,9 +441,9 @@ void AWSP2::map_simulated_dram()
     int dramObject = portalAlloc(dram_alloc_sz, 0);
     uint8_t *dramBuffer = (uint8_t *)portalMmap(dramObject, dram_alloc_sz);
     memset(dramBuffer, 0x0, dram_alloc_sz);
-    fprintf(stderr, "dramBuffer=%lx\n", (long)dramBuffer);
+    fprintf(stderr, "dramBuffer=%lx\r\n", (long)dramBuffer);
     int objId = dma->reference(dramObject);
-    fprintf(stderr, "DRAM objId %d\n", objId);
+    fprintf(stderr, "DRAM objId %d\r\n", objId);
     register_region(8, objId);
 
     dram_mapping = dramBuffer;
@@ -457,7 +457,7 @@ void AWSP2::map_pcis_dma()
     off_t dram_offset = 2 * 1024 * 1024 * 1024ul;
     pcis_dma_fd = open("/dev/portal_dma_pcis", O_RDWR);
     if (pcis_dma_fd < 0) {
-        fprintf(stderr, "error: opening /dev/portal_dma_pcis %s\n", strerror(errno));
+        fprintf(stderr, "error: opening /dev/portal_dma_pcis %s\r\n", strerror(errno));
         abort();
     }
     // The portal_dma_pcis device driver does not respect the mmap offset, so
@@ -465,9 +465,9 @@ void AWSP2::map_pcis_dma()
     // set_dram_buffer.
     dram_mapping = (uint8_t *)mmap(0, dram_offset + dram_size, PROT_READ|PROT_WRITE, MAP_SHARED, pcis_dma_fd, 0);
     dram_mapping_size = dram_offset + dram_size;
-    fprintf(stderr, "PCIS DMA DRAM mapping %08lx size 0x%lx fd %d\n", (long)dram_mapping, (long)dram_size, pcis_dma_fd);
+    fprintf(stderr, "PCIS DMA DRAM mapping %08lx size 0x%lx fd %d\r\n", (long)dram_mapping, (long)dram_size, pcis_dma_fd);
     if (dram_mapping == MAP_FAILED) {
-        fprintf(stderr, "mmap PCIS DMA failed %s\n", strerror(errno));
+        fprintf(stderr, "mmap PCIS DMA failed %s\r\n", strerror(errno));
         dram_mapping = NULL;
         abort();
     }
@@ -488,12 +488,12 @@ void AWSP2::open_xdma()
 {
     xdma_c2h_fd = open("/dev/xdma0_c2h_0", O_RDONLY);
     if (xdma_c2h_fd < 0) {
-        fprintf(stderr, "ERROR: Failed to open /dev/xdma0_c2h_0: %s\n", strerror(errno));
+        fprintf(stderr, "ERROR: Failed to open /dev/xdma0_c2h_0: %s\r\n", strerror(errno));
         abort();
     }
     xdma_h2c_fd = open("/dev/xdma0_h2c_0", O_WRONLY);
     if (xdma_h2c_fd < 0) {
-        fprintf(stderr, "ERROR: Failed to open /dev/xdma0_h2c_0: %s\n", strerror(errno));
+        fprintf(stderr, "ERROR: Failed to open /dev/xdma0_h2c_0: %s\r\n", strerror(errno));
         abort();
     }
     virtio_devices.xdma_init(xdma_c2h_fd, xdma_h2c_fd);
@@ -511,7 +511,7 @@ void AWSP2::write(uint32_t addr, uint8_t *data, size_t size) {
     if (xdma_h2c_fd >= 0) {
         int bytes_written = pwrite(xdma_h2c_fd, data, size, addr);
         if (bytes_written < 0) {
-            fprintf(stderr, "pwrite %d addr %08x size %ld failed: %s\n",
+            fprintf(stderr, "pwrite %d addr %08x size %ld failed: %s\r\n",
                     xdma_h2c_fd, addr, size, strerror(errno));
             abort();
         }
@@ -578,8 +578,38 @@ void AWSP2::set_dram_buffer(uint8_t *buf) {
     virtio_devices.set_dram_buffer(buf);
 }
 
-void AWSP2::enqueue_stdin(const char *buf, size_t num_chars)
+void AWSP2::enqueue_stdin(char *buf, size_t num_chars)
 {
+    size_t j = 0;
+    for (size_t i = 0; i < num_chars; ++i) {
+        if (ctrla_seen) {
+            ctrla_seen = 0;
+            switch (buf[i]) {
+                case 'x':
+                    stop_io();
+                    fprintf(stderr, "\r\nTerminated\r\n");
+                    return;
+                case 'h':
+                    fprintf(stderr, "\r\n");
+                    fprintf(stderr, "C-a h   print this help\r\n");
+                    fprintf(stderr, "C-a x   exit\r\n");
+                    fprintf(stderr, "C-a C-a send C-a\r\n");
+                    continue;
+                // C-a itself, and any unrecognised characters, are just passed
+                // through as if C-a wasn't pressed.
+                case 1:
+                default:
+                    break;
+            }
+        } else if (buf[i] == 1) {
+            ctrla_seen = 1;
+            continue;
+        }
+
+        buf[j++] = buf[i];
+    }
+    num_chars = j;
+
     if (virtio_devices.has_virtio_console_device()) {
         while (num_chars > 0) {
             ssize_t sent = ::write(virtio_stdio_pipe[1], buf, num_chars);
@@ -656,9 +686,26 @@ void *AWSP2::process_stdin_thread(void *opaque)
     return NULL;
 }
 
-
 void AWSP2::start_io()
 {
+    struct termios stdin_termios;
+    struct termios stdout_termios;
+
+    tcgetattr(STDIN_FILENO, &stdin_termios);
+    tcgetattr(STDOUT_FILENO, &stdout_termios);
+    orig_stdin_termios = stdin_termios;
+    orig_stdout_termios = stdout_termios;
+    atexit(&reset_termios);
+
+    cfmakeraw(&stdin_termios);
+    cfmakeraw(&stdout_termios);
+    stdin_termios.c_cc[VMIN] = 1;
+    stdout_termios.c_cc[VMIN] = 1;
+    stdin_termios.c_cc[VTIME] = 0;
+    stdout_termios.c_cc[VTIME] = 0;
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &stdin_termios);
+    tcsetattr(STDOUT_FILENO, TCSAFLUSH, &stdout_termios);
+
     pipe(stop_stdin_pipe);
     fcntl(stop_stdin_pipe[1], F_SETFL, O_NONBLOCK);
     pthread_create(&stdin_thread, NULL, &process_stdin_thread, this);
@@ -685,6 +732,15 @@ void AWSP2::join_io()
     pthread_join(stdin_thread, NULL);
 
     virtio_devices.join();
+}
+
+struct termios AWSP2::orig_stdin_termios;
+struct termios AWSP2::orig_stdout_termios;
+
+void AWSP2::reset_termios()
+{
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_stdin_termios);
+    tcsetattr(STDOUT_FILENO, TCSAFLUSH, &orig_stdout_termios);
 }
 
 void AWSP2::set_htif_base_addr(uint64_t baseaddr)
