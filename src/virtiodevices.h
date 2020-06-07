@@ -2,6 +2,7 @@
 #pragma once
 
 #include <string>
+#include <pthread.h>
 
 extern "C" {
 #include "virtio.h"
@@ -23,6 +24,7 @@ class VirtioDevices {
   int irq_num;
   const char *tun_ifname;
   int stop_pipe[2];
+  pthread_t io_thread;
 
   void process_io();
   static void *process_io_thread(void *opaque);
@@ -38,5 +40,6 @@ class VirtioDevices {
   void add_virtio_console_device();
   void start();
   void stop();
+  void join();
 };
 

@@ -3,6 +3,7 @@
 #include <string.h>
 #include <queue>
 #include <mutex>
+#include <pthread.h>
 
 #include "virtiodevices.h"
 #include "AWSP2_Request.h"
@@ -137,6 +138,8 @@ class AWSP2 {
     std::mutex client_mutex;
     std::mutex stdin_mutex;
     std::queue<uint8_t> stdin_queue;
+    int stop_stdin_pipe[2];
+    pthread_t stdin_thread;
 
     friend class AWSP2_Response;
 public:
@@ -180,7 +183,9 @@ public:
     int dequeue_stdin(uint8_t *chp);
 
     VirtioDevices &get_virtio_devices() { return virtio_devices; }
-    void process_io();
+    void start_io();
+    void stop_io();
+    void join_io();
 
     void set_htif_base_addr(uint64_t baseaddr);
     void set_tohost_addr(uint64_t addr);
@@ -189,6 +194,8 @@ public:
     void set_uart_enabled(bool enabled);
 
  private:
+    void process_stdin();
+    static void *process_stdin_thread(void *opaque);
     uint32_t dmi_read(uint32_t addr);
     void dmi_write(uint32_t addr, uint32_t data);
     void sbcs_wait();

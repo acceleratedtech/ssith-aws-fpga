@@ -22,6 +22,8 @@
 #define DEFAULT_XDMA_ENABLED 1
 #endif
 
+#define DEBUG_LOOP 0
+
 // we should read this from the dtb
 #define BOOTROM_BASE  (0x70000000)
 #define BOOTROM_LIMIT (0x70010000)
@@ -37,7 +39,9 @@ const struct option long_options[] = {
     { "entry",   required_argument, 0, 'E' },
     { "help",    no_argument, 0, 'h' },
     { "htif-console",  optional_argument, 0, 'H' },
+#if DEBUG_LOOP
     { "sleep-seconds", required_argument, 0, 's' },
+#endif
     { "tv",      no_argument,       0, 'T' },
     { "tun",      required_argument,       0, 't' },
     { "uart",          optional_argument, 0, 'U' },
@@ -72,7 +76,9 @@ int main(int argc, char * const *argv)
     std::vector<std::string> elf_files;
     int cpuverbosity = 0;
     uint32_t entry = 0;
+#if DEBUG_LOOP
     int sleep_seconds = 1;
+#endif
     int usemem = 0;
     const char *tun_iface = 0;
     int tv = 0;
@@ -135,9 +141,11 @@ int main(int argc, char * const *argv)
         case 'M':
             usemem = 1;
             break;
+#if DEBUG_LOOP
         case 's':
             sleep_seconds = strtoul(optarg, 0, 0);
             break;
+#endif
         case 'T':
             tv = 1;
             break;
@@ -257,40 +265,37 @@ int main(int argc, char * const *argv)
 
     fpga->capture_tv_info(tv);
     // and resume
-    fpga->get_virtio_devices().start();
+    fpga->start_io();
     fpga->resume();
 
+#if DEBUG_LOOP
     while (1) {
-
-        // event processing is in the other thread
-
-        fpga->process_io();
-
-        if (0) {
-            fpga->halt();
-            uint64_t dpc = fpga->read_csr(0x7b1);
-            uint64_t ra = fpga->read_gpr(1);
-            uint64_t stvec = fpga->read_csr(0x105);
-            fprintf(stderr, "pc %08lx ra %08lx stvec %08lx irq %08x\n", dpc, ra, stvec, fpga->read_irq_status());
-            if (0 && !tv && dpc >= 0x8200210a) {
-                tv = 1;
-                fpga->capture_tv_info(tv);
-            }
-            if (dpc == 0x1000 || dpc == 0x80003168) {
-                for (int i = 0; i < 32; i++) {
-                    fprintf(stderr, "reg %d val %08lx\n", i, fpga->read_gpr(i));
-                }
-
-                fprintf(stderr, "mepc   %08lx\n", fpga->read_csr(0x341));
-                fprintf(stderr, "mcause %08lx\n", fpga->read_csr(0x342));
-                fprintf(stderr, "mtval  %08lx\n", fpga->read_csr(0x343));
-
-                break;
-            }
-            fpga->resume();
+        fpga->halt();
+        uint64_t dpc = fpga->read_csr(0x7b1);
+        uint64_t ra = fpga->read_gpr(1);
+        uint64_t stvec = fpga->read_csr(0x105);
+        fprintf(stderr, "pc %08lx ra %08lx stvec %08lx irq %08x\n", dpc, ra, stvec, fpga->read_irq_status());
+        if (0 && !tv && dpc >= 0x8200210a) {
+            tv = 1;
+            fpga->capture_tv_info(tv);
         }
+        if (dpc == 0x1000 || dpc == 0x80003168) {
+            for (int i = 0; i < 32; i++) {
+                fprintf(stderr, "reg %d val %08lx\n", i, fpga->read_gpr(i));
+            }
+
+            fprintf(stderr, "mepc   %08lx\n", fpga->read_csr(0x341));
+            fprintf(stderr, "mcause %08lx\n", fpga->read_csr(0x342));
+            fprintf(stderr, "mtval  %08lx\n", fpga->read_csr(0x343));
+
+            break;
+        }
+        fpga->resume();
 
         sleep(sleep_seconds);
     }
+#endif
+
+    fpga->join_io();
     return 0;
 }

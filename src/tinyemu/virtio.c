@@ -2842,5 +2842,9 @@ void virtio_stop_pending_notify_thread(void)
     pending_notify_stop = 1;
     pthread_cond_signal(&pending_notify_cond);
     pthread_mutex_unlock(&pending_notify_lock);
+}
+
+void virtio_join_pending_notify_thread(void)
+{
     pthread_join(pending_notify_thread, NULL);
 }

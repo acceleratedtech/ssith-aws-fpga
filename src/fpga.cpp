@@ -602,34 +602,71 @@ int AWSP2::dequeue_stdin(uint8_t *chp)
     };
 }
 
-void AWSP2::process_io()
+void AWSP2::process_stdin()
 {
-    int stdin_fd = 0;
+    int stdin_fd = STDIN_FILENO;
     int fd_max = -1;
-    fd_set rfds,  wfds, efds;
-    int delay = 10; // ms
-    struct timeval tv;
+    fd_set rfds, wfds, efds;
+    int stop_fd = stop_stdin_pipe[0];
 
     if (htif_enabled || uart_enabled) {
-        FD_ZERO(&rfds);
-        FD_ZERO(&wfds);
-        FD_ZERO(&efds);
-        FD_SET(stdin_fd, &rfds);
-        fd_max = stdin_fd;
+        for (;;) {
+            FD_ZERO(&rfds);
+            FD_ZERO(&wfds);
+            FD_ZERO(&efds);
+            FD_SET(stdin_fd, &rfds);
+            FD_SET(stop_fd, &rfds);
+            fd_max = std::max(stdin_fd, stop_fd);
 
-        tv.tv_sec = delay / 1000;
-        tv.tv_usec = (delay % 1000) * 1000;
-        int ret = select(fd_max + 1, &rfds, &wfds, &efds, &tv);
-        if (FD_ISSET(stdin_fd, &rfds)) {
-            // Read from stdin and enqueue for HTIF/UART get char
-            char buf[128];
-            memset(buf, 0, sizeof(buf));
-            int ret = read(0, buf, sizeof(buf));
-            if (ret > 0) {
-                enqueue_stdin(buf, ret);
+            int ret = select(fd_max + 1, &rfds, &wfds, &efds, NULL);
+            if (FD_ISSET(stop_fd, &rfds)) {
+                break;
+            }
+            if (FD_ISSET(stdin_fd, &rfds)) {
+                // Read from stdin and enqueue for HTIF/UART get char
+                char buf[128];
+                memset(buf, 0, sizeof(buf));
+                int ret = read(stdin_fd, buf, sizeof(buf));
+                if (ret > 0) {
+                    enqueue_stdin(buf, ret);
+                }
             }
         }
     }
+
+    close(stop_fd);
+}
+
+void *AWSP2::process_stdin_thread(void *opaque)
+{
+    ((AWSP2 *)opaque)->process_stdin();
+    return NULL;
+}
+
+
+void AWSP2::start_io()
+{
+    pipe(stop_stdin_pipe);
+    fcntl(stop_stdin_pipe[1], F_SETFL, O_NONBLOCK);
+    pthread_create(&stdin_thread, NULL, &process_stdin_thread, this);
+
+    virtio_devices.start();
+}
+
+void AWSP2::stop_io()
+{
+    char dummy = 'X';
+    ::write(stop_stdin_pipe[1], &dummy, sizeof(dummy));
+    close(stop_stdin_pipe[1]);
+
+    virtio_devices.stop();
+}
+
+void AWSP2::join_io()
+{
+    pthread_join(stdin_thread, NULL);
+
+    virtio_devices.join();
 }
 
 void AWSP2::set_htif_base_addr(uint64_t baseaddr)
