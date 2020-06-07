@@ -578,14 +578,26 @@ void AWSP2::set_dram_buffer(uint8_t *buf) {
     virtio_devices.set_dram_buffer(buf);
 }
 
-void AWSP2::enqueue_stdin(const char *buf, int num_chars)
+void AWSP2::enqueue_stdin(const char *buf, size_t num_chars)
 {
-    std::lock_guard<std::mutex> lock(stdin_mutex);
-    for (int i = 0; i < num_chars; i++) {
-        if (uart_enabled) {
-            request->uart_fromhost(buf[i]);
-        } else {
-            stdin_queue.push(buf[i]);
+    if (virtio_devices.has_virtio_console_device()) {
+        while (num_chars > 0) {
+            ssize_t sent = ::write(virtio_stdio_pipe[1], buf, num_chars);
+            if (sent < 0) {
+                if (errno == EINTR) continue;
+                abort();
+            }
+            buf += sent;
+            num_chars -= sent;
+        }
+    } else {
+        std::lock_guard<std::mutex> lock(stdin_mutex);
+        for (int i = 0; i < num_chars; i++) {
+            if (uart_enabled) {
+                request->uart_fromhost(buf[i]);
+            } else {
+                stdin_queue.push(buf[i]);
+            }
         }
     }
 }
@@ -609,32 +621,33 @@ void AWSP2::process_stdin()
     fd_set rfds, wfds, efds;
     int stop_fd = stop_stdin_pipe[0];
 
-    if (htif_enabled || uart_enabled) {
-        for (;;) {
-            FD_ZERO(&rfds);
-            FD_ZERO(&wfds);
-            FD_ZERO(&efds);
-            FD_SET(stdin_fd, &rfds);
-            FD_SET(stop_fd, &rfds);
-            fd_max = std::max(stdin_fd, stop_fd);
+    for (;;) {
+        FD_ZERO(&rfds);
+        FD_ZERO(&wfds);
+        FD_ZERO(&efds);
+        FD_SET(stdin_fd, &rfds);
+        FD_SET(stop_fd, &rfds);
+        fd_max = std::max(stdin_fd, stop_fd);
 
-            int ret = select(fd_max + 1, &rfds, &wfds, &efds, NULL);
-            if (FD_ISSET(stop_fd, &rfds)) {
-                break;
-            }
-            if (FD_ISSET(stdin_fd, &rfds)) {
-                // Read from stdin and enqueue for HTIF/UART get char
-                char buf[128];
-                memset(buf, 0, sizeof(buf));
-                int ret = read(stdin_fd, buf, sizeof(buf));
-                if (ret > 0) {
-                    enqueue_stdin(buf, ret);
-                }
+        int ret = select(fd_max + 1, &rfds, &wfds, &efds, NULL);
+        if (FD_ISSET(stop_fd, &rfds)) {
+            break;
+        }
+        if (FD_ISSET(stdin_fd, &rfds)) {
+            // Read from stdin and enqueue for HTIF/UART get char
+            char buf[128];
+            memset(buf, 0, sizeof(buf));
+            ssize_t ret = read(stdin_fd, buf, sizeof(buf));
+            if (ret > 0) {
+                enqueue_stdin(buf, ret);
             }
         }
     }
 
     close(stop_fd);
+    if (virtio_devices.has_virtio_console_device()) {
+        close(virtio_stdio_pipe[1]);
+    }
 }
 
 void *AWSP2::process_stdin_thread(void *opaque)
@@ -649,6 +662,11 @@ void AWSP2::start_io()
     pipe(stop_stdin_pipe);
     fcntl(stop_stdin_pipe[1], F_SETFL, O_NONBLOCK);
     pthread_create(&stdin_thread, NULL, &process_stdin_thread, this);
+
+    if (virtio_devices.has_virtio_console_device()) {
+        pipe(virtio_stdio_pipe);
+        virtio_devices.set_virtio_stdin_fd(virtio_stdio_pipe[0]);
+    }
 
     virtio_devices.start();
 }

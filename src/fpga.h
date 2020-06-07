@@ -140,6 +140,7 @@ class AWSP2 {
     std::queue<uint8_t> stdin_queue;
     int stop_stdin_pipe[2];
     pthread_t stdin_thread;
+    int virtio_stdio_pipe[2];
 
     friend class AWSP2_Response;
 public:
@@ -179,7 +180,7 @@ public:
     void set_fabric_verbosity(uint8_t verbosity);
     void set_dram_buffer(uint8_t *buf);
 
-    void enqueue_stdin(const char *buf, int num_chars);
+    void enqueue_stdin(const char *buf, size_t num_chars);
     int dequeue_stdin(uint8_t *chp);
 
     VirtioDevices &get_virtio_devices() { return virtio_devices; }
