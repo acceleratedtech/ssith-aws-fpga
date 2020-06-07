@@ -121,7 +121,6 @@ class AWSP2 {
     VirtioDevices virtio_devices;
     uint32_t rsp_data;
     uint32_t last_addr;
-    int start_of_line;
     int ctrla_seen;
     std::queue<AXI_Write_State> io_write_queue;
     int stop_capture;
