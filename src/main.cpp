@@ -296,6 +296,5 @@ int main(int argc, char * const *argv)
     }
 #endif
 
-    fpga->join_io();
-    return 0;
+    return fpga->join_io();
 }
