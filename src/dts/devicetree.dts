@@ -94,4 +94,16 @@
 		interrupts-extended = <&plic 5>;
 		reg = <0x40003000 0x1000>;
 	};
+
+	sifive_test: sifive_test@50000000 {
+		reg = <0x50000000 0x1000>;
+		compatible = "sifive,test0", "syscon";
+	};
+
+	poweroff {
+		value = <0x5555>;
+		offset = <0x0>;
+		regmap = <&sifive_test>;
+		compatible = "syscon-poweroff";
+	};
 };

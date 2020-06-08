@@ -223,6 +223,11 @@ void AWSP2_Response::io_araddr(uint32_t araddr, uint16_t arlen, uint16_t arid)
         } else {
             fpga->request->io_rdata(0, arid, 0, 1);
         }
+    } else if (araddr == fpga->sifive_test_addr) {
+        for (int i = 0; i < arlen / 8; i++) {
+            int last = i == ((arlen / 8) - 1);
+            fpga->request->io_rdata(0, arid, 0, last);
+        }
     } else {
         if (araddr != 0x10001000 && araddr != 0x10001008 && araddr != 0x50001000 && araddr != 0x50001008)
             if (debug_stray_io) fprintf(stderr, "io_araddr araddr=%08x arlen=%d\r\n", araddr, arlen);
@@ -254,17 +259,35 @@ void AWSP2_Response::io_wdata(uint64_t wdata, uint8_t wstrb) {
         if (dev == 1 && cmd == 1) {
             console_putchar(payload);
         } else if (dev == 0 && cmd == 0) {
-          if (payload == 1) {
-            fprintf(stderr, "PASS\r\n");
-          } else {
-            fprintf(stderr, "FAIL: error %lu\r\n", (payload >> 1));
-          }
-          //fpga->halt();
+            int code;
+            if (payload == 1) {
+                code = 0;
+                fprintf(stderr, "PASS\r\n");
+            } else {
+                code = payload >> 1;
+                fprintf(stderr, "FAIL: error %u\r\n", code);
+            }
+            fpga->stop_io(code);
         } else {
             fprintf(stderr, "\r\nHTIF: dev=%d cmd=%02x payload=%08lx\r\n", dev, cmd, payload);
         }
     } else if (awaddr == fpga->fromhost_addr) {
         //fprintf(stderr, "\r\nHTIF: awaddr %08x wdata=%08lx\r\n", awaddr, wdata);
+    } else if (awaddr == fpga->sifive_test_addr) {
+        // Similar to HTIF, but the address is in the device tree so an
+        // unmodified BBL can use it. It gets used for shutdown so we make it
+        // silent.
+        int status = wdata & 0xFFFF;
+        if (status == 0x3333) {
+            // FAIL
+            int code = (wdata >> 16) & 0xFFFF;
+            fpga->stop_io(code);
+        } else if (status == 0x5555) {
+            // PASS
+            fpga->stop_io(0);
+        } else {
+            fprintf(stderr, "\r\nSiFive Test Finisher: status=%04x\r\n", status);
+        }
     } else {
         if (debug_stray_io) fprintf(stderr, "    io_wdata wdata=%lx wstrb=%x\r\n", wdata, wstrb);
     }
@@ -288,7 +311,7 @@ void AWSP2_Response::console_putchar(uint64_t wdata) {
 }
 
 AWSP2::AWSP2(int id, const Rom &rom, const char *tun_iface)
-    : response(0), rom(rom), last_addr(0), ctrla_seen(0),
+    : response(0), rom(rom), last_addr(0), ctrla_seen(0), sifive_test_addr(0x50000000),
       htif_enabled(0), uart_enabled(0), virtio_devices(FIRST_VIRTIO_IRQ, tun_iface),
       pcis_dma_fd(-1), dram_mapping(0), xdma_c2h_fd(-1), xdma_h2c_fd(-1)
 {
@@ -579,7 +602,7 @@ void AWSP2::enqueue_stdin(char *buf, size_t num_chars)
             ctrla_seen = 0;
             switch (buf[i]) {
                 case 'x':
-                    stop_io();
+                    stop_io(0);
                     fprintf(stderr, "\r\nTerminated\r\n");
                     return;
                 case 'h':
@@ -712,8 +735,10 @@ void AWSP2::start_io()
     virtio_devices.start();
 }
 
-void AWSP2::stop_io()
+void AWSP2::stop_io(int code)
 {
+    exit_code = code;
+
     char dummy = 'X';
     ::write(stop_stdin_pipe[1], &dummy, sizeof(dummy));
     close(stop_stdin_pipe[1]);
@@ -721,11 +746,13 @@ void AWSP2::stop_io()
     virtio_devices.stop();
 }
 
-void AWSP2::join_io()
+int AWSP2::join_io()
 {
     pthread_join(stdin_thread, NULL);
 
     virtio_devices.join();
+
+    return exit_code;
 }
 
 struct termios AWSP2::orig_stdin_termios;

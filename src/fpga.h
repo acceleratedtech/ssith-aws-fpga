@@ -128,6 +128,7 @@ class AWSP2 {
     bsvvector_Luint8_t_L64 pcis_rsp_data;
     uint64_t tohost_addr;
     uint64_t fromhost_addr;
+    uint64_t sifive_test_addr;
     uint64_t htif_enabled;
     uint64_t uart_enabled;
     int pcis_dma_fd;
@@ -135,6 +136,7 @@ class AWSP2 {
     size_t dram_mapping_size;
     int xdma_c2h_fd;
     int xdma_h2c_fd;
+    int exit_code;
 
     std::mutex client_mutex;
     std::mutex stdin_mutex;
@@ -188,8 +190,8 @@ public:
 
     VirtioDevices &get_virtio_devices() { return virtio_devices; }
     void start_io();
-    void stop_io();
-    void join_io();
+    void stop_io(int code);
+    int join_io();
 
     void set_htif_base_addr(uint64_t baseaddr);
     void set_tohost_addr(uint64_t addr);
