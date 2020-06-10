@@ -1,6 +1,7 @@
 
 import FIFO            :: *;
 import GetPut          :: *;
+import Vector          :: *;
 
 import Semi_FIFOF      :: *;
 import AWS_AXI4_Types  :: *;
@@ -56,7 +57,7 @@ module mkAXI4_Mem_Filter(AXI4_Mem_Filter);
 
    let rg_master_awcount <- mkReg(0);
    let rg_master_awid <- mkReg(0);
-   let rg_wr_is_enclave_addr <- mkReg(False);
+   let f_wr_is_enclave_addr <- mkFIFO1();
 
    rule rl_master_wr_addr if (rg_master_awcount == 0);
       let req <- pop_o(xactor_from_master.o_wr_addr);
@@ -67,7 +68,7 @@ module mkAXI4_Mem_Filter(AXI4_Mem_Filter);
 
       Bit#(6) addr_bits = req.awaddr[30:25];
       Bool is_enclave_addr = unpack(rg_addr_filter[addr_bits]);
-      rg_wr_is_enclave_addr <= is_enclave_addr;
+      f_wr_is_enclave_addr.enq(is_enclave_addr);
       if (!is_enclave_addr)
          xactor_to_slave.i_wr_addr.enq(req);
    endrule
@@ -75,27 +76,28 @@ module mkAXI4_Mem_Filter(AXI4_Mem_Filter);
    let fifo_wr_resp <- mkFIFO();
    rule rl_master_wr_data if (rg_master_awcount != 0);
       let wdata <- pop_o(xactor_from_master.o_wr_data);
-      if (!rg_wr_is_enclave_addr)
+      if (!f_wr_is_enclave_addr.first())
          xactor_to_slave.i_wr_data.enq(wdata);
       rg_master_awcount <= rg_master_awcount - 1;
-      if (rg_master_awcount == 1 && rg_wr_is_enclave_addr)
+      if (rg_master_awcount == 1 && f_wr_is_enclave_addr.first())
          fifo_wr_resp.enq(AXI4_Wr_Resp { bid: rg_master_awid, bresp: 0, buser: 0 });
    endrule
 
    rule rl_master_wr_resp;
       let resp;
-      if (rg_wr_is_enclave_addr) begin
+      if (f_wr_is_enclave_addr.first()) begin
          resp <- toGet(fifo_wr_resp).get();
       end
       else begin
          resp <- pop_o(xactor_to_slave.o_wr_resp);
       end
+      f_wr_is_enclave_addr.deq();
       xactor_from_master.i_wr_resp.enq(resp);
    endrule      
 
    let rg_master_arcount <- mkReg(0); 
    let rg_master_arid <- mkReg(0);
-   let rg_rd_is_enclave_addr <- mkReg(False);
+   let f_rd_is_enclave_addr <- mkFIFO1();
 
    rule rl_master_rd_addr if (rg_master_arcount == 0);
       let req <- pop_o(xactor_from_master.o_rd_addr);
@@ -106,17 +108,21 @@ module mkAXI4_Mem_Filter(AXI4_Mem_Filter);
 
       Bit#(6) addr_bits = req.araddr[30:25];
       Bool is_enclave_addr = unpack(rg_addr_filter[addr_bits]);
-      rg_rd_is_enclave_addr <= is_enclave_addr;
+      f_rd_is_enclave_addr.enq(is_enclave_addr);
       if (!is_enclave_addr)
          xactor_to_slave.i_rd_addr.enq(req);
    endrule
 
    rule rl_master_rd_data if (rg_master_arcount != 0);
-      let rdata = AXI4_Rd_Data { rid: rg_master_arid, rdata: 0, rresp: 0, rlast: (rg_master_arcount == 1), ruser: 0 };
-      if (!rg_rd_is_enclave_addr) begin
+      Bit#(32) responseword = 32'h0badbeef;
+      Vector#(16, Bit#(32)) responsewords = replicate(responseword);
+      let rdata = AXI4_Rd_Data { rid: rg_master_arid, rdata: pack(responsewords), rresp: 0, rlast: (rg_master_arcount == 1), ruser: 0 };
+      if (!f_rd_is_enclave_addr.first()) begin
          rdata <- pop_o(xactor_to_slave.o_rd_data);
       end
       rg_master_arcount <= rg_master_arcount - 1;
+      if (rg_master_arcount == 1)
+         f_rd_is_enclave_addr.deq();
       xactor_from_master.i_rd_data.enq(rdata);
    endrule
 
@@ -126,8 +132,8 @@ module mkAXI4_Mem_Filter(AXI4_Mem_Filter);
       rg_control_arcount <= 0;
       rg_master_awcount <= 0;
       rg_master_arcount <= 0;
-      rg_wr_is_enclave_addr <= False;
-      rg_rd_is_enclave_addr <= False;
+      f_wr_is_enclave_addr.clear();
+      f_rd_is_enclave_addr.clear();
       fifo_wr_resp.clear();
       xactor_from_control.reset;
       xactor_from_master.reset;
