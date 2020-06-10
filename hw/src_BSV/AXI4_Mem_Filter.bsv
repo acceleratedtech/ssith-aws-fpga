@@ -60,6 +60,8 @@ module mkAXI4_Mem_Filter(AXI4_Mem_Filter);
 
    rule rl_master_wr_addr if (rg_master_awcount == 0);
       let req <- pop_o(xactor_from_master.o_wr_addr);
+      Bit#(31) awaddr = truncate(req.awaddr);
+      req.awaddr = zeroExtend(awaddr);
       rg_master_awid <= req.awid;
       rg_master_awcount <= req.awlen + 1;
 
@@ -97,6 +99,8 @@ module mkAXI4_Mem_Filter(AXI4_Mem_Filter);
 
    rule rl_master_rd_addr if (rg_master_arcount == 0);
       let req <- pop_o(xactor_from_master.o_rd_addr);
+      Bit#(31) araddr = truncate(req.araddr);
+      req.araddr = zeroExtend(araddr);
       rg_master_arid <= req.arid;
       rg_master_arcount <= req.arlen + 1;
 

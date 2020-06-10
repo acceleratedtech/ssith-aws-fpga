@@ -86,20 +86,16 @@ endinterface
 
 typedef 2 IOFABRIC_NUM_MASTERS;
 
-`ifdef USE_BANK2_BRAM
-typedef 2 MEMFABRIC_NUM_SLAVES;
-typedef 1 MEMFABRIC_NUM_MASTERS;
-
-typedef 3 IOFABRIC_NUM_SLAVES;
-`else
 typedef 1 MEMFABRIC_NUM_SLAVES;
-typedef 2 MEMFABRIC_NUM_MASTERS;
-
-`ifdef USE_MEM_FILTER
-typedef 4 IOFABRIC_NUM_SLAVES;
+`ifdef HAVE_P2_L1_SLAVE_PORT
+typedef 1 MEMFABRIC_NUM_MASTERS;
 `else
+typedef 2 MEMFABRIC_NUM_MASTERS;
+`endif
+`ifndef USE_MEM_FILTER
 typedef 3 IOFABRIC_NUM_SLAVES;
-`endif // USE_MEM_FILTER
+`else
+typedef 4 IOFABRIC_NUM_SLAVES;
 `endif
 
 (* synthesize *)
@@ -119,7 +115,7 @@ module mkIOFabric(AXI4_Fabric_IFC#(IOFABRIC_NUM_MASTERS, IOFABRIC_NUM_SLAVES, 6,
         end
 `ifdef USE_MEM_FILTER
         else if ((`SOC_MAP_BASE(soc_map, mem_filter_0_addr) <= addr) && (addr < `SOC_MAP_LIM(soc_map, mem_filter_0_addr))) begin
-           return tuple2(True, 1);
+           return tuple2(True, 3);
         end
 `endif
         else begin
@@ -143,12 +139,6 @@ module mkMemFabric(AXI4_Fabric_IFC#(MEMFABRIC_NUM_MASTERS, MEMFABRIC_NUM_SLAVES,
       let uncached_mem_base = `SOC_MAP_BASE(soc_map, ddr4_0_uncached_addr) - min_mem_addr;
       let uncached_mem_lim = `SOC_MAP_LIM(soc_map, ddr4_0_uncached_addr) - min_mem_addr;
       // cached memory base has been subtracted from the address
-`ifdef USE_BANK2_BRAM
-      if ((uncached_mem_base <= addr) && (addr < uncached_mem_lim)) begin
-         return tuple2(True, 1);
-      end
-      else
-`endif
       begin
           return tuple2(True, 0);
       end
@@ -203,6 +193,7 @@ module mkAWSP2#(Clock derivedClock, Reset derivedReset, AWSP2_Response response)
    let to_ddr = memFabric.v_to_slaves[0];
 
 
+`ifdef HAVE_P2_L1_SLAVE_PORT
    AXI4_Crossing_IFC #(0, 64, 64, 0) slave0Crossing <- mkAXI4_CrossingFromCC(derivedClock, derivedReset);
    mkConnection(slave0Crossing.to_slave, p2_core.slave0, clocked_by derivedClock, reset_by derivedReset);
 
@@ -211,16 +202,16 @@ module mkAWSP2#(Clock derivedClock, Reset derivedReset, AWSP2_Response response)
    AXI4_Id_Reflector_IFC #(6, 64, 512, 0) id_reflector <- mkAXI4_Id_Reflector();
    mkConnection(id_reflector.to_slave, downsizer.from_master);
    let from_dma_pcis = id_reflector.from_master;
-`ifdef SOMETHING
+`else
 `ifdef USE_MEM_FILTER
    let axiMemFilter <- mkAXI4_Mem_Filter();
-   mkConnection(.v_to_slaves[3], axiMemFilter.from_control);
+   mkConnection(axiFabric.v_to_slaves[3], axiMemFilter.from_control);
    mkConnection(axiMemFilter.to_slave, memFabric.v_from_masters[1]);
    let from_dma_pcis = axiMemFilter.from_master;
 `else
    let from_dma_pcis = memFabric.v_from_masters[1];
-`endif // USE_MEM_FILTER
-`endif
+`endif // !USE_MEM_FILTER
+`endif // !HAVE_P2_L1_SLAVE_PORT
 
 `ifndef BOARD_awsf1
     AXI4_Master_Xactor_IFC#(6, 64, 512, 0) dma_pcis_master_xactor <- mkAXI4_Master_Xactor();
@@ -312,8 +303,9 @@ module mkAWSP2#(Clock derivedClock, Reset derivedReset, AWSP2_Response response)
 
    AXI4_Slave_Xactor_IFC#(6, 64, 64, 0) io_slave_xactor <- mkAXI4_Slave_Xactor();
    mkConnection(to_slave2, io_slave_xactor.axi_side);
+   let rg_io_slave_awaddr_count <- mkReg(0);
 
-   rule master1_aw if (rg_ready);
+   rule master1_aw if (rg_ready && rg_io_slave_awaddr_count == 0);
       let req <- pop_o(io_slave_xactor.o_wr_addr);
       let awaddr = req.awaddr;
       let len    = req.awlen;
@@ -327,15 +319,17 @@ module mkAWSP2#(Clock derivedClock, Reset derivedReset, AWSP2_Response response)
       if (rg_verbosity > 0)
           $display("master1 awaddr %h len=%d size=%d id=%d objId=%d objOffset=%h burstLen=%d", awaddr, len, size, awid, objId, objOffset, burstLen);
       response.io_awaddr(truncate(awaddr), extend(burstLen), extend(awid));
+      rg_io_slave_awaddr_count <= len + 1;
    endrule
 
-   rule master1_wdata if (rg_ready);
+   rule master1_wdata if (rg_ready && rg_io_slave_awaddr_count > 0);
       let req <- pop_o(io_slave_xactor.o_wr_data);
       let wdata = req.wdata;
       let wstrb = req.wstrb;
       let wlast = req.wlast;
       if (rg_verbosity > 0) $display("master1 wdata %h wstrb %h", wdata, wstrb);
       response.io_wdata(wdata, 0);
+      rg_io_slave_awaddr_count <= rg_io_slave_awaddr_count - 1;
     endrule
 
    rule master1_ar if (rg_ready);
@@ -433,7 +427,7 @@ module mkAWSP2#(Clock derivedClock, Reset derivedReset, AWSP2_Response response)
    (* no_implicit_conditions, fire_when_enabled *)
    rule rl_sync_irq_levels;
       function Action sb_send(SyncBitIfc#(a) sb, a data) = sb.send(data);
-      joinActions(zipWith(sb_send, tail(v_sync_irq_levels), unpack(rg_irq_levels[2][31:1])));
+      joinActions(zipWith(sb_send, tail(v_sync_irq_levels), unpack(rg_irq_levels[0][31:1])));
    endrule
 
    (* no_implicit_conditions, fire_when_enabled *)
@@ -528,73 +522,4 @@ module mkAWSP2#(Clock derivedClock, Reset derivedReset, AWSP2_Response response)
    endinterface
 `endif
 
-endmodule
-
-module mkConnectionVerbose #(AXI4_Master_IFC #(wd_id, wd_addr, wd_data, wd_user) axim,
-                      AXI4_Slave_IFC  #(wd_id, wd_addr, wd_data, wd_user) axis)
-                    (Empty);
-
-   (* fire_when_enabled, no_implicit_conditions *)
-   rule rl_wr_addr_channel;
-      axis.m_awvalid (axim.m_awvalid,
-                      axim.m_awid,
-                      axim.m_awaddr,
-                      axim.m_awlen,
-                      axim.m_awsize,
-                      axim.m_awburst,
-                      axim.m_awlock,
-                      axim.m_awcache,
-                      axim.m_awprot,
-                      axim.m_awqos,
-                      axim.m_awregion,
-                      axim.m_awuser);
-      axim.m_awready (axis.m_awready);
-   endrule
-
-   (* fire_when_enabled, no_implicit_conditions *)
-   rule rl_wr_data_channel;
-      axis.m_wvalid (axim.m_wvalid,
-                     axim.m_wdata,
-                     axim.m_wstrb,
-                     axim.m_wlast,
-                     axim.m_wuser);
-      axim.m_wready (axis.m_wready);
-   endrule
-
-   (* fire_when_enabled, no_implicit_conditions *)
-   rule rl_wr_response_channel;
-      axim.m_bvalid (axis.m_bvalid,
-                     axis.m_bid,
-                     axis.m_bresp,
-                     axis.m_buser);
-      axis.m_bready (axim.m_bready);
-   endrule
-
-   (* fire_when_enabled, no_implicit_conditions *)
-   rule rl_rd_addr_channel;
-      axis.m_arvalid (axim.m_arvalid,
-                      axim.m_arid,
-                      axim.m_araddr,
-                      axim.m_arlen,
-                      axim.m_arsize,
-                      axim.m_arburst,
-                      axim.m_arlock,
-                      axim.m_arcache,
-                      axim.m_arprot,
-                      axim.m_arqos,
-                      axim.m_arregion,
-                      axim.m_aruser);
-      axim.m_arready (axis.m_arready);
-   endrule
-
-   (* fire_when_enabled, no_implicit_conditions *)
-   rule rl_rd_data_channel;
-      axim.m_rvalid (axis.m_rvalid,
-                     axis.m_rid,
-                     axis.m_rdata,
-                     axis.m_rresp,
-                     axis.m_rlast,
-                     axis.m_ruser);
-      axis.m_rready (axim.m_rready);
-   endrule
 endmodule
