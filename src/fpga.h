@@ -113,13 +113,15 @@ class DmaManager;
 
 class AWSP2_Response;
 class AWSP2 {
-    sem_t sem;
+    sem_t sem_dmi_response;
+    sem_t sem_misc_response;
     AWSP2_Response *response;
     AWSP2_RequestProxy *request;
     DmaManager *dma;
     Rom rom;
     VirtioDevices virtio_devices;
-    uint32_t rsp_data;
+    uint32_t dmi_rsp_data;
+    uint32_t misc_rsp_data;
     uint32_t last_addr;
     int ctrla_seen;
     std::queue<AXI_Write_State> io_write_queue;
@@ -138,7 +140,8 @@ class AWSP2 {
     int xdma_h2c_fd;
     int exit_code;
 
-    std::mutex client_mutex;
+    std::mutex dmi_request_mutex;
+    std::mutex misc_request_mutex;
     std::mutex stdin_mutex;
     std::queue<uint8_t> stdin_queue;
     int stop_stdin_pipe[2];
@@ -153,7 +156,8 @@ public:
     virtual ~AWSP2();
 
     void capture_tv_info(int c, int display = 1);
-    void wait();
+    void wait_dmi_response();
+    void wait_misc_response();
 
     uint32_t dmi_status();
 

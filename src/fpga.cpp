@@ -23,16 +23,16 @@ public:
     }
     virtual void dmi_read_data(uint32_t rsp_data) {
         //fprintf(stderr, "dmi_read_data data=%08x\r\n", rsp_data);
-        fpga->rsp_data = rsp_data;
-        sem_post(&fpga->sem);
+        fpga->dmi_rsp_data = rsp_data;
+        sem_post(&fpga->sem_dmi_response);
     }
     void ddr_data ( const bsvvector_Luint8_t_L64 data ) {
         memcpy(&fpga->pcis_rsp_data, data, 64);
-        sem_post(&fpga->sem);
+        sem_post(&fpga->sem_misc_response);
     }
     virtual void dmi_status_data(uint16_t rsp_data) {
-        fpga->rsp_data = rsp_data;
-        sem_post(&fpga->sem);
+        fpga->misc_rsp_data = rsp_data;
+        sem_post(&fpga->sem_misc_response);
     }
     virtual void irq_status ( const uint32_t levels );
     virtual void tandem_packet(const uint32_t num_bytes, const bsvvector_Luint8_t_L72 bytes);
@@ -45,8 +45,8 @@ public:
 
 void AWSP2_Response::irq_status ( const uint32_t levels )
 {
-    fpga->rsp_data = levels;
-    sem_post(&fpga->sem);
+    fpga->misc_rsp_data = levels;
+    sem_post(&fpga->sem_misc_response);
 }
 
 
@@ -315,7 +315,8 @@ AWSP2::AWSP2(int id, const Rom &rom, const char *tun_iface)
       htif_enabled(0), uart_enabled(0), virtio_devices(FIRST_VIRTIO_IRQ, tun_iface),
       pcis_dma_fd(-1), dram_mapping(0), xdma_c2h_fd(-1), xdma_h2c_fd(-1)
 {
-    sem_init(&sem, 0, 0);
+    sem_init(&sem_dmi_response, 0, 0);
+    sem_init(&sem_misc_response, 0, 0);
     response = new AWSP2_Response(id, this);
     request = new AWSP2_RequestProxy(IfcNames_AWSP2_RequestS2H);
     dma = platformInit();
@@ -332,49 +333,55 @@ void AWSP2::capture_tv_info(int c, int display) {
     display_tandem = display;
 }
 
-void AWSP2::wait() {
-    //fprintf(stderr, "fpga::wait\r\n");
-    sem_wait(&sem);
+void AWSP2::wait_dmi_response() {
+    //fprintf(stderr, "fpga::wait_dmi_response\r\n");
+    sem_wait(&sem_dmi_response);
+}
+
+void AWSP2::wait_misc_response() {
+    //fprintf(stderr, "fpga::wait_misc_response\r\n");
+    sem_wait(&sem_misc_response);
 }
 
 uint32_t AWSP2::dmi_status() {
-    std::lock_guard<std::mutex> lock(client_mutex);
+    // Not really DMI; queries SoC FIFO and memory controller info
+    std::lock_guard<std::mutex> lock(misc_request_mutex);
     request->dmi_status();
-    wait();
-    return rsp_data;
+    wait_misc_response();
+    return misc_rsp_data;
 }
 
-// private API, should only be called with the lock held
+// private API, should only be called with dmi_requets_mutex held
 uint32_t AWSP2::dmi_read(uint32_t addr) {
     //fprintf(stderr, "sw dmi_read %x\r\n", addr);
     request->dmi_read(addr);
-    wait();
-    return rsp_data;
+    wait_dmi_response();
+    return dmi_rsp_data;
 }
 
-// private API, should only be called with the lock held
+// private API, should only be called with dmi_requets_mutex held
 void AWSP2::dmi_write(uint32_t addr, uint32_t data) {
     request->dmi_write(addr, data);
-    wait();
+    wait_dmi_response();
 }
 
 void AWSP2::ddr_read(uint32_t addr, bsvvector_Luint8_t_L64 data) {
-    std::lock_guard<std::mutex> lock(client_mutex);
+    std::lock_guard<std::mutex> lock(misc_request_mutex);
     request->ddr_read(addr);
-    wait();
+    wait_misc_response();
     if (data)
         memcpy(data, pcis_rsp_data, 64);
 }
 
 void AWSP2::ddr_write(uint32_t addr, const bsvvector_Luint8_t_L64 data, uint64_t wstrb) {
-    std::lock_guard<std::mutex> lock(client_mutex);
+    std::lock_guard<std::mutex> lock(misc_request_mutex);
     request->ddr_write(addr, data, wstrb);
-    wait();
+    wait_misc_response();
 }
 
 void AWSP2::ddr_write(uint32_t start_addr, const uint32_t *data, size_t num_bytes)
 {
-    std::lock_guard<std::mutex> lock(client_mutex);
+    std::lock_guard<std::mutex> lock(dmi_request_mutex);
 
     dmi_write(DM_SBCS_REG, SBCS_SBACCESS32 | SBCS_SBAUTOINCREMENT);
     sbcs_wait();
@@ -390,17 +397,17 @@ void AWSP2::ddr_write(uint32_t start_addr, const uint32_t *data, size_t num_byte
 
 
 void AWSP2::register_region(uint32_t region, uint32_t objid) {
-    std::lock_guard<std::mutex> lock(client_mutex);
+    std::lock_guard<std::mutex> lock(misc_request_mutex);
     request->register_region(region, objid);
 }
 
 void AWSP2::memory_ready() {
-    std::lock_guard<std::mutex> lock(client_mutex);
+    std::lock_guard<std::mutex> lock(misc_request_mutex);
     request->memory_ready();
 }
 
 uint64_t AWSP2::read_csr(int i) {
-    std::lock_guard<std::mutex> lock(client_mutex);
+    std::lock_guard<std::mutex> lock(dmi_request_mutex);
 
     dmi_write(DM_COMMAND_REG, DM_COMMAND_ACCESS_REGISTER | (3 << 20) | (1 << 17) | i);
     uint64_t val = dmi_read(5);
@@ -410,7 +417,7 @@ uint64_t AWSP2::read_csr(int i) {
 }
 
 void AWSP2::write_csr(int i, uint64_t val) {
-    std::lock_guard<std::mutex> lock(client_mutex);
+    std::lock_guard<std::mutex> lock(dmi_request_mutex);
 
     dmi_write(5, (val >> 32) & 0xFFFFFFFF);
     dmi_write(4, (val >>  0) & 0xFFFFFFFF);
@@ -418,7 +425,7 @@ void AWSP2::write_csr(int i, uint64_t val) {
 }
 
 uint64_t AWSP2::read_gpr(int i) {
-    std::lock_guard<std::mutex> lock(client_mutex);
+    std::lock_guard<std::mutex> lock(dmi_request_mutex);
 
     dmi_write(DM_COMMAND_REG, DM_COMMAND_ACCESS_REGISTER | (3 << 20) | (1 << 17) | 0x1000 | i);
     uint64_t val = dmi_read(5);
@@ -428,14 +435,14 @@ uint64_t AWSP2::read_gpr(int i) {
 }
 
 void AWSP2::write_gpr(int i, uint64_t val) {
-    std::lock_guard<std::mutex> lock(client_mutex);
+    std::lock_guard<std::mutex> lock(dmi_request_mutex);
 
     dmi_write(5, (val >> 32) & 0xFFFFFFFF);
     dmi_write(4, (val >>  0) & 0xFFFFFFFF);
     dmi_write(DM_COMMAND_REG, DM_COMMAND_ACCESS_REGISTER | (3 << 20) | (1 << 17) | (1 << 16) | 0x1000 | i);
 }
 
-// private API, should only be called with the lock held
+// private API, should only be called with dmi_requets_mutex held
 void AWSP2::sbcs_wait() {
     uint32_t sbcs = 0;
     int count = 0;
@@ -538,7 +545,8 @@ void AWSP2::write(uint32_t addr, uint8_t *data, size_t size) {
 }
 
 void AWSP2::halt(int timeout) {
-    std::lock_guard<std::mutex> lock(client_mutex);
+    std::lock_guard<std::mutex> lock(dmi_request_mutex);
+
     dmi_write(DM_CONTROL_REG, DM_CONTROL_HALTREQ | dmi_read(DM_CONTROL_REG));
     for (int i = 0; i < 100; i++) {
         uint32_t status = dmi_read(DM_STATUS_REG);
@@ -549,7 +557,7 @@ void AWSP2::halt(int timeout) {
 }
 
 void AWSP2::resume(int timeout) {
-    std::lock_guard<std::mutex> lock(client_mutex);
+    std::lock_guard<std::mutex> lock(dmi_request_mutex);
 
     dmi_write(DM_CONTROL_REG, DM_CONTROL_RESUMEREQ | dmi_read(DM_CONTROL_REG));
     for (int i = 0; i < 100; i++) {
@@ -562,30 +570,30 @@ void AWSP2::resume(int timeout) {
 
 void AWSP2::irq_set_levels(uint32_t w1s)
 {
-    std::lock_guard<std::mutex> lock(client_mutex);
+    std::lock_guard<std::mutex> lock(misc_request_mutex);
 
     request->irq_set_levels(w1s);
 }
 
 void AWSP2::irq_clear_levels(uint32_t w1c)
 {
-    std::lock_guard<std::mutex> lock(client_mutex);
+    std::lock_guard<std::mutex> lock(misc_request_mutex);
 
     request->irq_clear_levels(w1c);
 }
 
 int AWSP2::read_irq_status ()
 {
-    std::lock_guard<std::mutex> lock(client_mutex);
+    std::lock_guard<std::mutex> lock(misc_request_mutex);
 
     request->read_irq_status();
-    wait();
-    return rsp_data;
+    wait_misc_response();
+    return misc_rsp_data;
 }
 
 
 void AWSP2::set_fabric_verbosity(uint8_t verbosity) {
-    std::lock_guard<std::mutex> lock(client_mutex);
+    std::lock_guard<std::mutex> lock(misc_request_mutex);
 
     request->set_fabric_verbosity(verbosity);
 }
