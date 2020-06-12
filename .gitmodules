@@ -13,3 +13,6 @@
 [submodule "hw/fpgamake"]
 	path = hw/fpgamake
 	url = https://github.com/cambridgehackers/fpgamake
+[submodule "src/RISCV_gdbstub"]
+	path = src/RISCV_gdbstub
+	url = https://github.com/bluespec/RISCV_gdbstub

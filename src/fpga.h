@@ -138,6 +138,7 @@ class AWSP2 {
     size_t dram_mapping_size;
     int xdma_c2h_fd;
     int xdma_h2c_fd;
+    int gdb_port;
     int exit_code;
 
     std::mutex dmi_request_mutex;
@@ -194,6 +195,7 @@ public:
 
     VirtioDevices &get_virtio_devices() { return virtio_devices; }
     void start_io();
+    void start_gdb(uint16_t port);
     void stop_io(int code);
     int join_io();
 
@@ -203,12 +205,13 @@ public:
     void set_htif_enabled(bool enabled);
     void set_uart_enabled(bool enabled);
 
+    uint32_t dmi_read(uint32_t addr);
+    void dmi_write(uint32_t addr, uint32_t data);
+
  private:
     void process_stdin();
     static void *process_stdin_thread(void *opaque);
     static void reset_termios();
-    uint32_t dmi_read(uint32_t addr);
-    void dmi_write(uint32_t addr, uint32_t data);
     void sbcs_wait();
     
 };
