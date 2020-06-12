@@ -7,6 +7,12 @@
 
 #include "fpga.h"
 #include "dmaManager.h"
+#include "util.h"
+
+extern "C" {
+#include "gdbstub.h"
+#include "gdbstub_dmi.h"
+}
 
 #define TOHOST_OFFSET 0
 #define FROMHOST_OFFSET 8
@@ -14,6 +20,16 @@
 
 static int debug_virtio = 0;
 static int debug_stray_io = 0;
+
+extern AWSP2 *fpga;
+
+void dmi_write(uint16_t addr, uint32_t data) {
+  fpga->dmi_write(addr, data);
+}
+
+uint32_t dmi_read(uint16_t addr) {
+  return fpga->dmi_read(addr);
+}
 
 class AWSP2_Response : public AWSP2_ResponseWrapper {
 private:
@@ -313,7 +329,7 @@ void AWSP2_Response::console_putchar(uint64_t wdata) {
 AWSP2::AWSP2(int id, const Rom &rom, const char *tun_iface)
     : response(0), rom(rom), last_addr(0), ctrla_seen(0), sifive_test_addr(0x50000000),
       htif_enabled(0), uart_enabled(0), virtio_devices(FIRST_VIRTIO_IRQ, tun_iface),
-      pcis_dma_fd(-1), dram_mapping(0), xdma_c2h_fd(-1), xdma_h2c_fd(-1)
+      pcis_dma_fd(-1), dram_mapping(0), xdma_c2h_fd(-1), xdma_h2c_fd(-1), gdb_port(-1)
 {
     sem_init(&sem_dmi_response, 0, 0);
     sem_init(&sem_misc_response, 0, 0);
@@ -743,6 +759,24 @@ void AWSP2::start_io()
     virtio_devices.start();
 }
 
+void AWSP2::start_gdb(uint16_t port)
+{
+    gdb_port = port;
+    // gdbstub now owns the debug module
+    dmi_request_mutex.lock();
+    int bound_port = gdbstub_start_tcp(NULL, gdb_port);
+    if (bound_port < 0) {
+        fprintf(stderr, "Failed to start GDB server\r\n");
+        abort();
+    }
+    // Ephemeral ports should always have their bound value logged
+    if (gdb_port == 0) {
+        fprintf(stderr, "GDB server listening on port %d\r\n", bound_port);
+    } else {
+        debugLog("GDB server listening on port %d\r\n", bound_port);
+    }
+}
+
 void AWSP2::stop_io(int code)
 {
     exit_code = code;
@@ -752,6 +786,10 @@ void AWSP2::stop_io(int code)
     close(stop_stdin_pipe[1]);
 
     virtio_devices.stop();
+
+    if (gdb_port >= 0) {
+        gdbstub_stop();
+    }
 }
 
 int AWSP2::join_io()
@@ -759,6 +797,11 @@ int AWSP2::join_io()
     pthread_join(stdin_thread, NULL);
 
     virtio_devices.join();
+
+    if (gdb_port >= 0) {
+        gdbstub_join();
+        dmi_request_mutex.unlock();
+    }
 
     return exit_code;
 }

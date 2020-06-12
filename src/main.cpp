@@ -37,11 +37,13 @@ const struct option long_options[] = {
     { "dtb",     required_argument, 0, 'd' },
     { "elf",     required_argument, 0, 'e' },
     { "entry",   required_argument, 0, 'E' },
+    { "gdb-port", required_argument, 0, 'G' },
     { "help",    no_argument, 0, 'h' },
     { "htif-console",  optional_argument, 0, 'H' },
 #if DEBUG_LOOP
     { "sleep-seconds", required_argument, 0, 's' },
 #endif
+    { "start-halted", no_argument, 0, 'S' },
     { "tv",      no_argument,       0, 'T' },
     { "tun",      required_argument,       0, 't' },
     { "uart",          optional_argument, 0, 'U' },
@@ -89,10 +91,12 @@ int main(int argc, char * const *argv)
     int xdma_enabled = DEFAULT_XDMA_ENABLED;
     std::vector<std::string> block_files;
     int debug_log = 0;
+    int start_halted = 0;
+    int gdb_port = -1;
 
     while (1) {
         int option_index = optind ? optind : 1;
-        char c = getopt_long(argc, argv, "b:B:Cd:D:e:hH:LMp:s:TvU:X:",
+        char c = getopt_long(argc, argv, "b:B:Cd:D:e:G:hH:LMp:s:STvU:X:",
                              long_options, &option_index);
         if (c == -1)
             break;
@@ -128,6 +132,9 @@ int main(int argc, char * const *argv)
         case 'E':
             entry = strtoul(optarg, 0, 0);
             break;
+        case 'G':
+            gdb_port = strtoul(optarg, 0, 0);
+            break;
         case 'h':
             usage(argv[0]);
             return 2;
@@ -146,6 +153,9 @@ int main(int argc, char * const *argv)
             sleep_seconds = strtoul(optarg, 0, 0);
             break;
 #endif
+        case 'S':
+            start_halted = 1;
+            break;
         case 'T':
             tv = 1;
             break;
@@ -264,9 +274,15 @@ int main(int argc, char * const *argv)
     fpga->write_gpr(11, BOOTROM_BASE + DEVICETREE_OFFSET);
 
     fpga->capture_tv_info(tv);
+
     // and resume
     fpga->start_io();
-    fpga->resume();
+    if (!start_halted)
+      fpga->resume();
+    // This has to come after resume since it will take the DMI lock on behalf
+    // of gdbstub and never give it up.
+    if (gdb_port >= 0)
+      fpga->start_gdb(gdb_port);
 
 #if DEBUG_LOOP
     while (1) {
