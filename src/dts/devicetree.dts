@@ -74,22 +74,22 @@
 		};
 	};
 
-	virtio_block@40000000 {
+	virtio_mmio@40000000 {
 		compatible = "virtio,mmio";
 		interrupts-extended = <&plic 2>;
 		reg = <0x40000000 0x100>;
 	};
-	virtio_block@40001000 {
+	virtio_mmio@40001000 {
 		compatible = "virtio,mmio";
 		interrupts-extended = <&plic 3>;
 		reg = <0x40001000 0x1000>;
 	};
-	virtio_block@40002000 {
+	virtio_mmio@40002000 {
 		compatible = "virtio,mmio";
 		interrupts-extended = <&plic 4>;
 		reg = <0x40002000 0x1000>;
 	};
-	virtio_block@40003000 {
+	virtio_mmio@40003000 {
 		compatible = "virtio,mmio";
 		interrupts-extended = <&plic 5>;
 		reg = <0x40003000 0x1000>;
