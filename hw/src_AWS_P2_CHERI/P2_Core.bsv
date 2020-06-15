@@ -45,7 +45,7 @@ import GetPut_Aux :: *;
 import Semi_FIFOF :: *;
 
 `ifdef INCLUDE_DMEM_SLAVE
-import AXI4Lite_Types :: *;
+import AXI4Lite :: *;
 `endif
 
 // ================================================================
@@ -86,12 +86,13 @@ interface P2_Core_IFC;
    // Core CPU interfaces
 
    // CPU IMem to Fabric master interface
-   interface AXI4_Master_Synth #(TAdd#(Wd_MId,1), Wd_Addr, Wd_Data,
+   interface AXI4_Master_Synth #(Wd_MId, Wd_Addr, Wd_Data,
                                  0, 0, 0, 0, 0) master0;
 
    // CPU DMem (incl. I/O) to Fabric master interface
-   interface AXI4_Master_Synth #(TAdd#(Wd_MId,1), Wd_Addr, Wd_Data,
-                                 0, 0, 0, 0, 0) master1;
+   interface AXI4_Master_Synth #( Wd_MId_ext, Wd_Addr, Wd_Data
+                                , Wd_AW_User_ext, Wd_W_User_ext, Wd_B_User_ext
+                                , Wd_AR_User_ext, Wd_R_User_ext) master1;
 
    // External interrupt sources
    (* always_ready, always_enabled, prefix="" *)
@@ -167,9 +168,8 @@ module mkP2_Core (P2_Core_IFC);
 
 `ifdef INCLUDE_GDB_CONTROL
       // Respond to Debug module if this is an ndm-reset
-      if (rg_ndm_reset matches tagged Valid .x) begin
+      if (rg_ndm_reset matches tagged Valid .x)
 	 core.ndm_reset_client.response.put (running);
-      end
       rg_ndm_reset <= tagged Invalid;
 `endif
    endrule

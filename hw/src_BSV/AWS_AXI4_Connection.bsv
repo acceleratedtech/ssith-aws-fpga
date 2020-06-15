@@ -50,8 +50,9 @@ instance Connectable #(AXI4_Types::AXI4_Master_Synth  #(m_wd_id, wd_addr, wd_dat
       endrule
 
       (* fire_when_enabled, no_implicit_conditions *)
-      rule rl_bflit if (axis.m_bvalid);
-	 axim.b.bflit (truncate(axis.m_bid),
+      rule rl_bflit;
+	 axim.b.bflit (axis.m_bvalid,
+		       truncate(axis.m_bid),
 		       unpack(pack(axis.m_bresp)),
 		       axis.m_buser);
       endrule
@@ -83,8 +84,9 @@ instance Connectable #(AXI4_Types::AXI4_Master_Synth  #(m_wd_id, wd_addr, wd_dat
       endrule
 
       (* fire_when_enabled, no_implicit_conditions *)
-      rule rl_rflit if (axis.m_rvalid);
-	 axim.r.rflit (truncate(axis.m_rid),
+      rule rl_rflit;
+	 axim.r.rflit (axis.m_rvalid,
+		       truncate(axis.m_rid),
 		       axis.m_rdata,
 		       unpack(pack(axis.m_rresp)),
 		       axis.m_rlast,
@@ -110,8 +112,9 @@ instance Connectable #(AWS_AXI4_Types::AXI4_Master_IFC #(0, wd_addr, wd_data, wd
       mkConnection(axim, deburster.from_master);
 
       (* fire_when_enabled, no_implicit_conditions *)
-      rule rl_awflit if (deburster.to_slave.m_awvalid);
-	 axis.aw.awflit (deburster.to_slave.m_awaddr,
+      rule rl_awflit;
+	 axis.aw.awflit (deburster.to_slave.m_awvalid,
+			 deburster.to_slave.m_awaddr,
 			 deburster.to_slave.m_awprot,
 			 deburster.to_slave.m_awuser);
       endrule
@@ -122,8 +125,9 @@ instance Connectable #(AWS_AXI4_Types::AXI4_Master_IFC #(0, wd_addr, wd_data, wd
       endrule
 
       (* fire_when_enabled, no_implicit_conditions *)
-      rule rl_wflit if (deburster.to_slave.m_wvalid);
-	 axis.w.wflit (deburster.to_slave.m_wdata,
+      rule rl_wflit;
+	 axis.w.wflit (deburster.to_slave.m_wvalid,
+		       deburster.to_slave.m_wdata,
 		       deburster.to_slave.m_wstrb,
 		       deburster.to_slave.m_wuser);
       endrule
@@ -147,8 +151,9 @@ instance Connectable #(AWS_AXI4_Types::AXI4_Master_IFC #(0, wd_addr, wd_data, wd
       endrule
 
       (* fire_when_enabled, no_implicit_conditions *)
-      rule rl_arflit if (deburster.to_slave.m_arvalid);
-	 axis.ar.arflit (deburster.to_slave.m_araddr,
+      rule rl_arflit;
+	 axis.ar.arflit (deburster.to_slave.m_arvalid,
+			 deburster.to_slave.m_araddr,
 			 deburster.to_slave.m_arprot,
 			 deburster.to_slave.m_aruser);
       endrule
