@@ -61,7 +61,8 @@ set(TINYEMU_SOURCES
   slirp/udp.h
   aes.c
   aes.h
-  build_filelist.c
+  # Don't override our main!
+  #build_filelist.c
   cutils.c
   cutils.h
   fbuf.h
