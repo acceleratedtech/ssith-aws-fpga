@@ -1,20 +1,8 @@
 #ifndef _ConnectalProjectConfig_h
 #define _ConnectalProjectConfig_h
 
-#define BYTE_ENABLES_MEM_DATA ""
-#define DataBusWidth 512
-#define AWSF1_CL_DEBUG_BRIDGE ""
-#define SIM_DMA_READ_LATENCY 1
-#define SIM_DMA_WRITE_LATENCY 1
-#define ConnectalVersion "18.12.1"
-#define NumberOfMasters 1
-#define PinType "Empty"
-#define PinTypeInclude "Misc"
-#define NumberOfUserTiles 1
-#define SlaveDataBusWidth 32
-#define SlaveControlAddrWidth 5
-#define BurstLenSize 10
 #define PUBLIC_ACCESS_POLICY ""
+#define USE_MEM_FILTER ""
 #define RV64 ""
 #define SV39 ""
 #define ISA_PRIV_M ""
@@ -30,7 +18,7 @@
 #define ISA_FD ""
 #define ISA_F_OR_D ""
 #define SHIFT_BARREL ""
-#define MULT_SERIAL ""
+#define MULT_SYNTH ""
 #define Near_Mem_Caches ""
 #define FABRIC64 ""
 #define INCLUDE_GDB_CONTROL ""
@@ -38,9 +26,27 @@
 #define BRVF_TRACE ""
 #define XILINX_BSCAN ""
 #define XILINX_XCVU9P ""
+#define SIM_DMA_READ_LATENCY 1
+#define SIM_DMA_WRITE_LATENCY 1
+#define BYTE_ENABLES_MEM_DATA ""
+#define DataBusWidth 512
+#define AWSF1_CL_DEBUG_BRIDGE ""
+#define AWSF1_DDR_A ""
+#define AWSF1_DMA_PCIS ""
+#define AWSF1_DERIVED_CLOCK "clk_extra_b1"
+#define IMPORT_HOST_CLOCKS ""
+#define ConnectalVersion "20.06.4"
+#define NumberOfMasters 1
+#define PinType "Empty"
+#define PinTypeInclude "Misc"
+#define NumberOfUserTiles 1
+#define SlaveDataBusWidth 32
+#define SlaveControlAddrWidth 5
+#define BurstLenSize 10
 #define project_dir "$(DTOP)"
-#define MainClockPeriod 20
+#define MainClockPeriod 4
 #define DerivedClockPeriod 10.000000
+#define PcieClockPeriod 4
 #define CnocTop ""
 #define XsimHostInterface ""
 #define PhysAddrWidth 40

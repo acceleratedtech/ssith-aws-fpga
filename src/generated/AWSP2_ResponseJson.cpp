@@ -100,7 +100,7 @@ int AWSP2_ResponseJson_ddr_data ( struct PortalInternal *p, const bsvvector_Luin
     return 0;
 };
 
-int AWSP2_ResponseJson_io_awaddr ( struct PortalInternal *p, const uint32_t awaddr, const uint16_t awlen, const uint16_t awid )
+int AWSP2_ResponseJson_io_awaddr ( struct PortalInternal *p, const uint64_t awaddr, const uint16_t awlen, const uint16_t awid )
 {
     Json::Value request;
     request.append(Json::Value("io_awaddr"));
@@ -113,7 +113,7 @@ int AWSP2_ResponseJson_io_awaddr ( struct PortalInternal *p, const uint32_t awad
     return 0;
 };
 
-int AWSP2_ResponseJson_io_araddr ( struct PortalInternal *p, const uint32_t araddr, const uint16_t arlen, const uint16_t arid )
+int AWSP2_ResponseJson_io_araddr ( struct PortalInternal *p, const uint64_t araddr, const uint16_t arlen, const uint16_t arid )
 {
     Json::Value request;
     request.append(Json::Value("io_araddr"));
@@ -234,6 +234,17 @@ int AWSP2_ResponseJson_tandem_packet ( struct PortalInternal *p, const uint32_t 
     return 0;
 };
 
+int AWSP2_ResponseJson_uart_tohost ( struct PortalInternal *p, const uint8_t ch )
+{
+    Json::Value request;
+    request.append(Json::Value("uart_tohost"));
+    request.append((Json::UInt64)ch);
+
+    std::string requestjson = Json::FastWriter().write(request);;
+    connectalJsonSend(p, requestjson.c_str(), (int)CHAN_NUM_AWSP2_Response_uart_tohost);
+    return 0;
+};
+
 AWSP2_ResponseCb AWSP2_ResponseJsonProxyReq = {
     portal_disconnect,
     AWSP2_ResponseJson_dmi_read_data,
@@ -244,11 +255,12 @@ AWSP2_ResponseCb AWSP2_ResponseJsonProxyReq = {
     AWSP2_ResponseJson_io_wdata,
     AWSP2_ResponseJson_irq_status,
     AWSP2_ResponseJson_tandem_packet,
+    AWSP2_ResponseJson_uart_tohost,
 };
 AWSP2_ResponseCb *pAWSP2_ResponseJsonProxyReq = &AWSP2_ResponseJsonProxyReq;
 const char * AWSP2_ResponseJson_methodSignatures()
 {
-    return "{\"tandem_packet\": [\"long\", \"long\"], \"io_wdata\": [\"long\", \"long\"], \"irq_status\": [\"long\"], \"ddr_data\": [\"long\"], \"dmi_status_data\": [\"long\"], \"io_araddr\": [\"long\", \"long\", \"long\"], \"io_awaddr\": [\"long\", \"long\", \"long\"], \"dmi_read_data\": [\"long\"]}";
+    return "{\"tandem_packet\": [\"long\", \"long\"], \"io_wdata\": [\"long\", \"long\"], \"uart_tohost\": [\"long\"], \"irq_status\": [\"long\"], \"ddr_data\": [\"long\"], \"dmi_status_data\": [\"long\"], \"io_araddr\": [\"long\", \"long\", \"long\"], \"io_awaddr\": [\"long\", \"long\", \"long\"], \"dmi_read_data\": [\"long\"]}";
 }
 
 int AWSP2_ResponseJson_handleMessage(struct PortalInternal *p, unsigned int channel, int messageFd)
@@ -283,6 +295,9 @@ int AWSP2_ResponseJson_handleMessage(struct PortalInternal *p, unsigned int chan
       } break;
     case CHAN_NUM_AWSP2_Response_tandem_packet: {
         ((AWSP2_ResponseCb *)p->cb)->tandem_packet(p, tempdata.tandem_packet.num_bytes, tempdata.tandem_packet.bytes);
+      } break;
+    case CHAN_NUM_AWSP2_Response_uart_tohost: {
+        ((AWSP2_ResponseCb *)p->cb)->uart_tohost(p, tempdata.uart_tohost.ch);
       } break;
     default:
         PORTAL_PRINTF("AWSP2_ResponseJson_handleMessage: unknown channel 0x%x\n", channel);

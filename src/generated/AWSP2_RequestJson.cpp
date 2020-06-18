@@ -252,6 +252,17 @@ int AWSP2_RequestJson_read_irq_status ( struct PortalInternal *p )
     return 0;
 };
 
+int AWSP2_RequestJson_uart_fromhost ( struct PortalInternal *p, const uint8_t ch )
+{
+    Json::Value request;
+    request.append(Json::Value("uart_fromhost"));
+    request.append((Json::UInt64)ch);
+
+    std::string requestjson = Json::FastWriter().write(request);;
+    connectalJsonSend(p, requestjson.c_str(), (int)CHAN_NUM_AWSP2_Request_uart_fromhost);
+    return 0;
+};
+
 AWSP2_RequestCb AWSP2_RequestJsonProxyReq = {
     portal_disconnect,
     AWSP2_RequestJson_set_debug_verbosity,
@@ -270,11 +281,12 @@ AWSP2_RequestCb AWSP2_RequestJsonProxyReq = {
     AWSP2_RequestJson_irq_set_levels,
     AWSP2_RequestJson_irq_clear_levels,
     AWSP2_RequestJson_read_irq_status,
+    AWSP2_RequestJson_uart_fromhost,
 };
 AWSP2_RequestCb *pAWSP2_RequestJsonProxyReq = &AWSP2_RequestJsonProxyReq;
 const char * AWSP2_RequestJson_methodSignatures()
 {
-    return "{\"register_region\": [\"long\", \"long\"], \"ddr_write\": [\"long\", \"long\", \"long\"], \"ddr_read\": [\"long\"], \"io_bdone\": [\"long\", \"long\"], \"irq_set_levels\": [\"long\"], \"read_irq_status\": [], \"set_fabric_verbosity\": [\"long\"], \"memory_ready\": [], \"irq_clear_levels\": [\"long\"], \"io_rdata\": [\"long\", \"long\", \"long\", \"long\"], \"dmi_read\": [\"long\"], \"capture_tv_info\": [\"long\"], \"set_watch_tohost\": [\"long\", \"long\"], \"dmi_write\": [\"long\", \"long\"], \"dmi_status\": [], \"set_debug_verbosity\": [\"long\"]}";
+    return "{\"register_region\": [\"long\", \"long\"], \"ddr_write\": [\"long\", \"long\", \"long\"], \"ddr_read\": [\"long\"], \"io_bdone\": [\"long\", \"long\"], \"irq_set_levels\": [\"long\"], \"read_irq_status\": [], \"uart_fromhost\": [\"long\"], \"set_fabric_verbosity\": [\"long\"], \"memory_ready\": [], \"irq_clear_levels\": [\"long\"], \"io_rdata\": [\"long\", \"long\", \"long\", \"long\"], \"dmi_read\": [\"long\"], \"capture_tv_info\": [\"long\"], \"set_watch_tohost\": [\"long\", \"long\"], \"dmi_write\": [\"long\", \"long\"], \"dmi_status\": [], \"set_debug_verbosity\": [\"long\"]}";
 }
 
 int AWSP2_RequestJson_handleMessage(struct PortalInternal *p, unsigned int channel, int messageFd)
@@ -333,6 +345,9 @@ int AWSP2_RequestJson_handleMessage(struct PortalInternal *p, unsigned int chann
       } break;
     case CHAN_NUM_AWSP2_Request_read_irq_status: {
         ((AWSP2_RequestCb *)p->cb)->read_irq_status(p);
+      } break;
+    case CHAN_NUM_AWSP2_Request_uart_fromhost: {
+        ((AWSP2_RequestCb *)p->cb)->uart_fromhost(p, tempdata.uart_fromhost.ch);
       } break;
     default:
         PORTAL_PRINTF("AWSP2_RequestJson_handleMessage: unknown channel 0x%x\n", channel);
