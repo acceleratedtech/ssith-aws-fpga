@@ -132,7 +132,7 @@ endinterface
 module mkP2_Core (P2_Core_IFC);
 
    // Core: CPU + Near_Mem_IO (CLINT) + PLIC + Debug module (optional) + TV (optional)
-   Core_IFC::Core_IFC #(N_External_Interrupt_Sources)  core <- mkCore;
+   Core_IFC::Core_IFC_Synth #(N_External_Interrupt_Sources)  core <- mkCore_Synth;
 
    // ================================================================
    // Tie-offs (not used in SSITH GFE)
