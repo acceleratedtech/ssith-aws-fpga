@@ -102,7 +102,7 @@ struct Rom {
 };
 
 struct AXI_Write_State {
-  uint32_t awaddr;
+  uint64_t awaddr;
   uint16_t wdata_count;
   uint16_t wid;
   AXI_Write_State(uint32_t awaddr, uint16_t wdata_count, uint16_t wid)
@@ -131,6 +131,7 @@ class AWSP2 {
     uint64_t tohost_addr;
     uint64_t fromhost_addr;
     uint64_t sifive_test_addr;
+    uint64_t randombytes_addr;
     uint64_t htif_enabled;
     uint64_t uart_enabled;
     int pcis_dma_fd;

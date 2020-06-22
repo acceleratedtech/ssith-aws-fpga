@@ -2,6 +2,7 @@
 #include <ctype.h>
 #include <fcntl.h>
 #include <sys/mman.h>
+#include <sys/random.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 
@@ -52,8 +53,8 @@ public:
     }
     virtual void irq_status ( const uint32_t levels );
     virtual void tandem_packet(const uint32_t num_bytes, const bsvvector_Luint8_t_L72 bytes);
-    void io_awaddr(uint32_t awaddr, uint16_t awlen, uint16_t awid);
-    void io_araddr(uint32_t araddr, uint16_t arlen, uint16_t arid);
+    void io_awaddr(uint64_t awaddr, uint16_t awlen, uint16_t awid);
+    void io_araddr(uint64_t araddr, uint16_t arlen, uint16_t arid);
     void console_putchar(uint64_t wdata);
     virtual void io_wdata(uint64_t wdata, uint8_t wstrb);
     virtual void uart_tohost(uint8_t ch);
@@ -187,29 +188,29 @@ void AWSP2_Response::tandem_packet(const uint32_t num_bytes, const bsvvector_Lui
         fpga->display_tandem = 1;
 }
 
-void AWSP2_Response::io_awaddr(uint32_t awaddr, uint16_t awlen, uint16_t awid) {
+void AWSP2_Response::io_awaddr(uint64_t awaddr, uint16_t awlen, uint16_t awid) {
     fpga->io_write_queue.emplace(awaddr, awlen / 8, awid);
     PhysMemoryRange *pr = fpga->virtio_devices.get_phys_mem_range(awaddr);
     if (pr) {
         uint32_t offset = awaddr - pr->addr;
-        if (debug_virtio) fprintf(stderr, "virtio awaddr %08x device addr %08lx offset %08x len %d\r\n", awaddr, pr->addr, offset, awlen);
+        if (debug_virtio) fprintf(stderr, "virtio awaddr %08lx device addr %08lx offset %08x len %d\r\n", awaddr, pr->addr, offset, awlen);
     } else if (awaddr == fpga->tohost_addr) {
         // tohost
     } else if (awaddr == fpga->fromhost_addr) {
         // fromhost
     } else {
-        if (debug_stray_io) fprintf(stderr, "io_awaddr awaddr=%08x awlen=%d\r\n", awaddr, awlen);
+        if (debug_stray_io) fprintf(stderr, "io_awaddr awaddr=%08lx awlen=%d\r\n", awaddr, awlen);
         //fprintf(stderr, "htif_base_addr=%08x\r\n", fpga->htif_base_addr);
     }
 }
 
-void AWSP2_Response::io_araddr(uint32_t araddr, uint16_t arlen, uint16_t arid)
+void AWSP2_Response::io_araddr(uint64_t araddr, uint16_t arlen, uint16_t arid)
 {
     PhysMemoryRange *pr = fpga->virtio_devices.get_phys_mem_range(araddr);
     if (pr) {
         uint32_t offset = araddr - pr->addr;
         int size_log2 = 2;
-        if (debug_virtio) fprintf(stderr, "virtio araddr %08x device addr %08lx offset %08x len %d\r\n", araddr, pr->addr, offset, arlen);
+        if (debug_virtio) fprintf(stderr, "virtio araddr %08lx device addr %08lx offset %08x len %d\r\n", araddr, pr->addr, offset, arlen);
         for (int i = 0; i < arlen / 8; i++) {
             int last = i == ((arlen / 8) - 1);
             uint64_t val = pr->read_func(pr->opaque, offset, size_log2);
@@ -217,7 +218,7 @@ void AWSP2_Response::io_araddr(uint32_t araddr, uint16_t arlen, uint16_t arid)
               val = (val << 32);
             fpga->request->io_rdata(val, arid, 0, last);
             if (debug_virtio)
-                fprintf(stderr, "virtio araddr %0x device addr %08lx offset %08x len %d val %08lx last %d\r\n",
+                fprintf(stderr, "virtio araddr %0lx device addr %08lx offset %08x len %d val %08lx last %d\r\n",
                         araddr + i * 4, pr->addr, offset, arlen, val, last);
             offset += 4;
         }
@@ -232,7 +233,7 @@ void AWSP2_Response::io_araddr(uint32_t araddr, uint16_t arlen, uint16_t arid)
     } else if (araddr == fpga->fromhost_addr) {
         uint8_t ch = 0;
         if (arlen != 0)
-          fprintf(stderr, "ERROR: fromhost araddr %08x arlen %d\r\n", araddr, arlen);
+          fprintf(stderr, "ERROR: fromhost araddr %08lx arlen %d\r\n", araddr, arlen);
         if (fpga->htif_enabled && fpga->dequeue_stdin(&ch)) {
             uint64_t cmd = (1ul << 56) | (0ul << 48) | ch;
             fpga->request->io_rdata(cmd, arid, 0, 1);
@@ -244,9 +245,18 @@ void AWSP2_Response::io_araddr(uint32_t araddr, uint16_t arlen, uint16_t arid)
             int last = i == ((arlen / 8) - 1);
             fpga->request->io_rdata(0, arid, 0, last);
         }
+    } else if (araddr == fpga->randombytes_addr) {
+        for (int i = 0; i < arlen / 8; i++) {
+            int last = i == ((arlen / 8) - 1);
+	    uint64_t bytes = 0x1717171717171717ul;
+	    ssize_t num_bytes = getrandom(&bytes, sizeof(bytes), 0);
+	    if (num_bytes < sizeof(bytes))
+		fprintf(stderr, "Warning: not enough entropy (%ld/%ld)\n", num_bytes, sizeof(bytes));
+            fpga->request->io_rdata(bytes, arid, 0, last);
+        }
     } else {
         if (araddr != 0x10001000 && araddr != 0x10001008 && araddr != 0x50001000 && araddr != 0x50001008)
-            if (debug_stray_io) fprintf(stderr, "io_araddr araddr=%08x arlen=%d\r\n", araddr, arlen);
+            if (debug_stray_io) fprintf(stderr, "io_araddr araddr=%08lx arlen=%d\r\n", araddr, arlen);
         for (int i = 0; i < arlen / 8; i++) {
             int last = i == ((arlen / 8) - 1);
             fpga->request->io_rdata(0, arid, 0, last);
@@ -304,6 +314,8 @@ void AWSP2_Response::io_wdata(uint64_t wdata, uint8_t wstrb) {
         } else {
             fprintf(stderr, "\r\nSiFive Test Finisher: status=%04x\r\n", status);
         }
+    } else if (awaddr == fpga->randombytes_addr) {
+	// nothing to do here
     } else {
         if (debug_stray_io) fprintf(stderr, "    io_wdata wdata=%lx wstrb=%x\r\n", wdata, wstrb);
     }
@@ -327,7 +339,7 @@ void AWSP2_Response::console_putchar(uint64_t wdata) {
 }
 
 AWSP2::AWSP2(int id, const Rom &rom, const char *tun_iface)
-    : response(0), rom(rom), last_addr(0), ctrla_seen(0), sifive_test_addr(0x50000000),
+    : response(0), rom(rom), last_addr(0), ctrla_seen(0), sifive_test_addr(0x50000000), randombytes_addr(0x51000000),
       htif_enabled(0), uart_enabled(0), virtio_devices(FIRST_VIRTIO_IRQ, tun_iface),
       pcis_dma_fd(-1), dram_mapping(0), xdma_c2h_fd(-1), xdma_h2c_fd(-1), gdb_port(-1)
 {

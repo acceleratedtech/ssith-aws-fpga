@@ -45,25 +45,27 @@ int AWSP2_Response_ddr_data ( struct PortalInternal *p, const bsvvector_Luint8_t
     return 0;
 };
 
-int AWSP2_Response_io_awaddr ( struct PortalInternal *p, const uint32_t awaddr, const uint16_t awlen, const uint16_t awid )
+int AWSP2_Response_io_awaddr ( struct PortalInternal *p, const uint64_t awaddr, const uint16_t awlen, const uint16_t awid )
 {
-    volatile unsigned int* temp_working_addr_start = p->transport->mapchannelReq(p, CHAN_NUM_AWSP2_Response_io_awaddr, 3);
+    volatile unsigned int* temp_working_addr_start = p->transport->mapchannelReq(p, CHAN_NUM_AWSP2_Response_io_awaddr, 4);
     volatile unsigned int* temp_working_addr = temp_working_addr_start;
     if (p->transport->busywait(p, CHAN_NUM_AWSP2_Response_io_awaddr, "AWSP2_Response_io_awaddr")) return 1;
+    p->transport->write(p, &temp_working_addr, (awaddr>>32));
     p->transport->write(p, &temp_working_addr, awaddr);
     p->transport->write(p, &temp_working_addr, awid|(((unsigned long)awlen)<<16));
-    p->transport->send(p, temp_working_addr_start, (CHAN_NUM_AWSP2_Response_io_awaddr << 16) | 3, -1);
+    p->transport->send(p, temp_working_addr_start, (CHAN_NUM_AWSP2_Response_io_awaddr << 16) | 4, -1);
     return 0;
 };
 
-int AWSP2_Response_io_araddr ( struct PortalInternal *p, const uint32_t araddr, const uint16_t arlen, const uint16_t arid )
+int AWSP2_Response_io_araddr ( struct PortalInternal *p, const uint64_t araddr, const uint16_t arlen, const uint16_t arid )
 {
-    volatile unsigned int* temp_working_addr_start = p->transport->mapchannelReq(p, CHAN_NUM_AWSP2_Response_io_araddr, 3);
+    volatile unsigned int* temp_working_addr_start = p->transport->mapchannelReq(p, CHAN_NUM_AWSP2_Response_io_araddr, 4);
     volatile unsigned int* temp_working_addr = temp_working_addr_start;
     if (p->transport->busywait(p, CHAN_NUM_AWSP2_Response_io_araddr, "AWSP2_Response_io_araddr")) return 1;
+    p->transport->write(p, &temp_working_addr, (araddr>>32));
     p->transport->write(p, &temp_working_addr, araddr);
     p->transport->write(p, &temp_working_addr, arid|(((unsigned long)arlen)<<16));
-    p->transport->send(p, temp_working_addr_start, (CHAN_NUM_AWSP2_Response_io_araddr << 16) | 3, -1);
+    p->transport->send(p, temp_working_addr_start, (CHAN_NUM_AWSP2_Response_io_araddr << 16) | 4, -1);
     return 0;
 };
 
@@ -253,18 +255,22 @@ int AWSP2_Response_handleMessage(struct PortalInternal *p, unsigned int channel,
         ((AWSP2_ResponseCb *)p->cb)->ddr_data(p, tempdata.ddr_data.data);
       } break;
     case CHAN_NUM_AWSP2_Response_io_awaddr: {
-        p->transport->recv(p, temp_working_addr, 2, &tmpfd);
+        p->transport->recv(p, temp_working_addr, 3, &tmpfd);
         tmp = p->transport->read(p, &temp_working_addr);
-        tempdata.io_awaddr.awaddr = (uint32_t)(((tmp)&0xfffffffful));
+        tempdata.io_awaddr.awaddr = (uint64_t)(((uint64_t)(((tmp)&0xfffful))<<32));
+        tmp = p->transport->read(p, &temp_working_addr);
+        tempdata.io_awaddr.awaddr |= (uint64_t)(((tmp)&0xfffffffful));
         tmp = p->transport->read(p, &temp_working_addr);
         tempdata.io_awaddr.awid = (uint16_t)(((tmp)&0xfffful));
         tempdata.io_awaddr.awlen = (uint16_t)(((tmp>>16)&0xfffful));
         ((AWSP2_ResponseCb *)p->cb)->io_awaddr(p, tempdata.io_awaddr.awaddr, tempdata.io_awaddr.awlen, tempdata.io_awaddr.awid);
       } break;
     case CHAN_NUM_AWSP2_Response_io_araddr: {
-        p->transport->recv(p, temp_working_addr, 2, &tmpfd);
+        p->transport->recv(p, temp_working_addr, 3, &tmpfd);
         tmp = p->transport->read(p, &temp_working_addr);
-        tempdata.io_araddr.araddr = (uint32_t)(((tmp)&0xfffffffful));
+        tempdata.io_araddr.araddr = (uint64_t)(((uint64_t)(((tmp)&0xfffful))<<32));
+        tmp = p->transport->read(p, &temp_working_addr);
+        tempdata.io_araddr.araddr |= (uint64_t)(((tmp)&0xfffffffful));
         tmp = p->transport->read(p, &temp_working_addr);
         tempdata.io_araddr.arid = (uint16_t)(((tmp)&0xfffful));
         tempdata.io_araddr.arlen = (uint16_t)(((tmp>>16)&0xfffful));
