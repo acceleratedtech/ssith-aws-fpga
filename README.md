@@ -11,22 +11,6 @@ sudo apt-get update
 sudo apt-get install cmake device-tree-compiler build-essential libssl-dev libcurl4-openssl-dev libsdl-dev libelf-dev
 ```
 
-## Building `ssith_aws_fpga` for simulation
-
-**NOTE** For CHERI, you *must* use `src/dts/devicetree-cheri.dts` in place of `src/dts/devicetree.dts`.
-
-```bash
-mkdir build
-cd build
-cmake ..
-make
-cd ..
-dtc -I dts -O dtb -o build/devicetree.dtb src/dts/devicetree.dts
-ln -s ../hw/src_AWS_P2/verilator/bin/vlsim build
-ln -s ../hw/src_AWS_P2/verilator/bin/libconnectal-sim.so build
-LD_LIBRARY_PATH=./build ./build/ssith_aws_fpga --dtb build/devicetree.dtb  --elf foo.elf
-```
-
 ## Setting up FPGA
 
 Build FPGA utilities and set them up to run as root:
@@ -77,4 +61,20 @@ cd ..
 dtc -I dts -O dtb -o build/devicetree.dtb src/dts/devicetree.dts
 fpga-load-local-image -S 0 -I agfi-01019fdac375031e7
 ./build/ssith_aws_fpga --dtb build/devicetree.dtb  --elf foo.elf
+```
+
+## Building `ssith_aws_fpga` for simulation
+
+**NOTE** For CHERI, you *must* use `src/dts/devicetree-cheri.dts` in place of `src/dts/devicetree.dts`.
+
+```bash
+mkdir build
+cd build
+cmake ..
+make
+cd ..
+dtc -I dts -O dtb -o build/devicetree.dtb src/dts/devicetree.dts
+ln -s ../hw/src_AWS_P2/verilator/bin/vlsim build
+ln -s ../hw/src_AWS_P2/verilator/bin/libconnectal-sim.so build
+LD_LIBRARY_PATH=./build ./build/ssith_aws_fpga --dtb build/devicetree.dtb  --elf foo.elf
 ```
