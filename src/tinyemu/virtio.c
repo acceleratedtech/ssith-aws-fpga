@@ -395,16 +395,19 @@ static int virtio_memcpy_from_ram(VIRTIODevice *s, uint8_t *buf,
         }
         return 0;
     } else {
-        int ret;
-
-retry:
-        ret = pread(xdma_c2h_fd, buf, count, addr);
-        if (ret < 0) {
-            // ERESTARTSYS (512) is currently leaked to userspace
-            if (errno == EINTR || errno == 512)
-                goto retry;
-            else
-                abort();
+        while (count > 0) {
+            int l = min_int(count, VIRTIO_PAGE_SIZE - (addr & (VIRTIO_PAGE_SIZE - 1)));
+            ssize_t ret = pread(xdma_c2h_fd, buf, l, addr);
+            if (ret < 0) {
+                // ERESTARTSYS (512) is currently leaked to userspace
+                if (errno == EINTR || errno == 512)
+                    continue;
+                else
+                    abort();
+            }
+            addr += ret;
+            buf += ret;
+            count -= ret;
         }
         return 0;
     }
@@ -430,16 +433,19 @@ static int virtio_memcpy_to_ram(VIRTIODevice *s, virtio_phys_addr_t addr,
         }
         return 0;
     } else {
-        int ret;
-
-retry:
-        ret = pwrite(xdma_h2c_fd, buf, count, addr);
-        if (ret < 0) {
-            // ERESTARTSYS (512) is currently leaked to userspace
-            if (errno == EINTR || errno == 512)
-                goto retry;
-            else
-                abort();
+        while (count > 0) {
+            int l = min_int(count, VIRTIO_PAGE_SIZE - (addr & (VIRTIO_PAGE_SIZE - 1)));
+            ssize_t ret = pwrite(xdma_h2c_fd, buf, l, addr);
+            if (ret < 0) {
+                // ERESTARTSYS (512) is currently leaked to userspace
+                if (errno == EINTR || errno == 512)
+                    continue;
+                else
+                    abort();
+            }
+            addr += ret;
+            buf += ret;
+            count -= ret;
         }
         return 0;
     }
