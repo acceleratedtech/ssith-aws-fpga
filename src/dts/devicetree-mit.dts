@@ -85,7 +85,7 @@
 		compatible = "virtio,mmio";
 		memory-region = &region0;
 		interrupts-extended = <&plic 2>;
-		reg = <0x40000000 0x100>;
+		reg = <0x40000000 0x1000>;
 	};
 	virtio_block@40001000 {
 		compatible = "virtio,mmio";
