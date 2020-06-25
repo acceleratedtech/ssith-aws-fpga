@@ -37,6 +37,7 @@ module mkAXI4_Mem_Filter(AXI4_Mem_Filter);
    endrule
    rule rl_control_wr_data if (rg_control_awcount != 0);
       let wdata <- pop_o(xactor_from_control.o_wr_data);
+      rg_addr_filter <= wdata.wdata;
       if (rg_control_awcount == 1) begin
          xactor_from_control.i_wr_resp.enq(AXI4_Wr_Resp { bid: rg_control_awid, bresp: 0, buser: 0 } );
       end
@@ -50,7 +51,7 @@ module mkAXI4_Mem_Filter(AXI4_Mem_Filter);
       rg_control_arid <= req.arid;
       rg_control_arcount <= req.arlen + 1;
    endrule
-   rule rl_control_rd_data if (rg_control_arcount == 0);
+   rule rl_control_rd_data if (rg_control_arcount != 0);
       xactor_from_control.i_rd_data.enq(AXI4_Rd_Data { rid: rg_control_arid, rdata: rg_addr_filter, rresp: 0, rlast: (rg_control_arcount == 1), ruser: 0 });
       rg_control_arcount <= rg_control_arcount - 1;
    endrule
