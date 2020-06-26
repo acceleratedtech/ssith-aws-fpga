@@ -33,7 +33,6 @@
 #include <unistd.h>
 #include <stdatomic.h>
 
-#include <sys/random.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -41,6 +40,18 @@
 #include "cutils.h"
 #include "list.h"
 #include "virtio.h"
+
+#if __has_include(<sys/random.h>)
+#include <sys/random.h>
+#else
+#include <sys/syscall.h>
+
+static inline ssize_t
+getrandom (void *buffer, size_t length, unsigned int flags)
+{
+  return syscall (__NR_getrandom, buffer, length, flags);
+}
+#endif
 
 //#define DEBUG_VIRTIO
 
@@ -397,8 +408,22 @@ static int virtio_memcpy_from_ram(VIRTIODevice *s, uint8_t *buf,
     } else {
         while (count > 0) {
             int l = min_int(count, VIRTIO_PAGE_SIZE - (addr & (VIRTIO_PAGE_SIZE - 1)));
+            struct timespec start;
+            clock_gettime(CLOCK_REALTIME, &start);
             ssize_t ret = pread(xdma_c2h_fd, buf, l, addr);
+            struct timespec end;
+            clock_gettime(CLOCK_REALTIME, &end);
+            unsigned long ns = (end.tv_sec - start.tv_sec) * 1000000000L + (end.tv_nsec - start.tv_nsec);
+            unsigned int ms = ns / 1000000;
+            if (ms > 100) {
+                char name[64];
+                pthread_getname_np(pthread_self(), name, sizeof(name));
+                fprintf(stderr, "SLOW (R): addr 0x%08lx size 0x%08x thread %s ms %08lx\r\n", addr, l, name, (unsigned long)ms);
+            }
             if (ret < 0) {
+                char name[64];
+                pthread_getname_np(pthread_self(), name, sizeof(name));
+                fprintf(stderr, "FAILED (R): addr 0x%08lx size 0x%08x thread %s\r\n", addr, l, name);
                 // ERESTARTSYS (512) is currently leaked to userspace
                 if (errno == EINTR || errno == 512)
                     continue;
@@ -435,8 +460,22 @@ static int virtio_memcpy_to_ram(VIRTIODevice *s, virtio_phys_addr_t addr,
     } else {
         while (count > 0) {
             int l = min_int(count, VIRTIO_PAGE_SIZE - (addr & (VIRTIO_PAGE_SIZE - 1)));
+            struct timespec start;
+            clock_gettime(CLOCK_REALTIME, &start);
             ssize_t ret = pwrite(xdma_h2c_fd, buf, l, addr);
+            struct timespec end;
+            clock_gettime(CLOCK_REALTIME, &end);
+            unsigned long ns = (end.tv_sec - start.tv_sec) * 1000000000L + (end.tv_nsec - start.tv_nsec);
+            unsigned int ms = ns / 1000000;
+            if (ms > 100) {
+                char name[64];
+                pthread_getname_np(pthread_self(), name, sizeof(name));
+                fprintf(stderr, "SLOW (W): addr 0x%08lx size 0x%08x thread %s ms %08lx\r\n", addr, l, name, (unsigned long)ms);
+            }
             if (ret < 0) {
+                char name[64];
+                pthread_getname_np(pthread_self(), name, sizeof(name));
+                fprintf(stderr, "FAILED (W): addr 0x%08lx size 0x%08x thread %s\r\n", addr, l, name);
                 // ERESTARTSYS (512) is currently leaked to userspace
                 if (errno == EINTR || errno == 512)
                     continue;
