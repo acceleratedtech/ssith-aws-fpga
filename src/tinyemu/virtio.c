@@ -174,7 +174,7 @@ static void virtio_pci_write(void *opaque, uint32_t offset,
 
 static void async_queue_notify(VIRTIODevice *s, int queue_idx);
 
-static void virtio_reset(VIRTIODevice *s)
+void virtio_reset(VIRTIODevice *s)
 {
     int i;
 

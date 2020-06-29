@@ -301,6 +301,9 @@ void AWSP2_Response::io_wdata(uint64_t wdata, uint8_t wstrb) {
         } else if (status == 0x5555) {
             // PASS
             fpga->stop_io(0);
+        } else if (status == 0x7777) {
+            // RESET
+            fpga->stop_io(EXIT_CODE_RESET);
         } else {
             fprintf(stderr, "\r\nSiFive Test Finisher: status=%04x\r\n", status);
         }
@@ -564,9 +567,9 @@ void AWSP2::halt(int timeout) {
     std::lock_guard<std::mutex> lock(dmi_request_mutex);
 
     dmi_write(DM_CONTROL_REG, DM_CONTROL_HALTREQ | dmi_read(DM_CONTROL_REG));
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < timeout; i++) {
         uint32_t status = dmi_read(DM_STATUS_REG);
-        if (status & (1 << 9))
+        if (status & DM_STATUS_ALLHALTED)
             break;
     }
     dmi_write(DM_CONTROL_REG, ~DM_CONTROL_HALTREQ & dmi_read(DM_CONTROL_REG));
@@ -576,12 +579,26 @@ void AWSP2::resume(int timeout) {
     std::lock_guard<std::mutex> lock(dmi_request_mutex);
 
     dmi_write(DM_CONTROL_REG, DM_CONTROL_RESUMEREQ | dmi_read(DM_CONTROL_REG));
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < timeout; i++) {
         uint32_t status = dmi_read(DM_STATUS_REG);
-        if (status & (1 << 17))
+        if (status & DM_STATUS_ALLRESUMEACK)
             break;
     }
     dmi_write(DM_CONTROL_REG, ~DM_CONTROL_RESUMEREQ & dmi_read(DM_CONTROL_REG));
+}
+
+void AWSP2::reset_halt(int timeout) {
+    std::lock_guard<std::mutex> lock(dmi_request_mutex);
+
+    // Unlike halt/resume, ndmreset has no ack and only takes place on a
+    // falling edge.
+    dmi_write(DM_CONTROL_REG, DM_CONTROL_HALTREQ | DM_CONTROL_NDMRESET | DM_CONTROL_DMACTIVE);
+    dmi_write(DM_CONTROL_REG, DM_CONTROL_HALTREQ | DM_CONTROL_DMACTIVE);
+    for (int i = 0; i < timeout; i++) {
+        uint32_t status = dmi_read(DM_STATUS_REG);
+        if (!(status & DM_STATUS_ANYUNAVAIL))
+            break;
+    }
 }
 
 void AWSP2::irq_set_levels(uint32_t w1s)
@@ -629,9 +646,13 @@ void AWSP2::enqueue_stdin(char *buf, size_t num_chars)
                     stop_io(0);
                     fprintf(stderr, "\r\nTerminated\r\n");
                     return;
+                case 'r':
+                    stop_io(EXIT_CODE_RESET);
+                    return;
                 case 'h':
                     fprintf(stderr, "\r\n");
                     fprintf(stderr, "C-a h   print this help\r\n");
+                    fprintf(stderr, "C-a r   reset the system\r\n");
                     fprintf(stderr, "C-a x   exit\r\n");
                     fprintf(stderr, "C-a C-a send C-a\r\n");
                     continue;
@@ -728,23 +749,28 @@ void *AWSP2::process_stdin_thread(void *opaque)
 
 void AWSP2::start_io()
 {
-    struct termios stdin_termios;
-    struct termios stdout_termios;
+    if (!done_termios) {
+        struct termios stdin_termios;
+        struct termios stdout_termios;
 
-    tcgetattr(STDIN_FILENO, &stdin_termios);
-    tcgetattr(STDOUT_FILENO, &stdout_termios);
-    orig_stdin_termios = stdin_termios;
-    orig_stdout_termios = stdout_termios;
-    atexit(&reset_termios);
+        tcgetattr(STDIN_FILENO, &stdin_termios);
+        tcgetattr(STDOUT_FILENO, &stdout_termios);
+        orig_stdin_termios = stdin_termios;
+        orig_stdout_termios = stdout_termios;
+        atexit(&reset_termios);
 
-    cfmakeraw(&stdin_termios);
-    cfmakeraw(&stdout_termios);
-    stdin_termios.c_cc[VMIN] = 1;
-    stdout_termios.c_cc[VMIN] = 1;
-    stdin_termios.c_cc[VTIME] = 0;
-    stdout_termios.c_cc[VTIME] = 0;
-    tcsetattr(STDIN_FILENO, TCSAFLUSH, &stdin_termios);
-    tcsetattr(STDOUT_FILENO, TCSAFLUSH, &stdout_termios);
+        cfmakeraw(&stdin_termios);
+        cfmakeraw(&stdout_termios);
+        stdin_termios.c_cc[VMIN] = 1;
+        stdout_termios.c_cc[VMIN] = 1;
+        stdin_termios.c_cc[VTIME] = 0;
+        stdout_termios.c_cc[VTIME] = 0;
+        tcsetattr(STDIN_FILENO, TCSAFLUSH, &stdin_termios);
+        tcsetattr(STDOUT_FILENO, TCSAFLUSH, &stdout_termios);
+        tcsetattr(STDOUT_FILENO, TCSAFLUSH, &stdout_termios);
+
+        done_termios = true;
+    }
 
     pipe(stop_stdin_pipe);
     fcntl(stop_stdin_pipe[1], F_SETFL, O_NONBLOCK);
@@ -808,6 +834,7 @@ int AWSP2::join_io()
 
 struct termios AWSP2::orig_stdin_termios;
 struct termios AWSP2::orig_stdout_termios;
+bool AWSP2::done_termios = false;
 
 void AWSP2::reset_termios()
 {

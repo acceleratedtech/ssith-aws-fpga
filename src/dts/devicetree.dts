@@ -97,7 +97,7 @@
 
 	sifive_test: sifive_test@50000000 {
 		reg = <0x50000000 0x1000>;
-		compatible = "sifive,test0", "syscon";
+		compatible = "sifive,test1", "sifive,test0", "syscon";
 	};
 
 	poweroff {
@@ -105,5 +105,12 @@
 		offset = <0x0>;
 		regmap = <&sifive_test>;
 		compatible = "syscon-poweroff";
+	};
+
+	reboot {
+		value = <0x7777>;
+		offset = <0x0>;
+		regmap = <&sifive_test>;
+		compatible = "syscon-reboot";
 	};
 };

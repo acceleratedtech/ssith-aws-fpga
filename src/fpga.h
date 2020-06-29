@@ -26,6 +26,15 @@
 
 #define DM_CONTROL_HALTREQ (1 << 31)
 #define DM_CONTROL_RESUMEREQ (1 << 30)
+#define DM_CONTROL_HARTRESET (1 << 29)
+#define DM_CONTROL_ACKHAVERESET (1 << 28)
+#define DM_CONTROL_NDMRESET (1 << 1)
+#define DM_CONTROL_DMACTIVE (1 << 0)
+
+#define DM_STATUS_ALLHAVERESET (1 << 19)
+#define DM_STATUS_ALLRESUMEACK (1 << 17)
+#define DM_STATUS_ANYUNAVAIL (1 << 12)
+#define DM_STATUS_ALLHALTED (1 << 9)
 
 #define DM_COMMAND_ACCESS_REGISTER 0
 #define DM_COMMAND_ACCESS_MEMORY 2
@@ -41,6 +50,10 @@
 #define SBCS_SBREADONADDR (1 << 20)
 #define SBCS_SBBUSY (1 << 21)
 #define SBCS_SBBUSYERROR (1 << 22)
+
+// The SiFive test finisher provides 16 bits for an exit code, unsigned, so we
+// use negative values for our own special purposes internally.
+#define EXIT_CODE_RESET -1
 
 // ================================================================
 // Encodings
@@ -150,6 +163,7 @@ class AWSP2 {
     int virtio_stdio_pipe[2];
     static struct termios orig_stdin_termios;
     static struct termios orig_stdout_termios;
+    static bool done_termios;
 
     friend class AWSP2_Response;
 public:
@@ -182,6 +196,7 @@ public:
 
     void halt(int timeout = 100);
     void resume(int timeout = 100);
+    void reset_halt(int timeout = 100);
 
     void irq_set_levels(uint32_t w1s);
     void irq_clear_levels(uint32_t w1s);

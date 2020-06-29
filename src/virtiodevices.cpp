@@ -240,3 +240,13 @@ void VirtioDevices::join()
     virtio_join_pending_notify_thread();
     pthread_join(io_thread, NULL);
 }
+
+void VirtioDevices::reset()
+{
+#define RESET_DEVICE(s) if (s) virtio_reset(s)
+    RESET_DEVICE(virtio_net);
+    RESET_DEVICE(virtio_entropy);
+    RESET_DEVICE(virtio_block);
+    RESET_DEVICE(virtio_console);
+#undef RESET_DEVICE
+}

@@ -43,5 +43,6 @@ class VirtioDevices {
   void start();
   void stop();
   void join();
+  void reset();
 };
 

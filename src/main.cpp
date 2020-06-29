@@ -252,21 +252,23 @@ int main(int argc, char * const *argv)
 
     debugLog("dmi state machine status %d\r\n", fpga->dmi_status());
 
+boot:
     bool first_elf = true;
+    uint32_t chosen_entry = entry;
     for (std::string elf_file: elf_files) {
         uint64_t elf_entry = loadElf(fpga, elf_file.c_str(), 0x40000000, first_elf);
         if (first_elf) {
             first_elf = false;
             debugLog("elf_entry=%08lx\r\n", elf_entry);
 
-            if (!entry)
-                entry = elf_entry;
+            if (!chosen_entry)
+                chosen_entry = elf_entry;
         }
     }
 
     // update the dpc
-    debugLog("setting pc val %08x\r\n", entry);
-    fpga->write_csr(0x7b1, entry);
+    debugLog("setting pc val %08x\r\n", chosen_entry);
+    fpga->write_csr(0x7b1, chosen_entry);
     debugLog("reading pc val %08lx\r\n", fpga->read_csr(0x7b1));
 
     // for loading linux, set pointer to devicetree
@@ -312,5 +314,12 @@ int main(int argc, char * const *argv)
     }
 #endif
 
-    return fpga->join_io();
+    int exit_code = fpga->join_io();
+    if (exit_code == EXIT_CODE_RESET) {
+        fpga->reset_halt();
+        fpga->get_virtio_devices().reset();
+        goto boot;
+    }
+
+    return exit_code;
 }
