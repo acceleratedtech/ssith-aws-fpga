@@ -26,12 +26,18 @@ uint64_t loadElf(AWSP2 *fpga, const char *elf_filename, size_t max_mem_size, boo
     }
 
     int fd = open(elf_filename, O_RDONLY);
+    if (fd < 0) {
+        fprintf(stderr, "ERROR: loadElf: Failed to open '%s': %s (%d)\r\n", elf_filename, strerror(errno), errno);
+        exit(1);
+    }
+
     Elf *e = elf_begin(fd, ELF_C_READ, NULL);
     uint64_t entry_vaddr = 0;
 
     // Verify that the file is an ELF file
     if (elf_kind(e) != ELF_K_ELF) {
         elf_end(e);
+        close(fd);
         fprintf(stderr, "ERROR: loadElf: specified file '%s' is not an ELF file!\r\n", elf_filename);
         exit(1);
     }
@@ -40,6 +46,7 @@ uint64_t loadElf(AWSP2 *fpga, const char *elf_filename, size_t max_mem_size, boo
     GElf_Ehdr ehdr;
     if (gelf_getehdr(e, & ehdr) == NULL) {
         elf_end(e);
+        close(fd);
         fprintf(stderr, "ERROR: loadElf: get_getehdr() failed: %s\r\n", elf_errmsg(-1));
         exit(1);
     }
@@ -60,12 +67,14 @@ uint64_t loadElf(AWSP2 *fpga, const char *elf_filename, size_t max_mem_size, boo
     // Verify we are dealing with a RISC-V ELF
     if (ehdr.e_machine != 243) { // EM_RISCV is not defined, but this returns 243 when used with a valid elf file.
         elf_end(e);
+        close(fd);
         fprintf(stderr, "ERROR: loadElf: %s is not a RISC-V ELF file\r\n", elf_filename);
         exit(1);
     }
     // Verify we are dealing with a little endian ELF
     if (ehdr.e_ident[EI_DATA] != ELFDATA2LSB) {
         elf_end(e);
+        close(fd);
         fprintf(stderr,
                  "ERROR: loadElf: %s is a big-endian 64-bit RISC-V executable which is not supported\r\n",
                  elf_filename);
@@ -161,6 +170,7 @@ uint64_t loadElf(AWSP2 *fpga, const char *elf_filename, size_t max_mem_size, boo
     }
 
     elf_end(e);
+    close(fd);
 
     if (set_htif) {
         if (htif_paddr) {
