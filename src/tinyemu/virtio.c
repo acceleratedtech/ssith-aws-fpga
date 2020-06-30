@@ -33,10 +33,19 @@
 #include <unistd.h>
 #include <stdatomic.h>
 
-#include <sys/random.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
+
+#if __has_include(<sys/random.h>)
+#include <sys/random.h>
+#else
+#include <sys/syscall.h>
+
+static inline ssize_t getrandom(void *buf, size_t buflen, unsigned int flags) {
+    return syscall(SYS_getrandom, buf, buflen, flags);
+}
+#endif
 
 #include "cutils.h"
 #include "list.h"
