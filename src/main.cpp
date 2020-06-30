@@ -316,6 +316,9 @@ boot:
 
     int exit_code = fpga->join_io();
     if (exit_code == EXIT_CODE_RESET) {
+        // Halt to quiesce the pipeline before resetting so there are no
+        // outstanding AXI requests.
+        fpga->halt();
         fpga->reset_halt();
         fpga->get_virtio_devices().reset();
         goto boot;
