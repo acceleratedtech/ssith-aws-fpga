@@ -415,8 +415,8 @@ typedef uint8_t bsvvector_Luint8_t_L72[72];
 int AWSP2_Response_dmi_read_data ( struct PortalInternal *p, const uint32_t rsp_data );
 int AWSP2_Response_dmi_status_data ( struct PortalInternal *p, const uint16_t status );
 int AWSP2_Response_ddr_data ( struct PortalInternal *p, const bsvvector_Luint8_t_L64 data );
-int AWSP2_Response_io_awaddr ( struct PortalInternal *p, const uint32_t awaddr, const uint16_t awlen, const uint16_t awid );
-int AWSP2_Response_io_araddr ( struct PortalInternal *p, const uint32_t araddr, const uint16_t arlen, const uint16_t arid );
+int AWSP2_Response_io_awaddr ( struct PortalInternal *p, const uint64_t awaddr, const uint16_t awlen, const uint16_t awid );
+int AWSP2_Response_io_araddr ( struct PortalInternal *p, const uint64_t araddr, const uint16_t arlen, const uint16_t arid );
 int AWSP2_Response_io_wdata ( struct PortalInternal *p, const uint64_t wdata, const uint8_t wstrb );
 int AWSP2_Response_irq_status ( struct PortalInternal *p, const uint32_t levels );
 int AWSP2_Response_tandem_packet ( struct PortalInternal *p, const uint32_t num_bytes, const bsvvector_Luint8_t_L72 bytes );
@@ -434,12 +434,12 @@ typedef struct {
     bsvvector_Luint8_t_L64 data;
 } AWSP2_Response_ddr_dataData;
 typedef struct {
-    uint32_t awaddr;
+    uint64_t awaddr;
     uint16_t awlen;
     uint16_t awid;
 } AWSP2_Response_io_awaddrData;
 typedef struct {
-    uint32_t araddr;
+    uint64_t araddr;
     uint16_t arlen;
     uint16_t arid;
 } AWSP2_Response_io_araddrData;
@@ -474,8 +474,8 @@ typedef struct {
     int (*dmi_read_data) (  struct PortalInternal *p, const uint32_t rsp_data );
     int (*dmi_status_data) (  struct PortalInternal *p, const uint16_t status );
     int (*ddr_data) (  struct PortalInternal *p, const bsvvector_Luint8_t_L64 data );
-    int (*io_awaddr) (  struct PortalInternal *p, const uint32_t awaddr, const uint16_t awlen, const uint16_t awid );
-    int (*io_araddr) (  struct PortalInternal *p, const uint32_t araddr, const uint16_t arlen, const uint16_t arid );
+    int (*io_awaddr) (  struct PortalInternal *p, const uint64_t awaddr, const uint16_t awlen, const uint16_t awid );
+    int (*io_araddr) (  struct PortalInternal *p, const uint64_t araddr, const uint16_t arlen, const uint16_t arid );
     int (*io_wdata) (  struct PortalInternal *p, const uint64_t wdata, const uint8_t wstrb );
     int (*irq_status) (  struct PortalInternal *p, const uint32_t levels );
     int (*tandem_packet) (  struct PortalInternal *p, const uint32_t num_bytes, const bsvvector_Luint8_t_L72 bytes );
@@ -486,8 +486,8 @@ extern AWSP2_ResponseCb AWSP2_ResponseProxyReq;
 int AWSP2_ResponseJson_dmi_read_data ( struct PortalInternal *p, const uint32_t rsp_data );
 int AWSP2_ResponseJson_dmi_status_data ( struct PortalInternal *p, const uint16_t status );
 int AWSP2_ResponseJson_ddr_data ( struct PortalInternal *p, const bsvvector_Luint8_t_L64 data );
-int AWSP2_ResponseJson_io_awaddr ( struct PortalInternal *p, const uint32_t awaddr, const uint16_t awlen, const uint16_t awid );
-int AWSP2_ResponseJson_io_araddr ( struct PortalInternal *p, const uint32_t araddr, const uint16_t arlen, const uint16_t arid );
+int AWSP2_ResponseJson_io_awaddr ( struct PortalInternal *p, const uint64_t awaddr, const uint16_t awlen, const uint16_t awid );
+int AWSP2_ResponseJson_io_araddr ( struct PortalInternal *p, const uint64_t araddr, const uint16_t arlen, const uint16_t arid );
 int AWSP2_ResponseJson_io_wdata ( struct PortalInternal *p, const uint64_t wdata, const uint8_t wstrb );
 int AWSP2_ResponseJson_irq_status ( struct PortalInternal *p, const uint32_t levels );
 int AWSP2_ResponseJson_tandem_packet ( struct PortalInternal *p, const uint32_t num_bytes, const bsvvector_Luint8_t_L72 bytes );
