@@ -2,6 +2,7 @@
 #include <ctype.h>
 #include <fcntl.h>
 #include <sys/mman.h>
+#include <sys/random.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 
@@ -244,6 +245,16 @@ void AWSP2_Response::io_araddr(uint32_t araddr, uint16_t arlen, uint16_t arid)
             int last = i == ((arlen / 8) - 1);
             fpga->request->io_rdata(0, arid, 0, last);
         }
+    } else if (araddr == fpga->randombytes_addr) {
+        for (int i = 0; i < arlen / 8; i++) {
+            int last = i == ((arlen / 8) - 1);
+	    uint64_t bytes = 0x1717171717171717ul;
+	    ssize_t num_bytes = getrandom(&bytes, sizeof(bytes), 0);
+	    if (num_bytes < sizeof(bytes))
+		fprintf(stderr, "Warning: not enough entropy (%ld/%ld)\n", num_bytes, sizeof(bytes));
+	    fprintf(stderr, "hw random %08lx\n", bytes);
+            fpga->request->io_rdata(bytes, arid, 0, last);
+        }
     } else {
         if (araddr != 0x10001000 && araddr != 0x10001008 && araddr != 0x50001000 && araddr != 0x50001008)
             if (debug_stray_io) fprintf(stderr, "io_araddr araddr=%08x arlen=%d\r\n", araddr, arlen);
@@ -307,6 +318,8 @@ void AWSP2_Response::io_wdata(uint64_t wdata, uint8_t wstrb) {
         } else {
             fprintf(stderr, "\r\nSiFive Test Finisher: status=%04x\r\n", status);
         }
+    } else if (awaddr == fpga->randombytes_addr) {
+      fprintf(stderr, "-> hw random %08lx\n", wdata);
     } else {
         if (debug_stray_io) fprintf(stderr, "    io_wdata wdata=%lx wstrb=%x\r\n", wdata, wstrb);
     }
@@ -330,7 +343,7 @@ void AWSP2_Response::console_putchar(uint64_t wdata) {
 }
 
 AWSP2::AWSP2(int id, const Rom &rom, const char *tun_iface)
-    : response(0), rom(rom), last_addr(0), ctrla_seen(0), sifive_test_addr(0x50000000),
+    : response(0), rom(rom), last_addr(0), ctrla_seen(0), sifive_test_addr(0x50000000), randombytes_addr(0x51000000),
       htif_enabled(0), uart_enabled(0), virtio_devices(FIRST_VIRTIO_IRQ, tun_iface),
       pcis_dma_fd(-1), dram_mapping(0), xdma_c2h_fd(-1), xdma_h2c_fd(-1), gdb_port(-1)
 {
