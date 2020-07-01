@@ -12,7 +12,7 @@
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		timebase-frequency = <125000000>;
+		timebase-frequency = <100000000>;
 		CPU0: cpu@0 {
 			device_type = "cpu";
 			reg = <0>;
@@ -20,7 +20,7 @@
 			compatible = "riscv";
 			riscv,isa = "rv64imafdc";
 			mmu-type = "riscv,sv39";
-			clock-frequency = <125000000>;
+			clock-frequency = <100000000>;
 			CPU0_intc: interrupt-controller {
 				#interrupt-cells = <1>;
 				interrupt-controller;
@@ -30,22 +30,16 @@
 	};
 	memory {
 		device_type = "memory";
-		reg = <0x80000000 0x10000000>;
+		reg = <0x80000000 0x40000000>;
 	};
 	reserved-memory {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
 
-		region0: mmio@C0000000 {
+		reserved: linux,dma {
 			compatible = "shared-dma-pool";
-			reg = <0xC0000000 0x00008000>;
-			linux,dma-default;
-			no-map;
-		};
-		region1: mmio@C0008000 {
-			compatible = "shared-dma-pool";
-			reg = <0xC0008000 0x00008000>;
+			reg = <0xe0000000 0x20000000>;
 			linux,dma-default;
 			no-map;
 		};
@@ -70,35 +64,32 @@
 			riscv,max-priority = <7>;
 			riscv,ndev = <16>;
 		};
+		ns16550: uart@62300000 {
+			current-speed = <115200>;
+			compatible = "ns16550a";
+			interrupts-extended = <&plic 1>;
+			reg = <0x62300000 0x1000>;
+			clock-frequency = <250000000>;
+			reg-shift = <2>;
+		};
 	};
 
-	ns16550: uart@62300000 {
-		current-speed = <115200>;
-		compatible = "ns16550a";
-		interrupts-extended = <&plic 1>;
-		reg = <0x62300000 0x1000>;
-		clock-frequency = <125000000>;
-		reg-shift = <2>;
-	};
-
-	virtio_block@40000000 {
+	virtio_mmio@40000000 {
 		compatible = "virtio,mmio";
-		memory-region = &region0;
 		interrupts-extended = <&plic 2>;
-		reg = <0x40000000 0x1000>;
+		reg = <0x40000000 0x100>;
 	};
-	virtio_block@40001000 {
+	virtio_mmio@40001000 {
 		compatible = "virtio,mmio";
-		memory-region = &region1;
 		interrupts-extended = <&plic 3>;
 		reg = <0x40001000 0x1000>;
 	};
-	virtio_block@40002000 {
+	virtio_mmio@40002000 {
 		compatible = "virtio,mmio";
 		interrupts-extended = <&plic 4>;
 		reg = <0x40002000 0x1000>;
 	};
-	virtio_block@40003000 {
+	virtio_mmio@40003000 {
 		compatible = "virtio,mmio";
 		interrupts-extended = <&plic 5>;
 		reg = <0x40003000 0x1000>;
@@ -106,7 +97,7 @@
 
 	sifive_test: sifive_test@50000000 {
 		reg = <0x50000000 0x1000>;
-		compatible = "sifive,test1", "sifive,test0", "syscon";
+		compatible = "sifive,test0", "syscon";
 	};
 
 	poweroff {
@@ -116,10 +107,14 @@
 		compatible = "syscon-poweroff";
 	};
 
-	reboot {
-		value = <0x7777>;
-		offset = <0x0>;
-		regmap = <&sifive_test>;
-		compatible = "syscon-reboot";
+	mit_random: mit_random@51000000 {
+		reg = <0x51000000 0x1000>;
+		compatible = "mit,random0";
 	};
+
+	mit_mem_filter: mit_mem_filter@63000000 {
+		reg = <0x63000000 0x1000>;
+		compatible = "mit,memfilter0";
+	};
+
 };

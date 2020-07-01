@@ -141,6 +141,7 @@ class AWSP2 {
     uint64_t tohost_addr;
     uint64_t fromhost_addr;
     uint64_t sifive_test_addr;
+    uint64_t randombytes_addr;
     uint64_t htif_enabled;
     uint64_t uart_enabled;
     int pcis_dma_fd;
