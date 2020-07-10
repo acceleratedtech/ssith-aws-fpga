@@ -492,7 +492,7 @@ module mkAWSP2#(Clock derivedClock, Reset derivedReset, AWSP2_Response response)
 
       method Action io_rdata(Bit#(64) rdata, Bit#(16) rid, Bit#(8) rresp, Bool rlast);
          if (rg_verbosity > 0) $display("master1 rdata %h rid %d last %d", rdata, rid, rlast);
-         io_slave_xactor.i_rd_data.enq(AXI4_Rd_Data { rdata: rdata, rid: truncate(rid), rlast: rlast, rresp: 0 });
+         io_slave_xactor.i_rd_data.enq(AXI4_Rd_Data { rdata: rdata, rid: truncate(rid), rlast: rlast, rresp: truncate(rresp) });
       endmethod
       method Action io_bdone(Bit#(16) bid, Bit#(8) bresp);
          io_slave_xactor.i_wr_resp.enq(AXI4_Wr_Resp { bid: truncate(bid), bresp: truncate(bresp), buser: 0});
