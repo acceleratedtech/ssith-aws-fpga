@@ -85,6 +85,10 @@ interface SoC_Map_IFC;
    (* always_ready *)   method  Fabric_Addr  m_boot_rom_addr_size;
    (* always_ready *)   method  Fabric_Addr  m_boot_rom_addr_lim;
 
+   (* always_ready *)   method  Fabric_Addr  m_host_io_addr_base;
+   (* always_ready *)   method  Fabric_Addr  m_host_io_addr_size;
+   (* always_ready *)   method  Fabric_Addr  m_host_io_addr_lim;
+
    (* always_ready *)   method  Fabric_Addr  m_ddr4_0_uncached_addr_base;
    (* always_ready *)   method  Fabric_Addr  m_ddr4_0_uncached_addr_size;
    (* always_ready *)   method  Fabric_Addr  m_ddr4_0_uncached_addr_lim;
@@ -179,7 +183,15 @@ module mkSoC_Map (SoC_Map_IFC);
    endfunction
 
    // ----------------------------------------------------------------
+   // Host_IO (Other I/O)
+
+   Fabric_Addr host_io_addr_base = 'h_1000_0000;
+   Fabric_Addr host_io_addr_size = 'h_7000_0000;
+   Fabric_Addr host_io_addr_lim  = host_io_addr_base + host_io_addr_size;
+
+   // ----------------------------------------------------------------
    // GPIO 0
+
 
    Fabric_Addr gpio_0_addr_base = 'h_6FFF_0000;
    Fabric_Addr gpio_0_addr_size = 'h_0001_0000;    // 64K
@@ -258,6 +270,7 @@ module mkSoC_Map (SoC_Map_IFC);
 	      || fn_is_dma_0_addr (addr)
 	      || fn_is_uart16550_0_addr  (addr)
 	      || fn_is_gpio_0_addr (addr)
+	      || fn_is_host_io_addr (addr)
 	      || fn_is_boot_rom_addr (addr)
 	      || fn_is_ddr4_0_uncached_addr (addr)
 	      || fn_is_flash_regs_addr (addr)
@@ -313,6 +326,10 @@ module mkSoC_Map (SoC_Map_IFC);
    method  Fabric_Addr  m_boot_rom_addr_base = boot_rom_addr_base;
    method  Fabric_Addr  m_boot_rom_addr_size = boot_rom_addr_size;
    method  Fabric_Addr  m_boot_rom_addr_lim  = boot_rom_addr_lim;
+
+   method  Fabric_Addr  m_host_io_addr_base = host_io_addr_base;
+   method  Fabric_Addr  m_host_io_addr_size = host_io_addr_size;
+   method  Fabric_Addr  m_host_io_addr_lim  = host_io_addr_lim;
 
    method  Fabric_Addr  m_ddr4_0_uncached_addr_base = ddr4_0_uncached_addr_base;
    method  Fabric_Addr  m_ddr4_0_uncached_addr_size = ddr4_0_uncached_addr_size;

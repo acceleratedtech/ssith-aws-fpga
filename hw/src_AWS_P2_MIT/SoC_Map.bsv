@@ -73,6 +73,10 @@ interface SoC_Map_IFC;
    (* always_ready *)   method  Fabric_Addr  m_boot_rom_addr_size;
    (* always_ready *)   method  Fabric_Addr  m_boot_rom_addr_lim;
 
+   (* always_ready *)   method  Fabric_Addr  m_host_io_addr_base;
+   (* always_ready *)   method  Fabric_Addr  m_host_io_addr_size;
+   (* always_ready *)   method  Fabric_Addr  m_host_io_addr_lim;
+
    (* always_ready *)   method  Fabric_Addr  m_ddr4_0_uncached_addr_base;
    (* always_ready *)   method  Fabric_Addr  m_ddr4_0_uncached_addr_size;
    (* always_ready *)   method  Fabric_Addr  m_ddr4_0_uncached_addr_lim;
@@ -145,14 +149,14 @@ module mkSoC_Map (SoC_Map_IFC);
    endfunction
 
    // ----------------------------------------------------------------
-   // Far_Mem_IO (Other I/O)
+   // Host_IO (Other I/O)
 
-   Fabric_Addr far_mem_io_addr_base = 'h_1000_0000;
-   Fabric_Addr far_mem_io_addr_size = 'h_7000_0000;
-   Fabric_Addr far_mem_io_addr_lim  = far_mem_io_addr_base + far_mem_io_addr_size;
+   Fabric_Addr host_io_addr_base = 'h_1000_0000;
+   Fabric_Addr host_io_addr_size = 'h_7000_0000;
+   Fabric_Addr host_io_addr_lim  = host_io_addr_base + host_io_addr_size;
 
-   function Bool fn_is_far_mem_io_addr (Fabric_Addr addr);
-      return ((far_mem_io_addr_base <= addr) && (addr < far_mem_io_addr_lim));
+   function Bool fn_is_host_io_addr (Fabric_Addr addr);
+      return ((host_io_addr_base <= addr) && (addr < host_io_addr_lim));
    endfunction
 
    // ----------------------------------------------------------------
@@ -219,7 +223,7 @@ module mkSoC_Map (SoC_Map_IFC);
    function Bool fn_is_IO_addr (Fabric_Addr addr);
       return (   fn_is_plic_addr (addr)
 	      || fn_is_near_mem_io_addr (addr)
-	      || fn_is_far_mem_io_addr (addr)
+	      || fn_is_host_io_addr (addr)
 	      || fn_is_boot_rom_addr (addr)
 	      || fn_is_ddr4_0_uncached_addr (addr)
 	      );
@@ -254,6 +258,10 @@ module mkSoC_Map (SoC_Map_IFC);
    method  Fabric_Addr  m_boot_rom_addr_base = boot_rom_addr_base;
    method  Fabric_Addr  m_boot_rom_addr_size = boot_rom_addr_size;
    method  Fabric_Addr  m_boot_rom_addr_lim  = boot_rom_addr_lim;
+
+   method  Fabric_Addr  m_host_io_addr_base = host_io_addr_base;
+   method  Fabric_Addr  m_host_io_addr_size = host_io_addr_size;
+   method  Fabric_Addr  m_host_io_addr_lim  = host_io_addr_lim;
 
    method  Fabric_Addr  m_ddr4_0_uncached_addr_base = ddr4_0_uncached_addr_base;
    method  Fabric_Addr  m_ddr4_0_uncached_addr_size = ddr4_0_uncached_addr_size;

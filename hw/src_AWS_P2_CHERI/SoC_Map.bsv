@@ -100,6 +100,7 @@ interface SoC_Map_IFC;
    (* always_ready *)   method  Range#(Wd_Addr)  m_gpio_0_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_gpio_1_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_boot_rom_addr_range;
+   (* always_ready *)   method  Range#(Wd_Addr)  m_host_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_ddr4_0_uncached_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_ddr4_0_cached_addr_range;
 
@@ -261,6 +262,14 @@ module mkSoC_Map (SoC_Map_IFC);
    };
 
    // ----------------------------------------------------------------
+   // Host IO
+
+   let host_io_addr_range = Range {
+      base: 'h_1000_0000,
+      size: 'h_7000_0000
+   };
+
+   // ----------------------------------------------------------------
    // DDR memory 0 uncached
 
    let ddr4_0_uncached_addr_range = Range {
@@ -354,6 +363,7 @@ module mkSoC_Map (SoC_Map_IFC);
    method  Range#(Wd_Addr)  m_gpio_0_addr_range = gpio_0_addr_range;
    method  Range#(Wd_Addr)  m_gpio_1_addr_range = gpio_1_addr_range;
    method  Range#(Wd_Addr)  m_boot_rom_addr_range = boot_rom_addr_range;
+   method  Range#(Wd_Addr)  m_host_io_addr_range = host_io_addr_range;
    method  Range#(Wd_Addr)  m_ddr4_0_uncached_addr_range = ddr4_0_uncached_addr_range;
    method  Range#(Wd_Addr)  m_ddr4_0_cached_addr_range = ddr4_0_cached_addr_range;
 

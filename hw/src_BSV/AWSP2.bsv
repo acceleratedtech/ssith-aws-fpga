@@ -118,8 +118,11 @@ module mkIOFabric(AXI4_Fabric_IFC#(IOFABRIC_NUM_MASTERS, IOFABRIC_NUM_SLAVES, 6,
            return tuple2(True, 3);
         end
 `endif
-        else begin
+        else if ((`SOC_MAP_BASE(soc_map, host_io_addr) <= addr) && (addr < `SOC_MAP_LIM(soc_map, host_io_addr))) begin
            return tuple2(True, 2);
+        end
+        else begin
+           return tuple2(False, 0);
         end
    endfunction
 
