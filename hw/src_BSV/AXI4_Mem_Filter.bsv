@@ -94,9 +94,9 @@ module mkAXI4_Mem_Filter(AXI4_Mem_Filter);
       end
       f_wr_is_enclave_addr.deq();
       xactor_from_master.i_wr_resp.enq(resp);
-   endrule      
+   endrule
 
-   let rg_master_arcount <- mkReg(0); 
+   let rg_master_arcount <- mkReg(0);
    let rg_master_arid <- mkReg(0);
    let f_rd_is_enclave_addr <- mkFIFO1();
 
