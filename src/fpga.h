@@ -102,7 +102,7 @@ struct Rom {
 };
 
 struct AXI_Write_State {
-  uint64_t awaddr;
+  uint32_t awaddr;
   uint16_t wdata_count;
   uint16_t wid;
   AXI_Write_State(uint32_t awaddr, uint16_t wdata_count, uint16_t wid)

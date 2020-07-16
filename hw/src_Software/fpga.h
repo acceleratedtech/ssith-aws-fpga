@@ -322,14 +322,14 @@ AWSP2(int id)
 
 // handlers below here
 
-    void io_awaddr(uint64_t awaddr, uint16_t awlen, uint16_t awid) {
-        fprintf(stderr, "io_awaddr awaddr=%08lx awlen=%d\n", awaddr, awlen);
+    void io_awaddr(uint32_t awaddr, uint16_t awlen, uint16_t awid) {
+        fprintf(stderr, "io_awaddr awaddr=%08x awlen=%d\n", awaddr, awlen);
         wdata_count = awlen / 8;
         wid = awid;
     }
 
-    void io_araddr(uint64_t araddr, uint16_t arlen, uint16_t arid) {
-        fprintf(stderr, "io_araddr araddr=%08lx arlen=%d\n", araddr, arlen);
+    void io_araddr(uint32_t araddr, uint16_t arlen, uint16_t arid) {
+        fprintf(stderr, "io_araddr araddr=%08x arlen=%d\n", araddr, arlen);
         uint64_t instrs[8];
         instrs[0] = (12 << 20); // ebreak
         for (int i = 0; i < arlen / 8; i++) {

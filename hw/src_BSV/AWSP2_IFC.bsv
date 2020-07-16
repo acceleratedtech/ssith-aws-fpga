@@ -32,8 +32,8 @@ interface AWSP2_Response;
 
   method Action ddr_data(Vector#(64, Bit#(8)) data);
 
-  method Action io_awaddr(Bit#(48) awaddr, Bit#(16) awlen, Bit#(16) awid);
-  method Action io_araddr(Bit#(48) araddr, Bit#(16) arlen, Bit#(16) arid);
+  method Action io_awaddr(Bit#(32) awaddr, Bit#(16) awlen, Bit#(16) awid);
+  method Action io_araddr(Bit#(32) araddr, Bit#(16) arlen, Bit#(16) arid);
   method Action io_wdata(Bit#(64) wdata, Bit#(8) wstrb);
 
   method Action irq_status(Bit#(32) levels);

@@ -277,11 +277,11 @@ int AWSP2_Responseddr_data_cb (  struct PortalInternal *p, const bsvvector_Luint
     (static_cast<AWSP2_ResponseWrapper *>(p->parent))->ddr_data ( data);
     return 0;
 };
-int AWSP2_Responseio_awaddr_cb (  struct PortalInternal *p, const uint64_t awaddr, const uint16_t awlen, const uint16_t awid ) {
+int AWSP2_Responseio_awaddr_cb (  struct PortalInternal *p, const uint32_t awaddr, const uint16_t awlen, const uint16_t awid ) {
     (static_cast<AWSP2_ResponseWrapper *>(p->parent))->io_awaddr ( awaddr, awlen, awid);
     return 0;
 };
-int AWSP2_Responseio_araddr_cb (  struct PortalInternal *p, const uint64_t araddr, const uint16_t arlen, const uint16_t arid ) {
+int AWSP2_Responseio_araddr_cb (  struct PortalInternal *p, const uint32_t araddr, const uint16_t arlen, const uint16_t arid ) {
     (static_cast<AWSP2_ResponseWrapper *>(p->parent))->io_araddr ( araddr, arlen, arid);
     return 0;
 };
