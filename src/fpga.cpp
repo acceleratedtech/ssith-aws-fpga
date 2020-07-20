@@ -248,19 +248,25 @@ void AWSP2_Response::io_araddr(uint32_t araddr, uint16_t arlen, uint16_t arid)
     } else if (araddr == fpga->randombytes_addr) {
         for (int i = 0; i < arlen / 8; i++) {
             int last = i == ((arlen / 8) - 1);
-	    uint64_t bytes = 0x1717171717171717ul;
-	    ssize_t num_bytes = getrandom(&bytes, sizeof(bytes), 0);
-	    if (num_bytes < sizeof(bytes))
-		fprintf(stderr, "Warning: not enough entropy (%ld/%ld)\n", num_bytes, sizeof(bytes));
-	    fprintf(stderr, "hw random %08lx\n", bytes);
+            uint64_t bytes = 0x1717171717171717ul;
+            ssize_t num_bytes = getrandom(&bytes, sizeof(bytes), 0);
+            if (num_bytes < sizeof(bytes))
+                fprintf(stderr, "Warning: not enough entropy (%ld/%ld)\n", num_bytes, sizeof(bytes));
+            fprintf(stderr, "hw random %08lx\n", bytes);
+            fpga->request->io_rdata(bytes, arid, 0, last);
+        }
+    } else if (araddr >= 0x40000000 && araddr < 0x50000000) {
+        for (int i = 0; i < arlen / 8; i++) {
+            int last = i == ((arlen / 8) - 1);
+            uint64_t bytes = 0;
             fpga->request->io_rdata(bytes, arid, 0, last);
         }
     } else {
-        if (araddr != 0x10001000 && araddr != 0x10001008 && araddr != 0x50001000 && araddr != 0x50001008)
-            if (debug_stray_io) fprintf(stderr, "io_araddr araddr=%08x arlen=%d\r\n", araddr, arlen);
+        if (debug_stray_io) fprintf(stderr, "io_araddr araddr=%08x arlen=%d\r\n", araddr, arlen);
         for (int i = 0; i < arlen / 8; i++) {
             int last = i == ((arlen / 8) - 1);
-            fpga->request->io_rdata(0, arid, 0, last);
+            uint64_t bytes = 0x1717171717171717ul;
+            fpga->request->io_rdata(bytes, arid, 3, last);
         }
     }
 
@@ -270,6 +276,7 @@ void AWSP2_Response::io_wdata(uint64_t wdata, uint8_t wstrb) {
     AXI_Write_State &io_write = fpga->io_write_queue.front();
     uint32_t awaddr = io_write.awaddr;
     PhysMemoryRange *pr = fpga->virtio_devices.get_phys_mem_range(awaddr);
+    int bresp = 0;
     if (pr) {
         int size_log2 = 2;
         uint32_t offset = awaddr - pr->addr;
@@ -322,10 +329,11 @@ void AWSP2_Response::io_wdata(uint64_t wdata, uint8_t wstrb) {
       fprintf(stderr, "-> hw random %08lx\n", wdata);
     } else {
         if (debug_stray_io) fprintf(stderr, "    io_wdata wdata=%lx wstrb=%x\r\n", wdata, wstrb);
+        bresp = 3;
     }
     io_write.wdata_count -= 1;
     if (io_write.wdata_count == 0) {
-        fpga->request->io_bdone(io_write.wid, 0);
+        fpga->request->io_bdone(io_write.wid, bresp);
         //if (debug_stray_io) fprintf(stderr, "    io_bdone awaddr=%08x\r\n", awaddr);
         fpga->io_write_queue.pop();
     }
