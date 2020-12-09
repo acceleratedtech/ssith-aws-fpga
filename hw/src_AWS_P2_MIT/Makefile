@@ -60,5 +60,9 @@ CONNECTALFLAGS += $(shell test -d $(BLUESPECDIR)/Libraries/TLM3 && echo --bsvpat
 CONNECTALFLAGS += $(shell test -d $(BLUESPECDIR)/Libraries/AMBA_TLM3/Axi && echo --bsvpath=$(BLUESPECDIR)/Libraries/AMBA_TLM3/Axi)
 CONNECTALFLAGS += $(shell test -d $(BLUESPECDIR)/Libraries/AMBA_TLM3/Axi4 && echo --bsvpath=$(BLUESPECDIR)/Libraries/AMBA_TLM3/Axi4)
 CONNECTALFLAGS += $(shell test -d $(BLUESPECDIR)/Libraries/AMBA_TLM3/TLM3 && echo --bsvpath=$(BLUESPECDIR)/Libraries/AMBA_TLM3/TLM3)
+CONNECTALFLAGS += --bsvpath=$(BLUESPECDIR)/Libraries/Bus
+CONNECTALFLAGS += --bsvpath=$(BLUESPECDIR)/Libraries/AMBA_TLM3/Axi
+CONNECTALFLAGS += --bsvpath=$(BLUESPECDIR)/Libraries/AMBA_TLM3/Axi4
+CONNECTALFLAGS += --bsvpath=$(BLUESPECDIR)/Libraries/AMBA_TLM3/TLM3
 
 include ../scripts/Include_Common.mk
