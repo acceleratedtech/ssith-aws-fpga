@@ -1,3 +1,3 @@
 #!/bin/sh
 
-yum install jq awscli cmake elfutils-libelf-devel libssl-devel libcurl-devel
+yum install docker jq awscli cmake elfutils-libelf-devel libssl-devel libcurl-devel
