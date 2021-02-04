@@ -41,7 +41,7 @@ modprobe pcieportal
 (cd ssith-aws-fpga/hw/connectal/drivers/portalmem; make)
 sudo cp ssith-aws-fpga/hw/connectal/etc/modules-load.d/connectal.conf /etc/modules-load.d
 sudo cp ssith-aws-fpga/hw/connectal/etc/udev/rules.d/99-pcieportal.rules /etc/udev/rules.d/99-pcieportal.rules
-fpga-clear-local-fpga -S 0
+fpga-clear-local-image -S 0
 sudo insmod ssith-aws-fpga/hw/connectal/drivers/pcieportal/pcieportal.ko
 sudo insmod ssith-aws-fpga/hw/connectal/drivers/portalmem/portalmem.ko
 ```
