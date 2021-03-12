@@ -1,4 +1,4 @@
-// Copyright (c) 2018-2019 Bluespec, Inc. All Rights Reserved.
+// Copyright (c) 2018-2020 Bluespec, Inc. All Rights Reserved.
 
 //-
 // AXI (user fields) modifications:
@@ -56,6 +56,7 @@ import SoC_Map  :: *;
 // The basic core
 import Core_IFC :: *;
 import Core     :: *;
+import Near_Mem_IFC :: *;    // For Wd_{Id,Addr,Data,User}_Dma
 
 // External interrupt request interface
 import PLIC :: *;    // for PLIC_Source_IFC type which is exposed at P2_Core interface
@@ -148,6 +149,11 @@ module mkP2_Core (P2_Core_IFC);
       core.nmi_req (False);
    endrule
 
+   AXI4_Master_Synth #( Wd_Id_Dma, Wd_Addr_Dma, Wd_Data_Dma
+                      , Wd_AW_User_Dma, Wd_W_User_Dma, Wd_B_User_Dma
+                      , Wd_AR_User_Dma, Wd_R_User_Dma) dummy = culDeSac;
+   mkConnection (dummy, core.dma_server);
+
    // ================================================================
    // Reset on startup, and also on NDM reset from Debug Module
    // (NDM reset from Debug Module = "non-debug-module-reset" = reset all except Debug Module)
@@ -160,6 +166,7 @@ module mkP2_Core (P2_Core_IFC);
       if (rg_ndm_reset matches tagged Valid False)
 	 running = False;
       core.cpu_reset_server.request.put (running);
+      core.ma_ddr4_ready;
       rg_once <= True;
    endrule
 
@@ -260,7 +267,7 @@ module mkP2_Core (P2_Core_IFC);
    interface master0 = core.cpu_imem_master;
 
    // CPU DMem to Fabric master interface
-   interface master1 = core.cpu_dmem_master;
+   interface master1 = core.core_mem_master;
 
    // External interrupts
    method  Action interrupt_reqs (Bit #(N_External_Interrupt_Sources) reqs);
