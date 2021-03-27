@@ -21,10 +21,6 @@ import P2_Core  :: *;
 import SoC_Map  :: *;
 import UART_Model :: *;
 
-// The basic core
-import Core_IFC :: *;
-import Core     :: *;
-
 // External interrupt request interface
 import PLIC :: *;    // for PLIC_Source_IFC type which is exposed at P2_Core interface
 
@@ -141,12 +137,28 @@ module mkDeburster(AXI4_Deburster_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User));
     return deburster;
 endmodule
 
-module mkAWSP2#(Clock derivedClock, Reset derivedReset, AWSP2_Response response)(AWSP2);
+import "BVI" clk_wiz_core =
+module vMkCoreClockGen(ClockGenIfc);
+   default_clock clk(clk_in1);
+   no_reset;
+   output_clock gen_clk(clk_out1);
+endmodule
+
+module mkCoreClockGen(Clock);
+   (* hide *)
+   ClockGenIfc _m <- vMkCoreClockGen;
+   return _m.gen_clk;
+endmodule
+
+module mkAWSP2#(AWSP2_Response response)(AWSP2);
    let defaultClock <- exposeCurrentClock;
    let defaultReset <- exposeCurrentReset;
 
+   let coreClock <- mkCoreClockGen;
+   let coreReset <- mkAsyncReset(2, defaultReset, coreClock);
+
    let soc_map <- mkSoC_Map();
-   P2_Core_IFC p2_core <- mkP2_Core(clocked_by derivedClock, reset_by derivedReset);
+   P2_Core_IFC p2_core <- mkP2_Core(clocked_by coreClock, reset_by coreReset);
 
    Reg#(Bit#(4)) rg_verbosity <- mkReg(0);
    Reg#(Bool) rg_ready <- mkReg(False);
@@ -155,10 +167,10 @@ module mkAWSP2#(Clock derivedClock, Reset derivedReset, AWSP2_Response response)
 
    Vector#(16, Reg#(Bit#(8)))    objIds <- replicateM(mkReg(0));
 
-   AXI4_Crossing_IFC #(6, 64, 64, 0) master0Crossing <- mkAXI4_CrossingToCC(derivedClock, derivedReset);
-   AXI4_Crossing_IFC #(6, 64, 64, 0) master1Crossing <- mkAXI4_CrossingToCC(derivedClock, derivedReset);
-   mkConnection(p2_core.master0, master0Crossing.from_master, clocked_by derivedClock, reset_by derivedReset);
-   mkConnection(p2_core.master1, master1Crossing.from_master, clocked_by derivedClock, reset_by derivedReset);
+   AXI4_Crossing_IFC #(6, 64, 64, 0) master0Crossing <- mkAXI4_CrossingToCC(coreClock, coreReset);
+   AXI4_Crossing_IFC #(6, 64, 64, 0) master1Crossing <- mkAXI4_CrossingToCC(coreClock, coreReset);
+   mkConnection(p2_core.master0, master0Crossing.from_master, clocked_by coreClock, reset_by coreReset);
+   mkConnection(p2_core.master1, master1Crossing.from_master, clocked_by coreClock, reset_by coreReset);
 
    AXI4_Fabric_IFC#(2, 3, 6, 64, 64, 0) axiFabric <- mkIOFabric();
    mkConnection(master0Crossing.to_slave, axiFabric.v_from_masters[0]);
@@ -180,8 +192,8 @@ module mkAWSP2#(Clock derivedClock, Reset derivedReset, AWSP2_Response response)
    let axiBRAM <- mkAXI_BRAM();
    mkConnection(memFabric.v_to_slaves[1], axiBRAM.portA);
 
-   AXI4_Crossing_IFC #(0, 64, 64, 0) slave0Crossing <- mkAXI4_CrossingFromCC(derivedClock, derivedReset);
-   mkConnection(slave0Crossing.to_slave, p2_core.slave0, clocked_by derivedClock, reset_by derivedReset);
+   AXI4_Crossing_IFC #(0, 64, 64, 0) slave0Crossing <- mkAXI4_CrossingFromCC(coreClock, coreReset);
+   mkConnection(slave0Crossing.to_slave, p2_core.slave0, clocked_by coreClock, reset_by coreReset);
 
    AXI4_Downsizer_IFC #(0, 64, 512, 64, 0) downsizer <- mkAXI4_Downsizer();
    mkConnection(downsizer.to_slave, slave0Crossing.from_master);
@@ -323,9 +335,9 @@ module mkAWSP2#(Clock derivedClock, Reset derivedReset, AWSP2_Response response)
    endrule
 
 `ifdef INCLUDE_GDB_CONTROL
-   SyncFIFOLevelIfc#(Bit#(7), 4) dmiReadFifo <- mkSyncFIFOLevel(defaultClock, defaultReset, derivedClock);
-   SyncFIFOLevelIfc#(Tuple2#(Bit#(7), Bit#(32)), 4) dmiWriteFifo <- mkSyncFIFOLevel(defaultClock, defaultReset, derivedClock);
-   SyncFIFOLevelIfc#(Bit#(32), 4) dmiDataFifo <- mkSyncFIFOLevel(derivedClock, derivedReset, defaultClock);
+   SyncFIFOLevelIfc#(Bit#(7), 4) dmiReadFifo <- mkSyncFIFOLevel(defaultClock, defaultReset, coreClock);
+   SyncFIFOLevelIfc#(Tuple2#(Bit#(7), Bit#(32)), 4) dmiWriteFifo <- mkSyncFIFOLevel(defaultClock, defaultReset, coreClock);
+   SyncFIFOLevelIfc#(Bit#(32), 4) dmiDataFifo <- mkSyncFIFOLevel(coreClock, coreReset, defaultClock);
 
    rule dmi_read_data_rl;
       let rdata <- p2_core.dmi.read_data();
@@ -350,11 +362,11 @@ module mkAWSP2#(Clock derivedClock, Reset derivedReset, AWSP2_Response response)
 `endif
 
 `ifdef INCLUDE_TANDEM_VERIF
-   Reg#(Bool) rg_capture_tv_info <- mkSyncRegFromCC(False, derivedClock);
-   AXI4_Stream_Slave_Xactor_IFC#(Wd_SId, Wd_SDest, Wd_SData, Wd_SUser) tv_xactor <- mkAXI4_Stream_Slave_Xactor(clocked_by derivedClock, reset_by derivedReset);
-   mkConnection(p2_core.tv_verifier_info_tx, tv_xactor.axi_side, clocked_by derivedClock, reset_by derivedReset);
+   Reg#(Bool) rg_capture_tv_info <- mkSyncRegFromCC(False, coreClock);
+   AXI4_Stream_Slave_Xactor_IFC#(Wd_SId, Wd_SDest, Wd_SData, Wd_SUser) tv_xactor <- mkAXI4_Stream_Slave_Xactor(clocked_by coreClock, reset_by coreReset);
+   mkConnection(p2_core.tv_verifier_info_tx, tv_xactor.axi_side, clocked_by coreClock, reset_by coreReset);
 
-   let tvFifo <- mkSyncFIFOToCC(4, derivedClock, derivedReset);
+   let tvFifo <- mkSyncFIFOToCC(4, coreClock, coreReset);
 
    rule rl_tv_data_channel;
       let packet <- pop_o(tv_xactor.o_stream);
@@ -395,7 +407,7 @@ module mkAWSP2#(Clock derivedClock, Reset derivedReset, AWSP2_Response response)
    // can get away with a per-bit synchronizer. The Verilog is parameterised on
    // the reset value, though this is not exposed, but the default of 0 is what
    // we want.
-   Vector#(32, SyncBitIfc#(Bit#(1))) v_sync_irq_levels <- replicateM(mkSyncBitFromCC(derivedClock));
+   Vector#(32, SyncBitIfc#(Bit#(1))) v_sync_irq_levels <- replicateM(mkSyncBitFromCC(coreClock));
 
    (* no_implicit_conditions, fire_when_enabled *)
    rule rl_sync_irq_levels;

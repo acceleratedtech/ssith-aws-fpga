@@ -7,7 +7,7 @@ CONNECTALDIR ?= ../connectal
 ############################################################
 
 S2H_INTERFACES = AWSP2_Request:AWSP2.request
-H2S_INTERFACES = AWSP2:AWSP2_Response:host.derivedClock,host.derivedReset
+H2S_INTERFACES = AWSP2:AWSP2_Response
 MEM_READ_INTERFACES = lAWSP2.readClients
 MEM_WRITE_INTERFACES = lAWSP2.writeClients
 
@@ -45,10 +45,7 @@ CONNECTALFLAGS += --awsflags="-strategy TIMING"
 CONNECTALFLAGS += --awsflags="-clock_recipe_a A1"
 CONNECTALFLAGS += --mainclockperiod=4
 CONNECTALFLAGS += --pcieclockperiod=4
-CONNECTALFLAGS += --awsflags="-clock_recipe_b B5"
-CONNECTALFLAGS += --derivedclockperiod=10
-CONNECTALFLAGS += -D AWSF1_DERIVED_CLOCK=clk_extra_b1
-CONNECTALFLAGS += -D IMPORT_HOST_CLOCKS
+CONNECTALFLAGS += --derivedclockperiod=4
 
 ifeq ($(BOARD),awsf1)
 
@@ -57,10 +54,38 @@ prebuild:: $(CONNECTALDIR)/out/awsf1/ila_connectal_1/ila_connectal_1.xci
 $(CONNECTALDIR)/out/awsf1/ila_connectal_1/ila_connectal_1.xci:
 	cd awsf1; vivado -mode batch -source $(CONNECTALDIR)/scripts/connectal-synth-ila.tcl
 
+CORE_FREQ_MHZ ?= 100
+
+awsf1/ip:
+	mkdir -p $@
+
+prebuild:: awsf1/ip/clk_wiz_core/clk_wiz_core.xci
+
+awsf1/ip/clk_wiz_core/clk_wiz_core.xci: $(SCRIPTSDIR)/create_clk_wiz_core_ip.tcl | awsf1/ip
+	cd awsf1; vivado -mode batch -source $(SCRIPTSDIR)/create_clk_wiz_core_ip.tcl -tclargs $(CORE_FREQ_MHZ)
+
+READ_EXTRA_FILES_FRAGS += $(SCRIPTSDIR)/read_extra_files.tcl
+
+prebuild:: awsf1/read_extra_files.tcl
+
+awsf1/read_extra_files.tcl: $(READ_EXTRA_FILES_FRAGS)
+	cat $^ > $@
+
+prebuild:: awsf1/core_clock.tcl
+
+awsf1/core_clock.tcl: $(SCRIPTSDIR)/core_clock.tcl
+	cp $^ $@
+
+prebuild:: awsf1/core_clock.xdc
+
+awsf1/core_clock.xdc: $(SCRIPTSDIR)/core_clock.xdc
+	cp $^ $@
+
 prebuild:: awsf1/strategy_OVERRIDES.tcl
 
 awsf1/strategy_OVERRIDES.tcl: $(SCRIPTSDIR)/strategy_OVERRIDES.tcl
 	cp $^ $@
+
 endif
 
 include $(CONNECTALDIR)/Makefile.connectal
