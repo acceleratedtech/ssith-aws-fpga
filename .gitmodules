@@ -7,6 +7,9 @@
 [submodule "hw/Flute_CHERI"]
 	path = hw/Flute_CHERI
 	url = https://github.com/CTSRD-CHERI/Flute
+[submodule "hw/Toooba_CHERI"]
+	path = hw/Toooba_CHERI
+	url = https://github.com/CTSRD-CHERI/Toooba
 [submodule "hw/connectal"]
 	path = hw/connectal
 	url = https://github.com/cambridgehackers/connectal
