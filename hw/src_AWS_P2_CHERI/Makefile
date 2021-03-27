@@ -41,12 +41,13 @@ CONNECTALFLAGS += -DHAVE_BLUESTUFF_ROUTABLE
 CONNECTALFLAGS += --bsvpath=../src_BSV
 ## CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_SSITH_P2/src_BSV/
 CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Core/BSV_Additional_Libs
+CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Core/Cache_Config
 CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Core/Core
 CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Core/CPU
 CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Core/Debug_Module
 CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Core/ISA
 CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Core/Near_Mem_IO
-CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Core/Near_Mem_VM
+CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Core/Near_Mem_VM_WT_L1
 CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Core/PLIC
 CONNECTALFLAGS += --bsvpath=$(FLUTE_DIR)/src_Core/RegFiles
 
