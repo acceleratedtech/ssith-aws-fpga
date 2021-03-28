@@ -70,8 +70,8 @@ SoC_Map_Struct {
    boot_rom_addr_base:     'h_7000_0000,
    boot_rom_addr_size:     'h_0000_1000,
 
-   main_mem_addr_base:     'h_C000_0000,
-   main_mem_addr_size:     'h_4000_0000,
+   main_mem_addr_base:     'h_8000_0000,
+   main_mem_addr_size:     'h_4_0000_0000,
 
    pc_reset_value:         'h_7000_0000    // = boot_rom_addr_base
    };
@@ -184,8 +184,8 @@ module mkSoC_Map (SoC_Map_IFC);
    // DDR memory 0 cached
 
    let ddr4_0_cached_addr_range = Range {
-      base: 'h_C000_0000,
-      size: 'h_4000_0000    // 1G
+      base: 'h_8000_0000,
+      size: 'h_4_0000_0000    // 16G
    };
 
    // ----------------------------------------------------------------

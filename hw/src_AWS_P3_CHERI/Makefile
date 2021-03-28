@@ -130,7 +130,7 @@ CAPSIZE = 128
 TAGS_STRUCT = 0 64
 TAGS_ALIGN = 32
 TagTableStructure.bsv: $(TOOOBA_DIR)/libs/TagController/tagsparams.py
-	$^ -v -c $(CAPSIZE) -s $(TAGS_STRUCT:"%"=%) -a $(TAGS_ALIGN) --data-store-base-addr 0xc0000000 -b $@ 0x3fffc000 0xfffff000
+	$^ -v -c $(CAPSIZE) -s $(TAGS_STRUCT:"%"=%) -a $(TAGS_ALIGN) --data-store-base-addr 0x80000000 -b $@ 0x3f7e00000 0x480000000
 
 prebuild:: TagTableStructure.bsv
 

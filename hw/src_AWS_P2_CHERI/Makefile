@@ -72,8 +72,12 @@ CONNECTALFLAGS += $(shell test -d $(BLUESPECDIR)/Libraries/Bus && echo --bsvpath
 # Generate Bluespec CHERI tag controller source file
 ############################################################
 
-prebuild::
-	$(MAKE) -C $(FLUTE_DIR)/src_SSITH_P2 src_BSV/TagTableStructure.bsv
-	cp -uv $(FLUTE_DIR)/src_SSITH_P2/src_BSV/TagTableStructure.bsv .
+CAPSIZE = 128
+TAGS_STRUCT = 0 64
+TAGS_ALIGN = 32
+TagTableStructure.bsv: $(FLUTE_DIR)/libs/TagController/tagsparams.py
+	$^ -v -c $(CAPSIZE) -s $(TAGS_STRUCT:"%"=%) -a $(TAGS_ALIGN) --covered-start-addr 0x80000000 --covered-mem-size 0x3f7e00000 --top-addr 0x480000000 -b $@
+
+prebuild:: TagTableStructure.bsv
 
 include ../scripts/Include_Common.mk
