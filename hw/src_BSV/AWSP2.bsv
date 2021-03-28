@@ -35,6 +35,7 @@ import AWS_AXI4_Connection :: *;
 import AWS_AXI4_Id_Reflector :: *;
 import AWS_AXI4_Downsizer :: *;
 import AWS_AXI4_Crossing :: *;
+import AWS_AXI4_Pipeline :: *;
 import AXI_Mem_Controller :: *;
 import AXI_RAM        :: *;
 
@@ -109,32 +110,21 @@ module mkIOFabric(AXI4_Fabric_IFC#(2, 3, 6, 64, 64, 0));
 endmodule
 
 (* synthesize *)
-module mkMemFabric(AXI4_Fabric_IFC#(1, 2, 6, 64, 512, 0));
-   let soc_map <- mkSoC_Map();
-   function Tuple2 #(Bool, Bit #(1)) fn_mem_addr_to_slave_num(Bit #(64) addr);
-      let min_mem_addr = min(`SOC_MAP_BASE(soc_map, ddr4_0_uncached_addr), `SOC_MAP_BASE(soc_map, ddr4_0_cached_addr));
-      let uncached_mem_base = `SOC_MAP_BASE(soc_map, ddr4_0_uncached_addr) - min_mem_addr;
-      let uncached_mem_lim = `SOC_MAP_LIM(soc_map, ddr4_0_uncached_addr) - min_mem_addr;
-      // cached memory base has been subtracted from the address
-      if ((uncached_mem_base <= addr) && (addr < uncached_mem_lim)) begin
-         return tuple2(True, 1);
-      end
-      else begin
-          return tuple2(True, 0);
-      end
-   endfunction
-   let memFabric <- mkAXI4_Fabric(fn_mem_addr_to_slave_num);
-
-   method reset = memFabric.reset;
-   method set_verbosity = memFabric.set_verbosity;
-   interface v_from_masters = memFabric.v_from_masters;
-   interface v_to_slaves = memFabric.v_to_slaves;
+module mkMemPipeline(AXI4_Pipeline_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User));
+    AXI4_Pipeline_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) pipeline <- mkAXI4_Pipeline(3);
+    return pipeline;
 endmodule
 
 (* synthesize *)
 module mkDeburster(AXI4_Deburster_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User));
     AXI4_Deburster_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) deburster <- mkAXI4_Deburster();
     return deburster;
+endmodule
+
+(* synthesize *)
+module mkDmaPipeline(AXI4_Pipeline_IFC #(0, 64, 64, 0));
+    AXI4_Pipeline_IFC #(0, 64, 64, 0) pipeline <- mkAXI4_Pipeline(3);
+    return pipeline;
 endmodule
 
 import "BVI" clk_wiz_core =
@@ -179,21 +169,20 @@ module mkAWSP2#(AWSP2_Response response)(AWSP2);
    let to_slave1 = axiFabric.v_to_slaves[1];
    let to_slave2 = axiFabric.v_to_slaves[2];
 
+   AXI4_Pipeline_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) memPipeline <- mkMemPipeline();
    AXI4_Deburster_IFC #(Wd_Id, Wd_Addr, Wd_Data, Wd_User) deburster <- mkDeburster();
    let memController <- mkAXI_Mem_Controller();
 
-   AXI4_Fabric_IFC#(1, 2, 6, 64, 512, 0) memFabric <- mkMemFabric();
-   mkConnection(to_slave0, deburster.from_master);
+   mkConnection(to_slave0, memPipeline.from_master);
+   mkConnection(memPipeline.to_slave, deburster.from_master);
    mkConnection(deburster.to_slave, memController.slave);
-   let rawmem_xn <- mkConnection(memController.to_raw_mem, memFabric.v_from_masters[0]);
-   let to_ddr = memFabric.v_to_slaves[0];
+   let to_ddr = memController.to_raw_mem;
 
-   // BRAM
-   let axiBRAM <- mkAXI_BRAM();
-   mkConnection(memFabric.v_to_slaves[1], axiBRAM.portA);
+   AXI4_Pipeline_IFC #(0, 64, 64, 0) dmaPipeline <- mkDmaPipeline(clocked_by coreClock, reset_by coreReset);
+   mkConnection(dmaPipeline.to_slave, p2_core.slave0, clocked_by coreClock, reset_by coreReset);
 
    AXI4_Crossing_IFC #(0, 64, 64, 0) slave0Crossing <- mkAXI4_CrossingFromCC(coreClock, coreReset);
-   mkConnection(slave0Crossing.to_slave, p2_core.slave0, clocked_by coreClock, reset_by coreReset);
+   mkConnection(slave0Crossing.to_slave, dmaPipeline.from_master, clocked_by coreClock, reset_by coreReset);
 
    AXI4_Downsizer_IFC #(0, 64, 512, 64, 0) downsizer <- mkAXI4_Downsizer();
    mkConnection(downsizer.to_slave, slave0Crossing.from_master);
