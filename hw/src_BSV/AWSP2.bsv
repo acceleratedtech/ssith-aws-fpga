@@ -87,10 +87,7 @@ module mkIOFabric(AXI4_Fabric_IFC#(2, 3, 6, 64, 64, 0));
     let soc_map <- mkSoC_Map();
 
     function Tuple2 #(Bool, Bit #(TLog #(3))) fn_addr_to_slave_num(Bit #(64) addr);
-        if ((`SOC_MAP_BASE(soc_map, ddr4_0_uncached_addr) <= addr) && (addr < `SOC_MAP_LIM(soc_map, ddr4_0_uncached_addr))) begin
-           return tuple2(True, 0);
-        end
-        else if ((`SOC_MAP_BASE(soc_map, ddr4_0_cached_addr) <= addr) && (addr < `SOC_MAP_LIM(soc_map, ddr4_0_cached_addr))) begin
+        if ((`SOC_MAP_BASE(soc_map, ddr4_0_cached_addr) <= addr) && (addr < `SOC_MAP_LIM(soc_map, ddr4_0_cached_addr))) begin
            return tuple2(True, 0);
         end
         else if ((`SOC_MAP_BASE(soc_map, uart16550_0_addr) <= addr) && (addr < `SOC_MAP_LIM(soc_map, uart16550_0_addr))) begin
@@ -384,11 +381,12 @@ module mkAWSP2#(AWSP2_Response response)(AWSP2);
    Reg#(Bool) rg_addr_map_set <- mkReg(False);
    rule rl_set_addr_map if (!rg_addr_map_set);
       $display("memController.set_addr_map: %h %h",
-                min(`SOC_MAP_BASE(soc_map, ddr4_0_uncached_addr), `SOC_MAP_BASE(soc_map, ddr4_0_cached_addr)),
-                max(`SOC_MAP_LIM(soc_map, ddr4_0_uncached_addr), `SOC_MAP_LIM(soc_map, ddr4_0_cached_addr)));
-      memController.set_addr_map(min(`SOC_MAP_BASE(soc_map, ddr4_0_uncached_addr), `SOC_MAP_BASE(soc_map, ddr4_0_cached_addr)),
-                                 max(`SOC_MAP_LIM(soc_map, ddr4_0_uncached_addr), `SOC_MAP_LIM(soc_map, ddr4_0_cached_addr)));
-      uart.set_addr_map(`SOC_MAP_BASE(soc_map, uart16550_0_addr), `SOC_MAP_LIM(soc_map, uart16550_0_addr));
+                `SOC_MAP_BASE(soc_map, ddr4_0_cached_addr),
+                `SOC_MAP_LIM(soc_map, ddr4_0_cached_addr));
+      memController.set_addr_map(`SOC_MAP_BASE(soc_map, ddr4_0_cached_addr),
+                                 `SOC_MAP_LIM(soc_map, ddr4_0_cached_addr));
+      uart.set_addr_map(`SOC_MAP_BASE(soc_map, uart16550_0_addr),
+                        `SOC_MAP_LIM(soc_map, uart16550_0_addr));
       rg_addr_map_set <= True;
    endrule
 

@@ -94,7 +94,6 @@ interface SoC_Map_IFC;
    (* always_ready *)   method  Range#(Wd_Addr)  m_uart16550_0_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_gpio_0_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_boot_rom_addr_range;
-   (* always_ready *)   method  Range#(Wd_Addr)  m_ddr4_0_uncached_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_ddr4_0_cached_addr_range;
    (* always_ready *)   method  Range#(Wd_Addr)  m_mem0_controller_addr_range;
 
@@ -182,14 +181,6 @@ module mkSoC_Map (SoC_Map_IFC);
    };
 
    // ----------------------------------------------------------------
-   // DDR memory 0 uncached
-
-   let ddr4_0_uncached_addr_range = Range {
-      base: 'h_8000_0000,
-      size: 'h_4000_0000    // 1G
-   };
-
-   // ----------------------------------------------------------------
    // DDR memory 0 cached
 
    let ddr4_0_cached_addr_range = Range {
@@ -227,7 +218,6 @@ module mkSoC_Map (SoC_Map_IFC);
 
    function Bool fn_is_IO_addr (Fabric_Addr addr, Bool imem_not_dmem);
       return (   inRange(boot_rom_addr_range, addr)
-	      || inRange(ddr4_0_uncached_addr_range, addr)
 	      || inRange(flash_mem_addr_range, addr)
 	      || (   (! imem_not_dmem)
 		  && (   inRange(plic_addr_range, addr)
@@ -268,7 +258,6 @@ module mkSoC_Map (SoC_Map_IFC);
    method  Range#(Wd_Addr)  m_uart16550_0_addr_range = uart16550_0_addr_range;
    method  Range#(Wd_Addr)  m_gpio_0_addr_range = gpio_0_addr_range;
    method  Range#(Wd_Addr)  m_boot_rom_addr_range = boot_rom_addr_range;
-   method  Range#(Wd_Addr)  m_ddr4_0_uncached_addr_range = ddr4_0_uncached_addr_range;
    method  Range#(Wd_Addr)  m_ddr4_0_cached_addr_range = ddr4_0_cached_addr_range;
    method  Range#(Wd_Addr)  m_mem0_controller_addr_range = ddr4_0_cached_addr_range;
 
