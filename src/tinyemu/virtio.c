@@ -250,10 +250,15 @@ void virtio_xdma_init(int c2h_fd, int h2c_fd)
     xdma_h2c_fd = h2c_fd;
 }
 
+static FILE *logfile;
+
 static void virtio_init(VIRTIODevice *s, VIRTIOBusDef *bus,
                         uint32_t device_id, int config_space_size,
                         VIRTIODeviceRecvFunc *device_recv)
 {
+
+    //if (!logfile) logfile = fopen("vtbd.log", "w");
+
     memset(s, 0, sizeof(*s));
 
     if (bus->pci_bus) {
@@ -407,6 +412,7 @@ static int virtio_memcpy_from_ram(VIRTIODevice *s, uint8_t *buf,
         int ret;
 
 retry:
+        if (logfile) fprintf(logfile, "pread 0x...%lx %d\n", addr & 0xffff, count);
         ret = pread(xdma_c2h_fd, buf, count, addr);
         if (ret < 0) {
             // ERESTARTSYS (512) is currently leaked to userspace
@@ -507,8 +513,25 @@ static int memcpy_to_from_queue(VIRTIODevice *s, uint8_t *buf,
         l = min_int(count, desc.len - offset);
         if (to_queue)
             virtio_memcpy_to_ram(s, desc.addr + offset, buf, l);
-        else
+        else {
             virtio_memcpy_from_ram(s, buf, desc.addr + offset, l);
+            if (logfile && ((desc.addr + offset) & 0x3f) == 0x38 && l == 16) {
+                uint8_t buf2[16];
+                virtio_memcpy_from_ram(s, buf2, desc.addr + offset, l);
+                if (memcmp(buf, buf2, 16) != 0) {
+                    fprintf(logfile, "Inconsistent 16B 1st:");
+                    for (int i = 0; i < 16; ++i) {
+                        fprintf(logfile, " %02x", buf[i]);
+                    }
+                    fprintf(logfile, "\n");
+                    fprintf(logfile, "Inconsistent 16B 2nd:");
+                    for (int i = 0; i < 16; ++i) {
+                        fprintf(logfile, " %02x", buf2[i]);
+                    }
+                    fprintf(logfile, "\n");
+                }
+            }
+        }
         count -= l;
         if (count == 0)
             break;
@@ -1168,6 +1191,16 @@ static int virtio_block_recv_request(VIRTIODevice *s, int queue_idx,
 
     if (memcpy_from_queue(s, &h, queue_idx, desc_idx, 0, sizeof(h)) < 0)
         return 0;
+    if (logfile) {
+        unsigned char *p = (unsigned char *)&h;
+        for (int i = 0; i < sizeof(h);) {
+            fprintf(logfile, "Block header %4x:", i);
+            for (int j = 0; i < sizeof(h) && j < 16; ++i, ++j) {
+                fprintf(logfile, " %02x", p[i]);
+            }
+            fprintf(logfile, "\n");
+        }
+    }
     s1->req.type = h.type;
     s1->req.queue_idx = queue_idx;
     s1->req.desc_idx = desc_idx;
@@ -1175,6 +1208,7 @@ static int virtio_block_recv_request(VIRTIODevice *s, int queue_idx,
     case VIRTIO_BLK_T_IN:
         s1->req.buf = malloc(write_size);
         s1->req.write_size = write_size;
+        if (logfile) fprintf(logfile, "Block read: sector %lu size %d\n", h.sector_num, write_size);
         ret = bs->read_async(bs, h.sector_num, s1->req.buf,
                              (write_size - 1) / SECTOR_SIZE,
                              virtio_block_req_cb, s);

@@ -29,6 +29,16 @@
 #define DM_CONTROL_NDMRESET (1 << 1)
 #define DM_CONTROL_DMACTIVE (1 << 0)
 
+#define DM_CONTROL_HARTSELLO_SHIFT 16
+#define DM_CONTROL_HARTSELHI_SHIFT 6
+#define DM_CONTROL_HARTSEL(_h) ({ \
+        uint32_t _h1 = (_h); \
+        uint32_t _hlo = _h1 & 0x3ff; \
+        uint32_t _hhi = (_h1 >> 10) & 0x3ff; \
+        (_hlo << DM_CONTROL_HARTSELLO_SHIFT) | (_hhi << DM_CONTROL_HARTSELHI_SHIFT); \
+    })
+#define DM_CONTROL_HARTSEL_MASK DM_CONTROL_HARTSEL(0xfffff)
+
 #define DM_STATUS_ALLRESUMEACK (1 << 17)
 #define DM_STATUS_ANYUNAVAIL (1 << 12)
 #define DM_STATUS_ALLHALTED (1 << 9)
@@ -50,7 +60,8 @@
 
 // The SiFive test finisher provides 16 bits for an exit code, unsigned, so we
 // use negative values for our own special purposes internally.
-#define EXIT_CODE_RESET -1
+#define EXIT_CODE_NONE -1
+#define EXIT_CODE_RESET -2
 
 // ================================================================
 // Encodings
@@ -150,6 +161,7 @@ class AWSP2 {
     int xdma_h2c_fd;
     int gdb_port;
     int exit_code;
+    bool stdin_stopped;
 
     std::mutex dmi_request_mutex;
     std::mutex misc_request_mutex;
@@ -184,16 +196,8 @@ public:
 
     void register_region(uint32_t region, uint32_t objid);
     void memory_ready();
-    uint64_t read_csr(int i);
-    void write_csr(int i, uint64_t val);
-    uint64_t read_gpr(int i);
-    void write_gpr(int i, uint64_t val);
 
     void write(uint32_t addr, uint8_t *data, size_t num_bytes);
-
-    void halt(int timeout = 100);
-    void resume(int timeout = 100);
-    void reset_halt(int timeout = 100);
 
     void irq_set_levels(uint32_t w1s);
     void irq_clear_levels(uint32_t w1s);
@@ -205,11 +209,23 @@ public:
     void enqueue_stdin(char *buf, size_t num_chars);
     int dequeue_stdin(uint8_t *chp);
 
+    void select_hart(uint32_t hart);
+
+    void halt(int timeout = 100);
+    void resume(int timeout = 100);
+    void reset_halt(int timeout = 100);
+
+    uint64_t read_csr(int i);
+    void write_csr(int i, uint64_t val);
+    uint64_t read_gpr(int i);
+    void write_gpr(int i, uint64_t val);
+
     VirtioDevices &get_virtio_devices() { return virtio_devices; }
     void start_io();
     void start_gdb(uint16_t port);
     void stop_io(int code);
     int join_io();
+    int tryjoin_io();
 
     void set_htif_base_addr(uint64_t baseaddr);
     void set_tohost_addr(uint64_t addr);

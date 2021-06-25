@@ -40,6 +40,7 @@ const struct option long_options[] = {
     { "gdb-port", required_argument, 0, 'G' },
     { "help",    no_argument, 0, 'h' },
     { "htif-console",  optional_argument, 0, 'H' },
+    { "num-harts", required_argument, 0, 'n' },
 #if DEBUG_LOOP
     { "sleep-seconds", required_argument, 0, 's' },
 #endif
@@ -82,6 +83,7 @@ int main(int argc, char * const *argv)
     int sleep_seconds = 1;
 #endif
     int usemem = 0;
+    uint32_t num_harts = 1;
     const char *tun_iface = 0;
     int tv = 0;
     int enable_virtio_console = 0;
@@ -96,7 +98,7 @@ int main(int argc, char * const *argv)
 
     while (1) {
         int option_index = optind ? optind : 1;
-        char c = getopt_long(argc, argv, "b:B:Cd:D:e:G:hH:LMp:s:STvU:X:",
+        char c = getopt_long(argc, argv, "b:B:Cd:D:e:G:hH:LMn:p:s:STvU:X:",
                              long_options, &option_index);
         if (c == -1)
             break;
@@ -147,6 +149,9 @@ int main(int argc, char * const *argv)
             break;
         case 'M':
             usemem = 1;
+            break;
+        case 'n':
+            num_harts = strtoul(optarg, 0, 0);
             break;
 #if DEBUG_LOOP
         case 's':
@@ -247,7 +252,10 @@ int main(int argc, char * const *argv)
     fpga->memory_ready();
 
     debugLog("asserting haltreq\r\n");
-    fpga->halt();
+    for (uint32_t hart = 0; hart < num_harts; ++hart) {
+        fpga->select_hart(hart);
+        fpga->halt();
+    }
     fpga->capture_tv_info(0);
 
     debugLog("dmi state machine status %d\r\n", fpga->dmi_status());
@@ -266,28 +274,40 @@ boot:
         }
     }
 
-    // update the dpc
-    debugLog("setting pc val %08x\r\n", chosen_entry);
-    fpga->write_csr(0x7b1, chosen_entry);
-    debugLog("reading pc val %08lx\r\n", fpga->read_csr(0x7b1));
+    for (uint32_t hart = 0; hart < num_harts; ++hart) {
+        fpga->select_hart(hart);
 
-    // for loading linux, set pointer to devicetree
-    fpga->write_gpr(10, 0);
-    fpga->write_gpr(11, BOOTROM_BASE + DEVICETREE_OFFSET);
+        // update the dpc
+        debugLog("setting hart%d pc val %08x\r\n", hart, chosen_entry);
+        fpga->write_csr(0x7b1, chosen_entry);
+        debugLog("reading hart%d pc val %08lx\r\n", hart, fpga->read_csr(0x7b1));
+
+        // set a0 to mhartid (assumed to count from 0) and a1 to devicetree
+        // address
+        fpga->write_gpr(10, hart);
+        fpga->write_gpr(11, BOOTROM_BASE + DEVICETREE_OFFSET);
+    }
 
     fpga->capture_tv_info(tv);
 
     // and resume
     fpga->start_io();
-    if (!start_halted)
-      fpga->resume();
+    if (!start_halted) {
+        for (uint32_t hart = 0; hart < num_harts; ++hart) {
+            fpga->select_hart(hart);
+            fpga->resume();
+        }
+    }
+
+    fpga->select_hart(0);
     // This has to come after resume since it will take the DMI lock on behalf
     // of gdbstub and never give it up.
     if (gdb_port >= 0)
       fpga->start_gdb(gdb_port);
 
+    int exit_code;
 #if DEBUG_LOOP
-    while (1) {
+    while ((exit_code = fpga->tryjoin_io()) == EXIT_CODE_NONE) {
         fpga->halt();
         uint64_t dpc = fpga->read_csr(0x7b1);
         uint64_t ra = fpga->read_gpr(1);
@@ -312,13 +332,17 @@ boot:
 
         sleep(sleep_seconds);
     }
+#else
+    exit_code = fpga->join_io();
 #endif
 
-    int exit_code = fpga->join_io();
     if (exit_code == EXIT_CODE_RESET) {
         // Halt to quiesce the pipeline before resetting so there are no
         // outstanding AXI requests.
-        fpga->halt();
+        for (uint32_t hart = 0; hart < num_harts; ++hart) {
+            fpga->select_hart(hart);
+            fpga->halt();
+        }
         fpga->reset_halt();
         fpga->get_virtio_devices().reset();
         goto boot;

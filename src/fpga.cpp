@@ -332,7 +332,8 @@ void AWSP2_Response::console_putchar(uint64_t wdata) {
 AWSP2::AWSP2(int id, const Rom &rom, const char *tun_iface)
     : response(0), rom(rom), last_addr(0), ctrla_seen(0), sifive_test_addr(0x50000000),
       htif_enabled(0), uart_enabled(0), virtio_devices(FIRST_VIRTIO_IRQ, tun_iface),
-      pcis_dma_fd(-1), dram_mapping(0), xdma_c2h_fd(-1), xdma_h2c_fd(-1), gdb_port(-1)
+      pcis_dma_fd(-1), dram_mapping(0), xdma_c2h_fd(-1), xdma_h2c_fd(-1), gdb_port(-1),
+      stdin_stopped(false)
 {
     sem_init(&sem_dmi_response, 0, 0);
     sem_init(&sem_misc_response, 0, 0);
@@ -425,58 +426,6 @@ void AWSP2::memory_ready() {
     request->memory_ready();
 }
 
-uint64_t AWSP2::read_csr(int i) {
-    std::lock_guard<std::mutex> lock(dmi_request_mutex);
-
-    dmi_write(DM_COMMAND_REG, DM_COMMAND_ACCESS_REGISTER | (3 << 20) | (1 << 17) | i);
-    uint64_t val = dmi_read(5);
-    val <<=  32;
-    val |= dmi_read(4);
-    return val;
-}
-
-void AWSP2::write_csr(int i, uint64_t val) {
-    std::lock_guard<std::mutex> lock(dmi_request_mutex);
-
-    dmi_write(5, (val >> 32) & 0xFFFFFFFF);
-    dmi_write(4, (val >>  0) & 0xFFFFFFFF);
-    dmi_write(DM_COMMAND_REG, DM_COMMAND_ACCESS_REGISTER | (3 << 20) | (1 << 17) | (1 << 16) | i);
-}
-
-uint64_t AWSP2::read_gpr(int i) {
-    std::lock_guard<std::mutex> lock(dmi_request_mutex);
-
-    dmi_write(DM_COMMAND_REG, DM_COMMAND_ACCESS_REGISTER | (3 << 20) | (1 << 17) | 0x1000 | i);
-    uint64_t val = dmi_read(5);
-    val <<=  32;
-    val |= dmi_read(4);
-    return val;
-}
-
-void AWSP2::write_gpr(int i, uint64_t val) {
-    std::lock_guard<std::mutex> lock(dmi_request_mutex);
-
-    dmi_write(5, (val >> 32) & 0xFFFFFFFF);
-    dmi_write(4, (val >>  0) & 0xFFFFFFFF);
-    dmi_write(DM_COMMAND_REG, DM_COMMAND_ACCESS_REGISTER | (3 << 20) | (1 << 17) | (1 << 16) | 0x1000 | i);
-}
-
-// private API, should only be called with dmi_requets_mutex held
-void AWSP2::sbcs_wait() {
-    uint32_t sbcs = 0;
-    int count = 0;
-    do {
-        sbcs = dmi_read(DM_SBCS_REG);
-        count++;
-        if (sbcs & (SBCS_SBBUSYERROR)) {
-            fprintf(stderr, "ERROR: sbcs=%x\r\n", sbcs);
-        }
-        if (sbcs & (SBCS_SBBUSY)) {
-            fprintf(stderr, "BUSY sbcs=%x %d\r\n", sbcs, count);
-        }
-    } while (sbcs & (SBCS_SBBUSY));
-}
-
 void AWSP2::map_simulated_dram()
 {
     size_t dram_alloc_sz = 2 * 1024 * 1024 * 1024ul;
@@ -563,6 +512,12 @@ void AWSP2::write(uint32_t addr, uint8_t *data, size_t size) {
     }
 }
 
+void AWSP2::select_hart(uint32_t hart) {
+    std::lock_guard<std::mutex> lock(dmi_request_mutex);
+
+    dmi_write(DM_CONTROL_REG, DM_CONTROL_HARTSEL(hart) | (dmi_read(DM_CONTROL_REG) & ~DM_CONTROL_HARTSEL_MASK));
+}
+
 void AWSP2::halt(int timeout) {
     std::lock_guard<std::mutex> lock(dmi_request_mutex);
 
@@ -599,6 +554,58 @@ void AWSP2::reset_halt(int timeout) {
         if (!(status & DM_STATUS_ANYUNAVAIL))
             break;
     }
+}
+
+uint64_t AWSP2::read_csr(int i) {
+    std::lock_guard<std::mutex> lock(dmi_request_mutex);
+
+    dmi_write(DM_COMMAND_REG, DM_COMMAND_ACCESS_REGISTER | (3 << 20) | (1 << 17) | i);
+    uint64_t val = dmi_read(5);
+    val <<=  32;
+    val |= dmi_read(4);
+    return val;
+}
+
+void AWSP2::write_csr(int i, uint64_t val) {
+    std::lock_guard<std::mutex> lock(dmi_request_mutex);
+
+    dmi_write(5, (val >> 32) & 0xFFFFFFFF);
+    dmi_write(4, (val >>  0) & 0xFFFFFFFF);
+    dmi_write(DM_COMMAND_REG, DM_COMMAND_ACCESS_REGISTER | (3 << 20) | (1 << 17) | (1 << 16) | i);
+}
+
+uint64_t AWSP2::read_gpr(int i) {
+    std::lock_guard<std::mutex> lock(dmi_request_mutex);
+
+    dmi_write(DM_COMMAND_REG, DM_COMMAND_ACCESS_REGISTER | (3 << 20) | (1 << 17) | 0x1000 | i);
+    uint64_t val = dmi_read(5);
+    val <<=  32;
+    val |= dmi_read(4);
+    return val;
+}
+
+void AWSP2::write_gpr(int i, uint64_t val) {
+    std::lock_guard<std::mutex> lock(dmi_request_mutex);
+
+    dmi_write(5, (val >> 32) & 0xFFFFFFFF);
+    dmi_write(4, (val >>  0) & 0xFFFFFFFF);
+    dmi_write(DM_COMMAND_REG, DM_COMMAND_ACCESS_REGISTER | (3 << 20) | (1 << 17) | (1 << 16) | 0x1000 | i);
+}
+
+// private API, should only be called with dmi_requets_mutex held
+void AWSP2::sbcs_wait() {
+    uint32_t sbcs = 0;
+    int count = 0;
+    do {
+        sbcs = dmi_read(DM_SBCS_REG);
+        count++;
+        if (sbcs & (SBCS_SBBUSYERROR)) {
+            fprintf(stderr, "ERROR: sbcs=%x\r\n", sbcs);
+        }
+        if (sbcs & (SBCS_SBBUSY)) {
+            fprintf(stderr, "BUSY sbcs=%x %d\r\n", sbcs, count);
+        }
+    } while (sbcs & (SBCS_SBBUSY));
 }
 
 void AWSP2::irq_set_levels(uint32_t w1s)
@@ -739,6 +746,8 @@ void AWSP2::process_stdin()
     if (virtio_devices.has_virtio_console_device()) {
         close(virtio_stdio_pipe[1]);
     }
+
+    stdin_stopped = true;
 }
 
 void *AWSP2::process_stdin_thread(void *opaque)
@@ -830,6 +839,14 @@ int AWSP2::join_io()
     }
 
     return exit_code;
+}
+
+int AWSP2::tryjoin_io()
+{
+    if (!stdin_stopped)
+        return EXIT_CODE_NONE;
+
+    return join_io();
 }
 
 struct termios AWSP2::orig_stdin_termios;
